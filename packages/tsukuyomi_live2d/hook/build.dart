@@ -74,9 +74,14 @@ void main(List<String> args) async {
             ]
           : [],
       defines: {'TS_HAS_CUBISM': enabled ? '1' : '0'},
-      flags: os == OS.windows ? ['/std:c++17', '/MD'] : ['-std=c++17'],
+      flags: os == OS.windows
+          ? ['/std:c++17', '/MD']
+          : ['-std=c++17', if (os == OS.android) '-Wl,--no-undefined'],
       libraries: enabled
-          ? [os == OS.windows ? 'Live2DCubismCore_MD' : 'Live2DCubismCore']
+          ? [
+              os == OS.windows ? 'Live2DCubismCore_MD' : 'Live2DCubismCore',
+              if (os == OS.android) ...['m', 'log'],
+            ]
           : [],
       libraryDirectories: enabled
           ? [sdk.resolve(core).resolve('.').toFilePath()]
