@@ -38,9 +38,11 @@ void main(List<String> args) async {
     }
     final enabled =
         core != null && File.fromUri(sdk.resolve(core)).existsSync();
-    if (!enabled && Platform.environment['TSUKUYOMI_REQUIRE_CUBISM'] == '1') {
+    final requireCore = File.fromUri(sdk.resolve('REQUIRE_CORE'));
+    if (!enabled && requireCore.existsSync()) {
       throw StateError('Release requires Cubism Core for $os/$arch: $core');
     }
+    if (requireCore.existsSync()) output.dependencies.add(requireCore.uri);
     final sources = <String>['src/bridge.cpp'];
     if (enabled) {
       final framework = Directory.fromUri(sdk.resolve('Framework/src/'));
@@ -62,7 +64,9 @@ void main(List<String> args) async {
       language: Language.cpp,
       cppLinkStdLib: os == OS.windows
           ? null
-          : (os == OS.linux ? 'stdc++' : 'c++'),
+          : (os == OS.android
+                ? 'c++_static'
+                : (os == OS.linux ? 'stdc++' : 'c++')),
       includes: enabled
           ? [
               sdk.resolve('Core/include').toFilePath(),

@@ -2,7 +2,7 @@
 
 ## 安装
 
-- Android：安装 `android-arm64-v8a.apk`（绝大多数手机）。旧 32 位设备选 armeabi-v7a；模拟器选 x86_64。允许安装来自浏览器或文件管理器的应用。所有 APK 使用同一持久发行密钥签名，可覆盖升级本测试版。
+- Android：安装 `android-arm64-v8a.apk`（绝大多数手机）。x86_64 模拟器选择 x86_64。当前 Cubism SDK 已不提供 32 位 ARM 库，因此不发布 32 位 APK。允许安装来自浏览器或文件管理器的应用。所有 APK 使用同一持久发行密钥签名，可覆盖升级本测试版。
 - macOS：打开 DMG，将应用拖到 Applications。Universal 包同时支持 Apple Silicon 和 Intel。当前没有 Developer ID 签名和公证；首次启动可能需在“系统设置 → 隐私与安全性”允许打开此应用。无需关闭系统安全功能。
 - Windows 10/11 x64：运行 setup.exe。按当前用户安装，无需管理员权限；当前未使用商业代码签名，SmartScreen 可能显示未知发布者。便携 ZIP 解压完整目录后也可运行。
 - Linux x64：Ubuntu 22.04 及更新版本，推荐 `sudo apt install ./tsukuyomi-space-0.2.0-linux-x64.deb` 自动安装音频依赖。需桌面登录会话及 Secret Service（如已解锁的 GNOME Keyring）保存密钥。tar.gz 为便携包，依赖见仓库打包脚本。

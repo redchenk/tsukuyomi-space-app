@@ -53,6 +53,7 @@ def main():
     subprocess.run([sys.executable, str(ROOT / 'tool/setup_live2d.py'),
                     '--sdk', str(CACHE / SDK_NAME),
                     '--model', str(model / 'tsukimi-yachiyo.model3.json')], check=True)
+    (ROOT / 'packages/tsukuyomi_live2d/vendor/cubism/REQUIRE_CORE').write_text('Release builds must include Cubism Core.\n')
     print('Verified Cubism SDK and character assets are ready for release.')
 
 if __name__ == '__main__':

@@ -11,7 +11,6 @@ concurrency:
 env:
   FLUTTER_VERSION: '3.47.5'
   APP_VERSION: '0.2.0'
-  TSUKUYOMI_REQUIRE_CUBISM: '1'
 jobs:
   build:
     strategy:
@@ -109,13 +108,14 @@ jobs:
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
           chmod 600 "$ANDROID_KEYSTORE_PATH"
           trap 'rm -f "$ANDROID_KEYSTORE_PATH"' EXIT
-          flutter build apk --release --split-per-abi
+          flutter build apk --release --split-per-abi --target-platform android-arm64,android-x64
           mkdir -p dist
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
-          for abi in arm64-v8a armeabi-v7a x86_64; do
+          for abi in arm64-v8a x86_64; do
             "$APKSIGNER" verify --verbose "build/app/outputs/flutter-apk/app-$abi-release.apk"
             cp "build/app/outputs/flutter-apk/app-$abi-release.apk" "dist/tsukuyomi-space-$APP_VERSION-android-$abi.apk"
           done
+          python tool/release/verify_apks.py dist/*.apk
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.target }}
@@ -140,7 +140,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          test "$(find dist -name '*.apk' | wc -l)" -eq 3
+          test "$(find dist -name '*.apk' | wc -l)" -eq 2
           test "$(find dist -name '*.dmg' | wc -l)" -eq 1
           test "$(find dist -name '*setup.exe' | wc -l)" -eq 1
           test "$(find dist -name '*.deb' | wc -l)" -eq 1
