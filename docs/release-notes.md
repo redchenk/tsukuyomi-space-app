@@ -1,19 +1,21 @@
-可安装的 Flutter 原生房间验证版，沿用网站的桌面/移动端布局，内置月见八千代 Live2D，保留眨眼白闪修复。
+Flutter 原生核心应用验证版，直接连接原网站账号与数据，保留 OpenAI 兼容 LLM / TTS 配置与真实调用。
 
-- 支持直接调用 OpenAI 兼容 LLM：自定义 Base URL、模型、Key，流式回复与 JSON 返回，独立连接测试。
-- 支持 OpenAI 兼容 TTS：独立地址、模型、音色、Key，WAV / MP3、试听、自动朗读与停止/重播；16-bit PCM WAV 支持口型。
-- Key 使用系统安全存储，重启保留配置。没有内置共享 API Key，需要填写你自己的服务。
+- **Live2D**：修复 Android 原生库遗漏系统链接库导致模型无法加载。Android 与 iOS 模拟器均验证 409 网格、2 纹理及动画。桌面按 vsync 更新，缓存纹理并缩小遮罩离屏区域；本机 Mac Release 动画基准约 21fps → 60fps，眨眼透明度像素回归通过。
+- **原生核心页面**：密码及验证码登录、注册与重设密码，Room、会话与记忆、文章阅读、广场、成长、个人中心和通知。桌面文章横排、手机纵排，复用网站场景与内容素材。
+- **网站同步与恢复**：真实网站 API；账号隔离缓存、草稿恢复、401 重新登录后补传、稳定 turnId 去重、前台同步重试。记忆检索进入 LLM 上下文；留言不盲目自动重发。
+- **iOS**：新增未签名 iPhoneOS arm64 IPA，供用户自签，不包含证书或描述文件。
 
 | 平台 | 下载文件 |
 | --- | --- |
 | Android 常见手机 | `android-arm64-v8a.apk` |
 | Android x86_64 模拟器 | `android-x86_64.apk` |
+| iPhone / iPad 自签 | `ios-arm64-unsigned.ipa` |
 | macOS Apple Silicon + Intel | `macos-universal.dmg` |
-| Windows 10/11 x64 | `windows-x64-setup.exe` 或便携 ZIP |
+| Windows 10/11 x64 | `windows-x64-setup.exe` 或 ZIP |
 | Ubuntu 22.04+ x64 | `linux-x64.deb` 或 tar.gz |
 
-安装后：设置 → 关闭离线演示 → 配置模型并测试连接 → 开启语音、配置 TTS 并试听 → 保存。模型和语音 Key 需要分别填写。
+首次使用：设置 → 关闭离线演示 → 分别填写模型和语音的接口、模型、Key → 测试连接与试听 → 保存。网站登录与模型服务是独立配置，安装包不含共享 Key。
 
-macOS 暂无 Developer ID 签名/公证，Windows 暂无代码签名，首次启动可能出现系统来源提示；Android APK 使用持久发行密钥签名。iOS 按当前计划暂不发布；当前 Cubism SDK 不支持 32 位 ARM，因此不发布旧 32 位 Android 包。
+安装说明见 **INSTALL.md**，校验和见 **SHA256SUMS.txt**。macOS / Windows 暂无发行商签名；Android 使用持久发行密钥。iOS 需签名后才能安装，尚未做已签名真机验收。
 
-完整安装说明和验证步骤见附件 **INSTALL.md**；校验和见 **SHA256SUMS.txt**。本版仍是验证版：CI 验证真实原生模型、协议和各平台 Release 构建；外部付费服务及各设备音频表现由实际账号和设备验收。
+本版支持上述核心链路；QQ OAuth、头像上传、投稿编辑器、百科、图库、游戏、系统推送等仍使用网站或留待后续。外部付费 LLM/TTS 音色和各手机 GPU 表现仍需要使用实际账号与设备验证。

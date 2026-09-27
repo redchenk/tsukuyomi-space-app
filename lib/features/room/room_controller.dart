@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
@@ -16,6 +17,12 @@ class RoomController extends ChangeNotifier {
     required this.voice,
   }) {
     voice.addListener(_changed);
+    if (site is SiteClient) {
+      (site as SiteClient).onUnauthorized = expireSession;
+      (site as SiteClient).onReaderCookie = (origin, value) {
+        unawaited(storage.writeSecret('reader.$origin', value));
+      };
+    }
   }
   final RoomStorage storage;
   final ChatService chat;
@@ -53,21 +60,70 @@ class RoomController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
+  String get _accountKey => 'account.${endpointUri(settings.siteUrl).origin}';
+  Timer? _retry;
+  void expireSession() {
+    if (account == null || sessionExpired) return;
+    sessionExpired = true;
+    syncStatus = '登录已过期，请重新登录；本机内容已保留';
+    unawaited(storage.writeSecret(_sessionKey, null));
+    _changed();
+  }
+
+  void _startRetry() {
+    _retry?.cancel();
+    if (account == null || settings.demo || _disposed) return;
+    _retry = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!generating && !busy) unawaited(sync());
+    });
+  }
+
+  Future<void> saveComposerDraft(String value) async {
+    if (generating || busy || loading) return;
+    draft = value;
+    await storage.saveDraft(scope, value);
+  }
+
+  Future<void> _rememberAccount() async {
+    await storage.saveDraft(
+      _accountKey,
+      account == null
+          ? ''
+          : jsonEncode({'id': account!.id, 'username': account!.username}),
+    );
+  }
+
   Future<void> initialize() async {
     try {
       settings = await storage.settings();
-      if (!settings.demo && !kIsWeb) {
+      if (site is SiteClient) {
+        final origin = endpointUri(settings.siteUrl).origin;
+        final reader = await storage.readSecret('reader.$origin');
+        if (reader != null) (site as SiteClient).readerCookies[origin] = reader;
+      }
+      if (!kIsWeb) {
+        final hint = await storage.draft(_accountKey);
+        if (hint.isNotEmpty) {
+          try {
+            final j = jsonDecode(hint);
+            account = Account(j['id'], j['username']);
+          } catch (_) {}
+        }
         site.cookie = await storage.readSecret(_sessionKey);
+        await _loadScope();
+        _changed();
         if (site.cookie != null) {
           try {
             account = await site.me(settings.siteUrl);
+            await _rememberAccount();
           } on ApiFailure catch (e) {
             if (e.status == 401 || e.status == 403) {
-              site.cookie = null;
-              await storage.writeSecret(_sessionKey, null);
+              expireSession();
             }
             error = e.message;
           }
+        } else if (account != null) {
+          sessionExpired = true;
         }
       }
       await _loadScope();
@@ -76,6 +132,7 @@ class RoomController extends ChangeNotifier {
       error = '无法读取本地设置或安全存储，请检查系统密钥环';
     } finally {
       loading = false;
+      _startRetry();
       _changed();
     }
   }
@@ -130,6 +187,7 @@ class RoomController extends ChangeNotifier {
         sessionExpired = false;
       }
       await _loadScope();
+      _startRetry();
       error = '';
     } finally {
       busy = false;
@@ -137,7 +195,12 @@ class RoomController extends ChangeNotifier {
     }
   }
 
-  Future<void> login(String username, String password) async {
+  Future<void> login(
+    String username,
+    String password, {
+    Map<String, dynamic>? credentials,
+    String authPath = '/api/auth/login',
+  }) async {
     if (generating || busy || _syncing) {
       throw const ApiFailure('请等待当前操作完成');
     }
@@ -147,9 +210,16 @@ class RoomController extends ChangeNotifier {
     _changed();
     try {
       await voice.stop();
-      final user = await site.login(settings.siteUrl, username, password);
+      final user = credentials != null && site is SiteClient
+          ? await (site as SiteClient).authenticate(
+              settings.siteUrl,
+              credentials,
+              path: authPath,
+            )
+          : await site.login(settings.siteUrl, username, password);
       await storage.writeSecret(_sessionKey, site.cookie);
       account = user;
+      await _rememberAccount();
       sessionExpired = false;
       await _loadScope();
     } catch (_) {
@@ -159,6 +229,7 @@ class RoomController extends ChangeNotifier {
       busy = false;
       _changed();
     }
+    _startRetry();
     if (!settings.demo) await sync();
   }
 
@@ -178,6 +249,7 @@ class RoomController extends ChangeNotifier {
       site.cookie = null;
       await storage.writeSecret(_sessionKey, null);
       account = null;
+      await _rememberAccount();
       sessionExpired = false;
       await _loadScope();
     } finally {
@@ -205,6 +277,34 @@ class RoomController extends ChangeNotifier {
     try {
       await storage.saveDraft(targetScope, text);
       await voice.stop();
+      if (generation != _generation || _disposed) return;
+      if (chat is LlmClient) {
+        (chat as LlmClient).memoryContext = '';
+        if (!settings.demo &&
+            account != null &&
+            !sessionExpired &&
+            site is SiteDataService) {
+          try {
+            final result = await (site as SiteDataService).request(
+              settings.siteUrl,
+              'GET',
+              '/api/room/memory?purpose=chat&limit=6&q=${Uri.encodeQueryComponent(text)}',
+            );
+            if (generation != _generation || _disposed) return;
+            final memories = (result['data'] as List? ?? [])
+                .map(
+                  (m) =>
+                      '${m['context'] ?? m['content'] ?? m['summary'] ?? ''}',
+                )
+                .where((m) => m.isNotEmpty);
+            (chat as LlmClient).memoryContext = memories
+                .join('\n')
+                .substring(0, memories.join('\n').length.clamp(0, 8000));
+          } catch (_) {
+            syncStatus = '记忆暂不可用，本轮仍可对话';
+          }
+        }
+      }
       if (generation != _generation || _disposed) return;
       await for (final delta in chat.reply(
         settings,
@@ -307,9 +407,7 @@ class RoomController extends ChangeNotifier {
     } catch (e) {
       syncStatus = pendingCount > 0 ? '$pendingCount 轮等待重试' : '离线，保留本地记录';
       if (e is ApiFailure && (e.status == 401 || e.status == 403)) {
-        sessionExpired = true;
-        site.cookie = null;
-        await storage.writeSecret(_sessionKey, null);
+        expireSession();
         syncStatus = '登录已过期，请重新登录';
       }
     } finally {
@@ -319,16 +417,19 @@ class RoomController extends ChangeNotifier {
   }
 
   void pause() {
+    _retry?.cancel();
     stop();
   }
 
   void resume() {
+    _startRetry();
     unawaited(sync());
   }
 
   @override
   void dispose() {
     _disposed = true;
+    _retry?.cancel();
     _generation++;
     chat.cancel();
     site.dispose();

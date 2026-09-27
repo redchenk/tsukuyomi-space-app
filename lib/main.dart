@@ -9,6 +9,7 @@ import 'core/voice_service.dart';
 import 'features/room/room_controller.dart';
 import 'features/room/room_page.dart';
 import 'features/room/room_style.dart';
+import 'features/site/site_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -72,11 +73,20 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
         behavior: SnackBarBehavior.floating,
       ),
     ),
+    onGenerateRoute: (settings) => MaterialPageRoute<void>(
+      settings: settings,
+      builder: (_) => SitePage(
+        controller: widget.controller,
+        path: settings.name ?? '/stage',
+        onTheme: () => setState(() => _dark = !_dark),
+      ),
+    ),
     home: Builder(
       builder: (context) => DefaultTextStyle.merge(
         style: TextStyle(color: RoomStyle(context).ink),
         child: RoomPage(
           controller: widget.controller,
+          onNavigate: (path) => Navigator.of(context).pushNamed(path),
           loadNative: widget.loadNative,
           modelLoader: widget.modelLoader,
           onToggleTheme: () => setState(() => _dark = !_dark),

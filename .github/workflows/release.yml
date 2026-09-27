@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 env:
   FLUTTER_VERSION: '3.47.5'
-  APP_VERSION: '0.2.0'
+  APP_VERSION: '0.3.0'
 jobs:
   build:
     strategy:
@@ -19,6 +19,8 @@ jobs:
         include:
           - os: macos-15
             target: macos
+          - os: macos-15
+            target: ios
           - os: windows-2022
             target: windows
           - os: ubuntu-22.04
@@ -57,7 +59,7 @@ jobs:
         run: python tool/release/prepare_assets.py
       - run: flutter pub get
       - name: Analyze and test including the real Cubism model
-        if: matrix.target != 'android'
+        if: matrix.target != 'android' && matrix.target != 'ios'
         run: |
           flutter analyze
           flutter test --dart-define=RUN_CUBISM_TESTS=true
@@ -74,6 +76,11 @@ jobs:
           ln -s /Applications build/dmg/Applications
           hdiutil create -volname 'Tsukuyomi Space' -srcfolder build/dmg -ov -format UDZO "dist/tsukuyomi-space-$APP_VERSION-macos-universal.dmg"
           hdiutil verify "dist/tsukuyomi-space-$APP_VERSION-macos-universal.dmg"
+      - name: Build unsigned iPhoneOS IPA for self-signing
+        if: matrix.target == 'ios'
+        run: |
+          flutter build ios --release --no-codesign
+          python3 tool/release/package_ios.py
       - name: Build Windows release
         if: matrix.target == 'windows'
         run: flutter build windows --release
@@ -122,9 +129,12 @@ jobs:
           path: dist/*
           if-no-files-found: error
           retention-days: 14
+  native-smoke:
+    uses: ./.github/workflows/mobile-native.yml
+    secrets: inherit
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, native-smoke]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -142,6 +152,7 @@ jobs:
         run: |
           test "$(find dist -name '*.apk' | wc -l)" -eq 2
           test "$(find dist -name '*.dmg' | wc -l)" -eq 1
+          test "$(find dist -name '*.ipa' | wc -l)" -eq 1
           test "$(find dist -name '*setup.exe' | wc -l)" -eq 1
           test "$(find dist -name '*.deb' | wc -l)" -eq 1
           cp docs/release-guide.md dist/INSTALL.md

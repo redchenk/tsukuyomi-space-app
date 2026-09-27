@@ -1,3 +1,5 @@
+> 本文为早期样机记录。当前 0.3.0 状态以 [核心验证记录](core-validation.md)、[安装说明](release-guide.md) 和仓库根目录 `design-qa.md` 为准。
+
 # 技术样机验证记录
 
 日期：2026-09-27。范围：独立 Flutter Room 客户端，复用现有网站账号与会话接口。

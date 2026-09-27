@@ -10,6 +10,7 @@ import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
 import '../../core/models.dart';
 import '../../live2d/character_stage.dart';
 import '../settings/settings_dialog.dart';
+import '../site/login_dialog.dart';
 import 'room_controller.dart';
 import 'room_panels.dart';
 import 'room_style.dart';
@@ -25,8 +26,10 @@ class RoomPage extends StatefulWidget {
     this.loadNative = true,
     this.onToggleTheme,
     this.modelLoader,
+    this.onNavigate,
   });
   final RoomController controller;
+  final ValueChanged<String>? onNavigate;
   final bool loadNative;
   final VoidCallback? onToggleTheme;
   final Future<Live2DModel> Function()? modelLoader;
@@ -117,11 +120,31 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
   }
 
   void _settings() => unawaited(showRoomSettings(context, c));
-  void _account() => unawaited(showAccountDialog(context, c));
+  void _account() {
+    if (c.account != null && !c.sessionExpired && widget.onNavigate != null) {
+      widget.onNavigate!('/user');
+    } else {
+      unawaited(showSiteLogin(context, c));
+    }
+  }
+
   void _notice(String message) =>
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message)));
   Future<void> _website(String path) async {
+    if (widget.onNavigate != null &&
+        [
+          '/stage',
+          '/plaza',
+          '/growth',
+          '/user',
+          '/conversations',
+          '/notifications',
+          '/hub',
+        ].contains(path)) {
+      widget.onNavigate!(path == '/hub' ? '/stage' : path);
+      return;
+    }
     try {
       final uri = endpointUri(c.settings.siteUrl).resolve(path);
       if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
@@ -173,10 +196,16 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
       ],
     ),
   );
-  void _selectPanel(String panel) => setState(() {
-    _panel = panel;
-    _quiet = false;
-  });
+  void _selectPanel(String panel) {
+    if (panel == '日记' && widget.onNavigate != null) {
+      widget.onNavigate!('/conversations?tab=diary');
+      return;
+    }
+    setState(() {
+      _panel = panel;
+      _quiet = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -340,7 +369,8 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
               '中枢': '/hub',
               '舞台': '/stage',
               '广场': '/plaza',
-              '百科': '/wiki',
+              '成长': '/growth',
+              '记忆': '/conversations',
             }.entries)
               TextButton(
                 onPressed: () => _website(entry.value),
@@ -454,9 +484,10 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
         '中枢': '/hub',
         '主舞台': '/stage',
         '月读广场': '/plaza',
-        '百科': '/wiki',
+        '成长': '/growth',
+        '记忆': '/conversations',
       }.entries)
-        PopupMenuItem(value: e.value, child: Text('${e.key} · 网站')),
+        PopupMenuItem(value: e.value, child: Text(e.key)),
       const PopupMenuDivider(),
       const PopupMenuItem(value: 'theme', child: Text('切换浅色 / 深色')),
       const PopupMenuItem(value: 'settings', child: Text('房间设置')),
@@ -736,7 +767,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     return Column(
       children: [
         Expanded(
-          child: c.loading
+          child: c.loading && turns.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : turns.isEmpty && !c.generating
               ? _welcome(mobile: mobile, short: short || keyboard)
@@ -1021,6 +1052,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
         },
         child: TextField(
           key: const Key('message-input'),
+          onChanged: (value) => c.saveComposerDraft(value),
           controller: _input,
           focusNode: _focus,
           enabled: !c.loading && !c.busy,

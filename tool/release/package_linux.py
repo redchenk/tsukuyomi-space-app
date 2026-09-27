@@ -4,7 +4,7 @@ from pathlib import Path
 import shutil
 import subprocess
 root = Path(__file__).resolve().parents[2]
-version = os.environ.get('APP_VERSION', '0.2.0')
+version = os.environ.get('APP_VERSION', '0.3.0')
 dist = root / 'dist'
 dist.mkdir(exist_ok=True)
 pkg = root / 'build/deb'

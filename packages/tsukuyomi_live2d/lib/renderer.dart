@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -11,6 +12,33 @@ import 'model.dart';
 class Live2DPainter extends CustomPainter {
   Live2DPainter(this.model) : super(repaint: model);
   final Live2DModel model;
+  late final _shaders = [
+    for (final image in model.textures)
+      ImageShader(
+        image,
+        TileMode.clamp,
+        TileMode.clamp,
+        _identity,
+        filterQuality: FilterQuality.low,
+      ),
+  ];
+  // A full-character saveLayer for each eyelash/eye mesh is extremely costly.
+  // Clip to the actual drawable while retaining a pixel gutter for filtering.
+  Rect _meshBounds(LiveMesh mesh, double scale) {
+    var left = double.infinity,
+        top = double.infinity,
+        right = -double.infinity,
+        bottom = -double.infinity;
+    for (var i = 0; i < mesh.positions.length; i += 2) {
+      final x = mesh.positions[i], y = -mesh.positions[i + 1];
+      left = math.min(left, x);
+      right = math.max(right, x);
+      top = math.min(top, y);
+      bottom = math.max(bottom, y);
+    }
+    return Rect.fromLTRB(left, top, right, bottom).inflate(2 / scale);
+  }
+
   static final _identity = Float64List.fromList([
     1,
     0,
@@ -42,7 +70,6 @@ class Live2DPainter extends CustomPainter {
       size.height / 2 - bounds.center.dy * scale,
     );
     canvas.scale(scale);
-    final clipBounds = bounds.inflate(bounds.longestSide * .05);
     final sorted = List<int>.generate(model.meshes.length, (i) => i)
       ..sort((a, b) => model.meshes[a].order.compareTo(model.meshes[b].order));
     for (final i in sorted) {
@@ -56,6 +83,9 @@ class Live2DPainter extends CustomPainter {
       if (mesh.masks.isEmpty) {
         _draw(canvas, mesh, blend);
       } else {
+        final clipBounds = _meshBounds(mesh, scale);
+        canvas.save();
+        canvas.clipRect(clipBounds);
         canvas.saveLayer(clipBounds, Paint()..blendMode = blend);
         _draw(canvas, mesh, BlendMode.srcOver);
         canvas.saveLayer(
@@ -70,6 +100,7 @@ class Live2DPainter extends CustomPainter {
             _draw(canvas, model.meshes[mask], BlendMode.srcOver, mask: true);
           }
         }
+        canvas.restore();
         canvas.restore();
         canvas.restore();
       }
@@ -110,13 +141,7 @@ class Live2DPainter extends CustomPainter {
       // Metal vertices path, alpha inside a matrix color filter can produce
       // over-bright additive eye highlights as their opacity animates.
       ..color = Colors.white.withValues(alpha: mask ? 1 : mesh.opacity)
-      ..shader = ImageShader(
-        image,
-        TileMode.clamp,
-        TileMode.clamp,
-        _identity,
-        filterQuality: FilterQuality.medium,
-      );
+      ..shader = _shaders[mesh.texture];
     final m = mesh.multiply, s = mesh.screen;
     // A mask only contributes texture alpha; tinting it white is unnecessary.
     if (!mask &&

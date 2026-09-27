@@ -1,8 +1,8 @@
 # 月读空间 · Flutter 原生客户端
 
-Tsukuyomi Space 的独立 Flutter 客户端。当前聚焦 **Room：原生 Live2D → 流式对话 → WAV 语音与口型 → 本地保存和账号会话同步**。
+Tsukuyomi Space 的独立 Flutter 客户端。0.3.0 提供原生 Room、登录、会话与记忆、文章阅读、广场、成长和个人中心，直接连接原网站 API。
 
-下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。0.2.0 验证版提供 Android APK、macOS Universal DMG、Windows 安装程序和 Linux DEB。
+下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。0.3.0 提供 Android APK、macOS Universal DMG、Windows 安装程序、Linux DEB 和供用户自签的 iOS IPA。
 
 默认进入明确标记的离线演示模式。演示回复来自本地固定文本，不会请求 AI 或上传会话。连接真实服务需在「房间设置」填写模型地址并关闭演示模式。
 
@@ -12,7 +12,7 @@ Room 按 [现有网站](https://yachiyo.hk/room) 的桌面和手机版分别实�
 
 - **桌面（宽度 > 860）**：顶部导航、左侧角色舞台、右侧聊天工作区，包含聊天／日记／资料／便签标签、快捷话题和输入框。
 - **移动端（宽度 ≤ 860）**：全屏角色场景，顶部悬浮导航与房间工具，底部叠加聊天和胶囊输入框；弹出键盘时输入框上移，保持场景完整。
-- 聊天、历史搜索、新建会话、资料、本机便签、明暗主题、表情和安静陪伴可操作。导航中的其他页面、日记和音乐通过明确入口打开网站；图片聊天暂不可用。
+- 聊天、历史搜索、新建会话、资料、本机便签、明暗主题、表情和安静陪伴可操作。核心导航和云端日记在应用内打开；投稿编辑器、百科、图库、游戏和音乐等扩展功能仍通过网站打开，图片聊天暂不可用。
 
 新建会话会清空本次模型上下文，保留所有已保存的历史。会话分界目前只在本次运行有效，重启或切换账号后重新显示该范围的历史。便签需点击保存，仅存本机，与聊天草稿分开。
 
@@ -27,7 +27,7 @@ flutter pub get
 flutter run -d macos
 ```
 
-首次克隆不包含 Cubism SDK 和角色模型，仍可运行界面和对话功能，角色区域会标记为 `PREVIEW`。Web 仅作为界面预览，不提供 Cubism Native 或站点账号登录。
+首次克隆不包含 Cubism SDK 和角色模型，仍可运行界面和对话功能，角色区域会明确显示模型载入失败和重试入口。Web 仅作为界面预览，不提供 Cubism Native 或站点账号登录。
 
 macOS 调试通过 Swift Package Manager 集成插件。iOS 需要相应 Xcode SDK，Android 需要 Android SDK/NDK。Windows 和 Linux 在各自系统构建。
 
@@ -47,7 +47,7 @@ flutter run -d macos
 
 脚本仅复制文件到本项目，不修改来源。SDK 放在 `packages/tsukuyomi_live2d/vendor/cubism/`，模型放在 `assets/live2d/`，二者均被 Git 忽略。更改 SDK 是否存在后必须执行 `flutter clean`，使原生构建钩子重新检测。
 
-加载成功后「角色状态」显示 `Cubism Native`，支持注视、眨眼、呼吸、模型物理、表情和口型。信息按钮显示网格数量及最近一次模型更新耗时；该耗时**不代表 GPU 绘制时间或实际帧率**。样机将模型更新限制为 30 Hz，切到后台暂停。
+加载成功后「角色状态」显示 `Cubism Native`，支持注视、眨眼、呼吸、模型物理、表情和口型。信息按钮显示网格数量及最近一次模型更新耗时；该耗时**不代表 GPU 绘制时间或实际帧率**。模型更新跟随屏幕刷新，切到后台暂停；纹理着色器缓存复用，遮罩按网格边界裁剪。当前 Mac Release 基准的动画更新约 21fps → 60fps，数值不代表所有设备。
 
 当前实现采用 **Cubism Native Core + Native Framework 物理计算，Flutter Canvas 绘制纹理三角网格**。没有 WebView、JavaScript 引擎或假角色动画。它用于验证模型与 Flutter 的原生数据链路；不是 Cubism 官方 GPU renderer 的直接封装。
 
@@ -70,7 +70,7 @@ TTS 支持 `response_format: wav` 或 `mp3`，设置中可独立试听。WAV 分
 
 ## 登录与同步
 
-设置中的站点默认 `https://yachiyo.hk`。保存设置后，通过右上角登录现有账号；样机只实现用户名/邮箱 + 密码，未实现 QQ OAuth、注册或密码找回。
+设置中的站点默认 `https://yachiyo.hk`。支持用户名/邮箱 + 密码、邮箱验证码、注册和密码重设。QQ OAuth 尚未接入原生客户端。
 
 客户端兼容目前网站的 HttpOnly Cookie 会话，原生 HTTP 客户端持有 Cookie；写请求按当前服务契约发送 `Origin` 和 `X-Requested-With`。不会修改原网站后端，也不会把登录 Cookie 发给模型/TTS 服务。会话到期需要重新登录，尚无 refresh-token 接口。
 
@@ -82,9 +82,13 @@ TTS 支持 `response_format: wav` 或 `mp3`，设置中可独立试听。WAV 分
 | `GET /api/room/chat?limit=100` | 拉取完整问答轮次 |
 | `POST /api/room/chat/turn` | 用稳定 `turnId` 幂等保存一轮对话，`memoryEnabled: true` |
 
-先将完整轮次写入本地，再上传；失败轮次留在对应账号的待同步队列。启动、手动刷新、完成对话及返回前台时同步。演示/访客/站点/账号使用不同缓存范围，不自动导入访客历史。服务器是已同步历史的准源，其他设备的删除和修改会在下次同步反映。
+先将完整轮次写入本地，再上传；失败轮次留在对应账号的待同步队列。启动、手动刷新、完成对话、返回前台及前台每 30 秒重试同步。演示/访客/站点/账号使用不同缓存范围，不自动导入访客历史。服务器是已同步历史的准源，其他设备的删除和修改会在下次同步反映。
 
-长期记忆**捕获**由现有后端处理；样机尚未接入记忆检索注入、站点 SSE 实时订阅、站内推送、图片聊天或日记。
+长期记忆捕获由现有后端处理；发送前检索网站记忆并注入本轮模型上下文。支持记忆检索、新增、编辑、删除及云端日记分页阅读。站点 SSE 实时订阅、系统推送和图片聊天尚未接入。
+
+文章支持搜索、分类、排序、分页、HTML / Markdown 阅读、评论、点赞、收藏与前台有效阅读计数。广场支持留言、回复、点赞、检索及筛选；成长支持签到、任务、等级路径、邀请分享和记录；个人中心支持简介编辑、文章、留言、收藏、通知。
+
+GET 数据按站点和账号缓存；弱网显示上次内容并提供重试。401 不会丢弃本机账号范围、草稿和待同步轮次，重新登录同一账号后继续同步。留言、回复等非幂等写操作不自动重复提交。
 
 API Key 与会话 Cookie 使用系统安全存储；设置和会话缓存使用本地 preferences。macOS 直接分发版使用系统登录 Keychain，兼容 ad-hoc 签名。密码只用于当前登录请求，不持久化。
 
@@ -117,6 +121,7 @@ flutter build web
 lib/core/                  HTTP、SSE、音频、凭据与缓存
 lib/features/room/         Room 状态与响应式界面
 lib/features/settings/     模型、TTS 与账号设置
+lib/features/site/         原生登录与网站核心页面
 lib/live2d/                角色场景和应用生命周期
 packages/tsukuyomi_live2d/  Native build hook、C++ ABI、Dart FFI、Flutter renderer
 test/                      传输、状态、布局与真实模型测试

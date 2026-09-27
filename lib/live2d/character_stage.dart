@@ -48,12 +48,12 @@ class _CharacterStageState extends State<CharacterStage>
         return;
       }
       final delta = (elapsed - _last).inMicroseconds / 1000000;
-      if (delta < 1 / 30) return;
+      if (delta <= 0) return;
       _last = elapsed;
       _seconds += delta;
       _model?.tick(
         _seconds,
-        delta,
+        delta.clamp(0, .05),
         mouth: widget.voice.mouth,
         lookX: _x,
         lookY: _y,
@@ -64,6 +64,7 @@ class _CharacterStageState extends State<CharacterStage>
   }
 
   Future<void> _load() async {
+    setState(() => _failure = null);
     try {
       final model = await (widget.modelLoader ?? loadLive2D)();
       if (!mounted) {
@@ -112,14 +113,22 @@ class _CharacterStageState extends State<CharacterStage>
       title: const Text('角色状态'),
       content: Text(
         _model == null
-            ? (_failure ?? 'PREVIEW · 当前为角色插画，原生模型尚未加载。')
-            : 'Cubism Native · ${_model!.meshes.length} 个网格\n最近模型更新 ${_model!.updateMilliseconds.toStringAsFixed(1)} ms\n更新上限 30 Hz，此数值不包含 GPU 绘制耗时。',
+            ? (_failure ?? '正在载入原生 Live2D 模型…')
+            : 'Cubism Native · ${_model!.meshes.length} 个网格\n最近模型更新 ${_model!.updateMilliseconds.toStringAsFixed(1)} ms\n跟随屏幕刷新率，此数值不包含 GPU 绘制耗时。',
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('关闭'),
         ),
+        if (_failure != null)
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _load();
+            },
+            child: const Text('重新载入'),
+          ),
       ],
     ),
   );
@@ -347,7 +356,11 @@ class _CharacterStageState extends State<CharacterStage>
                     if (mobile) ...[
                       const SizedBox(height: 7),
                       Text(
-                        _model == null ? '角色预览 · PREVIEW' : '在这里，陪着你',
+                        _model == null
+                            ? (_failure == null
+                                  ? '正在载入 Live2D…'
+                                  : 'Live2D 载入失败')
+                            : '在这里，陪着你',
                         style: const TextStyle(
                           fontSize: 10,
                           color: Color(0xfff5f1fa),
@@ -361,12 +374,15 @@ class _CharacterStageState extends State<CharacterStage>
                 ),
               ),
             if (!mobile && _model == null)
-              const Positioned(
+              Positioned(
                 right: 26,
                 top: 68,
-                child: Text(
-                  'PREVIEW',
-                  style: TextStyle(fontSize: 9, color: Colors.white70),
+                child: TextButton(
+                  onPressed: _failure == null ? null : _load,
+                  child: Text(
+                    _failure == null ? 'Live2D 载入中…' : '载入失败 · 重试',
+                    style: const TextStyle(fontSize: 11, color: Colors.white),
+                  ),
                 ),
               ),
           ],

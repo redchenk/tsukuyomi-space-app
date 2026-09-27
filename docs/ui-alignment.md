@@ -1,3 +1,5 @@
+> 本文为早期样机记录。当前 0.3.0 状态以 [核心验证记录](core-validation.md)、[安装说明](release-guide.md) 和仓库根目录 `design-qa.md` 为准。
+
 # Room 双端 UI 对齐
 
 2026-09-27，以 https://yachiyo.hk/room 的实际桌面和移动界面为参照。实现使用 Flutter widgets 与既有 Cubism Native 场景，未嵌入网站。原网站仓库未修改。
