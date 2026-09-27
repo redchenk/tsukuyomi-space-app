@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 
 import 'models.dart';
 import 'tts_client.dart';
+import 'speech_source.dart';
 
 class WavEnvelope {
   WavEnvelope(this.levels, this.duration);
@@ -95,6 +96,7 @@ class AudioVoice extends VoiceService {
   Duration _position = Duration.zero;
   WavEnvelope? _envelope;
   final _tts = TtsClient();
+  SpeechSource? _source;
   int _generation = 0;
   bool _disposed = false;
   @override
@@ -136,6 +138,8 @@ class AudioVoice extends VoiceService {
     _clock.stop();
     _envelope = null;
     await _player.stop();
+    await _source?.dispose();
+    _source = null;
     if (!_disposed) notifyListeners();
   }
 
@@ -157,7 +161,14 @@ class AudioVoice extends VoiceService {
     _position = Duration.zero;
     _clock.reset();
     try {
-      await _player.play(BytesSource(audio.bytes, mimeType: audio.mimeType));
+      final source = SpeechSource();
+      final prepared = await source.prepare(audio.bytes, audio.format);
+      if (generation != _generation || _disposed) {
+        await source.dispose();
+        return;
+      }
+      _source = source;
+      await _player.play(prepared);
     } catch (_) {
       throw const ApiFailure('音频已生成但无法播放，请切换 WAV / MP3 格式后重试');
     }
@@ -171,7 +182,12 @@ class AudioVoice extends VoiceService {
     for (final subscription in _subscriptions) {
       unawaited(subscription.cancel());
     }
-    unawaited(_player.dispose());
+    unawaited(
+      _player.dispose().whenComplete(() async {
+        await _source?.dispose();
+        _source = null;
+      }),
+    );
     super.dispose();
   }
 }

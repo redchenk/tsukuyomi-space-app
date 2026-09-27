@@ -31,3 +31,7 @@
 - 移动端键盘弹出、桌面调整窗口、登录同步及离线重新打开。
 
 发布检查包括自动化协议测试、原生模型加载、各平台 Release 编译和安装包结构检查。外部付费 LLM/TTS 的账号、模型权限及设备声卡环境，需使用你的实际服务和设备验收；本次没有内置或借用生产凭据。
+
+## 开发者复现原生服务验收
+
+终端 1 启动 `python3 tool/release/smoke_server.py`；终端 2 执行 `flutter run -d macos --release -t tool/verify_native_services.dart`。此检查只使用回环接口和独立临时测试键，验证 Release 安全存储、HTTP 中文 SSE、WAV 播放完成及口型包络。服务端返回测试文本与短音调，不代表外部模型质量测试。完成后重新用 `lib/main.dart` 构建正式房间。
