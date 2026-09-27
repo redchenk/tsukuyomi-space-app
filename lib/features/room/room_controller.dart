@@ -33,9 +33,16 @@ class RoomController extends ChangeNotifier {
   int _generation = 0;
   bool _disposed = false, _syncing = false;
   DateTime? _conversationStart;
+  Set<String> _previousConversationIds = {};
   List<ChatTurn> get visibleTurns => _conversationStart == null
       ? turns
-      : turns.where((t) => !t.createdAt.isBefore(_conversationStart!)).toList();
+      : turns
+            .where(
+              (t) =>
+                  !_previousConversationIds.contains(t.id) &&
+                  !t.createdAt.isBefore(_conversationStart!),
+            )
+            .toList();
   String get scope => settings.demo
       ? 'demo'
       : '${endpointUri(settings.siteUrl).origin}:${account?.id ?? 'guest'}';
@@ -75,6 +82,7 @@ class RoomController extends ChangeNotifier {
 
   Future<void> _loadScope() async {
     _conversationStart = null;
+    _previousConversationIds = {};
     turns = await storage.history(scope);
     draft = await storage.draft(scope);
     partial = '';
@@ -91,6 +99,9 @@ class RoomController extends ChangeNotifier {
       await storage.saveDraft(scope, '');
       await voice.stop();
       _conversationStart = DateTime.now();
+      // A completed turn can share the same Windows clock tick as this reset.
+      // Stable IDs keep that old turn out while allowing new equal-time turns.
+      _previousConversationIds = turns.map((turn) => turn.id).toSet();
       draft = '';
       error = '';
     } finally {

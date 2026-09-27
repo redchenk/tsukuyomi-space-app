@@ -36,6 +36,26 @@ void main() {
       expect(storage.histories['demo'], hasLength(2));
     },
   );
+  test(
+    'new context excludes known turns even when their timestamp is ahead',
+    () async {
+      await c.initialize();
+      c.turns = [
+        ChatTurn(
+          id: 'clock-ahead',
+          user: 'old',
+          assistant: 'old reply',
+          createdAt: DateTime(2100),
+        ),
+      ];
+      await c.startConversation();
+      expect(c.visibleTurns, isEmpty);
+      await c.send('new');
+      expect(chat.lastContext, isEmpty);
+      expect(c.visibleTurns.single.user, 'new');
+      expect(c.turns.map((turn) => turn.id), contains('clock-ahead'));
+    },
+  );
   test('demo replies never upload even after login', () async {
     await c.initialize();
     await c.login('alice', 'pass');
