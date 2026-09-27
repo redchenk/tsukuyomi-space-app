@@ -167,7 +167,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                         '支持兼容 Chat Completions 的 SSE 接口。手机的 localhost 指向手机自身。',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xffa7aec4),
+                          color: Color(0xff81768f),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -195,7 +195,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                         '保存设置后，点击房间右上角登录。已登录的真实对话会同步到该站点，并由现有后端捕获长期记忆。',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xffa7aec4),
+                          color: Color(0xff81768f),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -203,7 +203,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
                         'API Key 和会话凭据使用系统安全存储；对话缓存保存在当前设备。',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xffa7aec4),
+                          color: Color(0xff81768f),
                         ),
                       ),
                     ],

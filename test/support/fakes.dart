@@ -86,6 +86,7 @@ class FakeSite implements SiteService {
 }
 
 class FakeChat implements ChatService {
+  List<ChatTurn> lastContext = [];
   StreamController<String>? stream;
   String answer = '这是完整回复。';
   bool controlled = false;
@@ -95,6 +96,7 @@ class FakeChat implements ChatService {
     List<ChatTurn> history,
     String message,
   ) {
+    lastContext = List.of(history);
     if (controlled) {
       stream = StreamController<String>();
       return stream!.stream;

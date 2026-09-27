@@ -4,6 +4,18 @@ Tsukuyomi Space 的独立 Flutter 客户端。当前聚焦 **Room：原生 Live2
 
 默认进入明确标记的离线演示模式。演示回复来自本地固定文本，不会请求 AI 或上传会话。连接真实服务需在「房间设置」填写模型地址并关闭演示模式。
 
+## 与网站一致的双端界面
+
+Room 按 [现有网站](https://yachiyo.hk/room) 的桌面和手机版分别实现，复用夜景、背景与角色素材：
+
+- **桌面（宽度 > 860）**：顶部导航、左侧角色舞台、右侧聊天工作区，包含聊天／日记／资料／便签标签、快捷话题和输入框。
+- **移动端（宽度 ≤ 860）**：全屏角色场景，顶部悬浮导航与房间工具，底部叠加聊天和胶囊输入框；弹出键盘时输入框上移，保持场景完整。
+- 聊天、历史搜索、新建会话、资料、本机便签、明暗主题、表情和安静陪伴可操作。导航中的其他页面、日记和音乐通过明确入口打开网站；图片聊天暂不可用。
+
+新建会话会清空本次模型上下文，保留所有已保存的历史。会话分界目前只在本次运行有效，重启或切换账号后重新显示该范围的历史。便签需点击保存，仅存本机，与聊天草稿分开。
+
+截图对照、验证尺寸和功能边界见 [docs/ui-alignment.md](docs/ui-alignment.md)。
+
 ## 环境与启动
 
 本次开发使用 Flutter **3.47.5** / Dart **3.13.4**。平台项目包括 Android、iOS、macOS、Windows、Linux、Web。
@@ -33,7 +45,7 @@ flutter run -d macos
 
 脚本仅复制文件到本项目，不修改来源。SDK 放在 `packages/tsukuyomi_live2d/vendor/cubism/`，模型放在 `assets/live2d/`，二者均被 Git 忽略。更改 SDK 是否存在后必须执行 `flutter clean`，使原生构建钩子重新检测。
 
-加载成功时显示 `LIVE2D NATIVE`，支持注视、眨眼、呼吸、模型物理、表情和口型。信息按钮显示网格数量及最近一次模型更新耗时；该耗时**不代表 GPU 绘制时间或实际帧率**。样机将模型更新限制为 30 Hz，切到后台暂停。
+加载成功后「角色状态」显示 `Cubism Native`，支持注视、眨眼、呼吸、模型物理、表情和口型。信息按钮显示网格数量及最近一次模型更新耗时；该耗时**不代表 GPU 绘制时间或实际帧率**。样机将模型更新限制为 30 Hz，切到后台暂停。
 
 当前实现采用 **Cubism Native Core + Native Framework 物理计算，Flutter Canvas 绘制纹理三角网格**。没有 WebView、JavaScript 引擎或假角色动画。它用于验证模型与 Flutter 的原生数据链路；不是 Cubism 官方 GPU renderer 的直接封装。
 
@@ -48,7 +60,7 @@ flutter run -d macos
 - **API Key**：只在服务需要时填写，不使用 GitHub 令牌。
 - **语音回复**：可选。填写兼容 Speech API 的完整地址、模型、音色和独立密钥。
 
-聊天目前支持 Chat Completions **SSE**，不支持 Responses/Anthropic 专用协议或工具调用。UTF-8 分片、CRLF、结束标记、超时、取消和截断均有测试。未完成回复不写入历史，保留用户输入供重试。桌面可用 ⌘ Enter / Ctrl Enter 发送。
+聊天目前支持 Chat Completions **SSE**，不支持 Responses/Anthropic 专用协议或工具调用。UTF-8 分片、CRLF、结束标记、超时、取消和截断均有测试。未完成回复不写入历史，保留用户输入供重试。桌面 Enter 发送、Shift + Enter 换行，也支持 ⌘ Enter / Ctrl Enter；⌘ K / Ctrl K 打开本机历史搜索。移动端回车换行，点击按钮发送。
 
 TTS 请求 `response_format: wav`，目前分析 16-bit PCM WAV 的 20ms RMS 音量包络，并与播放器时间对齐控制口型。支持停止播放；尚未验证真实供应商音色或音素级口型。语音失败不撤销已保存的文字对话。
 
@@ -84,6 +96,9 @@ flutter test
 # 本机准备好 SDK 和模型后，执行真实 Cubism 测试并输出渲染图
 flutter test test/live2d_native_test.dart --dart-define=RUN_CUBISM_TESTS=true
 
+# 检查实际原生图形后端：透明度像素校验和眨眼连续帧
+flutter run -d macos -t tool/verify_live2d_rendering.dart
+
 flutter build macos --debug
 flutter build web
 ```
@@ -91,6 +106,8 @@ flutter build web
 真实模型测试产物：`artifacts/native-live2d.png`。普通 CI 使用明确返回不可用状态的原生占位库，不下载或分发私有模型/SDK，不将占位库测试作为 Live2D 验证。
 
 当前验证记录与未完成项见 [docs/prototype-status.md](docs/prototype-status.md)。CI 构建成功仅证明相应工程能够打包，不代表真机验收或应用商店发布完成。
+
+眨眼后高光发白的修正与原生验证方法见 [docs/live2d-blink-fix.md](docs/live2d-blink-fix.md)。
 
 ## 结构
 

@@ -21,6 +21,21 @@ void main() {
     );
   });
   tearDown(() => c.dispose());
+  test(
+    'new conversation resets model context without deleting saved history',
+    () async {
+      await c.initialize();
+      await c.send('previous conversation');
+      final previous = c.turns.single.id;
+      await c.startConversation();
+      expect(c.visibleTurns, isEmpty);
+      expect(c.turns.single.id, previous);
+      await c.send('fresh conversation');
+      expect(chat.lastContext, isEmpty);
+      expect(c.visibleTurns.single.user, 'fresh conversation');
+      expect(storage.histories['demo'], hasLength(2));
+    },
+  );
   test('demo replies never upload even after login', () async {
     await c.initialize();
     await c.login('alice', 'pass');

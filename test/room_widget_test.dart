@@ -36,6 +36,9 @@ void main() {
 
   for (final size in [
     const Size(1440, 960),
+    const Size(861, 700),
+    const Size(1024, 640),
+    const Size(844, 390),
     const Size(390, 844),
     const Size(320, 640),
   ]) {
@@ -45,6 +48,7 @@ void main() {
       final c = await mount(tester, size);
       expect(tester.takeException(), isNull);
       await tester.enterText(find.byKey(const Key('message-input')), '晚上好');
+      await tester.pump();
       await tester.tap(find.byTooltip('发送'));
       await tester.pumpAndSettle();
       expect(c.turns.single.user, '晚上好');
@@ -76,12 +80,71 @@ void main() {
     await tester.pumpAndSettle();
     expect(c.turns.single.user, 'keyboard');
   });
+  testWidgets('desktop Enter does not send during IME composition', (
+    tester,
+  ) async {
+    final c = await mount(tester, const Size(1440, 960));
+    await tester.tap(find.byKey(const Key('message-input')));
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: 'nihao',
+        selection: TextSelection.collapsed(offset: 5),
+        composing: TextRange(start: 0, end: 5),
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(c.turns, isEmpty);
+    expect(c.generating, isFalse);
+    tester.testTextInput.updateEditingValue(
+      const TextEditingValue(
+        text: '你好',
+        selection: TextSelection.collapsed(offset: 2),
+      ),
+    );
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(c.turns.single.user, '你好');
+  });
+  testWidgets('mobile tools switch between companion mode and chat', (
+    tester,
+  ) async {
+    await mount(tester, const Size(390, 844));
+    await tester.tap(find.byTooltip('房间功能'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('安静陪伴'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('message-input')), findsNothing);
+    await tester.tap(find.byTooltip('房间功能'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('返回聊天'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('message-input')), findsOneWidget);
+  });
+  testWidgets('desktop notes save separately from the conversation draft', (
+    tester,
+  ) async {
+    final c = await mount(tester, const Size(1440, 960));
+    await tester.tap(find.text('便签'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('room-note')), '下次想聊的事情');
+    await tester.tap(find.text('保存便签'));
+    await tester.pumpAndSettle();
+    expect(await c.storage.draft('demo.room-note'), '下次想聊的事情');
+    expect(await c.storage.draft('demo'), isEmpty);
+    await tester.tap(find.text('聊天'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('message-input')), findsOneWidget);
+  });
   testWidgets('stop remains available while input is read only', (
     tester,
   ) async {
     final c = await mount(tester, const Size(390, 844));
     (c.chat as FakeChat).controlled = true;
     await tester.enterText(find.byKey(const Key('message-input')), 'hello');
+    await tester.pump();
     await tester.tap(find.byTooltip('发送'));
     await tester.pump();
     expect(c.generating, true);
@@ -100,5 +163,29 @@ void main() {
       tester.getBottomRight(find.byKey(const Key('message-input'))).dy,
       lessThanOrEqualTo(514),
     );
+  });
+  testWidgets('landscape keyboard keeps send control above the keyboard', (
+    tester,
+  ) async {
+    await mount(tester, const Size(844, 390));
+    tester.view.viewInsets = const FakeViewPadding(bottom: 220);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.getBottomRight(find.byKey(const Key('room-composer'))).dy,
+      lessThanOrEqualTo(170),
+    );
+  });
+  testWidgets('desktop search shortcut opens local conversation search', (
+    tester,
+  ) async {
+    await mount(tester, const Size(1440, 960));
+    await tester.tap(find.byKey(const Key('message-input')));
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+    await tester.pumpAndSettle();
+    expect(find.text('搜索本机对话'), findsOneWidget);
   });
 }

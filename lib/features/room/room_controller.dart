@@ -32,6 +32,10 @@ class RoomController extends ChangeNotifier {
   bool loading = true, generating = false, busy = false, sessionExpired = false;
   int _generation = 0;
   bool _disposed = false, _syncing = false;
+  DateTime? _conversationStart;
+  List<ChatTurn> get visibleTurns => _conversationStart == null
+      ? turns
+      : turns.where((t) => !t.createdAt.isBefore(_conversationStart!)).toList();
   String get scope => settings.demo
       ? 'demo'
       : '${endpointUri(settings.siteUrl).origin}:${account?.id ?? 'guest'}';
@@ -70,11 +74,29 @@ class RoomController extends ChangeNotifier {
   }
 
   Future<void> _loadScope() async {
+    _conversationStart = null;
     turns = await storage.history(scope);
     draft = await storage.draft(scope);
     partial = '';
     sendingText = '';
     syncStatus = account == null || settings.demo ? '仅保存在此设备' : '等待同步';
+  }
+
+  /// Start a fresh model context while retaining every saved turn in history.
+  Future<void> startConversation() async {
+    if (!canSend) return;
+    busy = true;
+    _changed();
+    try {
+      await storage.saveDraft(scope, '');
+      await voice.stop();
+      _conversationStart = DateTime.now();
+      draft = '';
+      error = '';
+    } finally {
+      busy = false;
+      _changed();
+    }
   }
 
   Future<void> configure(RoomSettings value) async {
@@ -173,7 +195,11 @@ class RoomController extends ChangeNotifier {
       await storage.saveDraft(targetScope, text);
       await voice.stop();
       if (generation != _generation || _disposed) return;
-      await for (final delta in chat.reply(settings, List.of(turns), text)) {
+      await for (final delta in chat.reply(
+        settings,
+        List.of(visibleTurns),
+        text,
+      )) {
         if (generation != _generation || _disposed) return;
         partial += delta;
         _changed();

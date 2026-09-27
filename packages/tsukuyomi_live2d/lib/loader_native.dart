@@ -7,6 +7,7 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/services.dart';
 
 import 'bindings.dart';
+import 'blink.dart';
 import 'model.dart';
 
 Future<Live2DModel> loadLive2D({
@@ -139,8 +140,7 @@ class _NativeModel extends Live2DModel {
     parameter('ParamAngleZ', math.sin(seconds * .61) * 2);
     parameter('ParamBodyAngleX', math.sin(seconds * .4) * 2);
     parameter('ParamBreath', .5 + math.sin(seconds * 1.6) * .45);
-    final blinkPhase = seconds % 4.6;
-    final blink = blinkPhase < .18 ? (blinkPhase - .09).abs() / .09 : 1.0;
+    final blink = naturalBlinkOpen(seconds);
     parameter('ParamEyeLOpen', blink);
     parameter('ParamEyeROpen', blink);
     parameter('ParamEyeBallX', lookX * .7);

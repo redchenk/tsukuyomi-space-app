@@ -106,6 +106,10 @@ class Live2DPainter extends CustomPainter {
     final paint = Paint()
       ..isAntiAlias = true
       ..blendMode = blend
+      // Keep drawable opacity separate from the RGB color transform. In the
+      // Metal vertices path, alpha inside a matrix color filter can produce
+      // over-bright additive eye highlights as their opacity animates.
+      ..color = Colors.white.withValues(alpha: mask ? 1 : mesh.opacity)
       ..shader = ImageShader(
         image,
         TileMode.clamp,
@@ -114,32 +118,37 @@ class Live2DPainter extends CustomPainter {
         filterQuality: FilterQuality.medium,
       );
     final m = mesh.multiply, s = mesh.screen;
-    paint.colorFilter = ColorFilter.matrix(
-      mask
-          ? [0, 0, 0, 0, 255, 0, 0, 0, 0, 255, 0, 0, 0, 0, 255, 0, 0, 0, 1, 0]
-          : [
-              m[0] * (1 - s[0]),
-              0,
-              0,
-              0,
-              s[0] * 255,
-              0,
-              m[1] * (1 - s[1]),
-              0,
-              0,
-              s[1] * 255,
-              0,
-              0,
-              m[2] * (1 - s[2]),
-              0,
-              s[2] * 255,
-              0,
-              0,
-              0,
-              mesh.opacity,
-              0,
-            ],
-    );
+    // A mask only contributes texture alpha; tinting it white is unnecessary.
+    if (!mask &&
+        (m[0] != 1 ||
+            m[1] != 1 ||
+            m[2] != 1 ||
+            s[0] != 0 ||
+            s[1] != 0 ||
+            s[2] != 0)) {
+      paint.colorFilter = ColorFilter.matrix([
+        m[0] * (1 - s[0]),
+        0,
+        0,
+        0,
+        s[0] * 255,
+        0,
+        m[1] * (1 - s[1]),
+        0,
+        0,
+        s[1] * 255,
+        0,
+        0,
+        m[2] * (1 - s[2]),
+        0,
+        s[2] * 255,
+        0,
+        0,
+        0,
+        1,
+        0,
+      ]);
+    }
     canvas.drawVertices(vertices, BlendMode.srcOver, paint);
     vertices.dispose();
   }
