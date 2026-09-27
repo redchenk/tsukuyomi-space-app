@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/models.dart';
+import '../../core/llm_client.dart';
+import '../../core/voice_service.dart';
 import '../room/room_controller.dart';
 
 Future<void> showRoomSettings(
@@ -22,7 +24,11 @@ class _SettingsDialogState extends State<SettingsDialog> {
   final _form = GlobalKey<FormState>();
   late final Map<String, TextEditingController> fields;
   late bool demo, speak;
-  bool saving = false;
+  bool saving = false, testingLlm = false, testingVoice = false;
+  late String ttsFormat;
+  String? llmResult, voiceResult;
+  final _testLlm = LlmClient();
+  AudioVoice? _testVoice;
   String? error;
   @override
   void initState() {
@@ -43,10 +49,13 @@ class _SettingsDialogState extends State<SettingsDialog> {
     };
     demo = s.demo;
     speak = s.speak;
+    ttsFormat = s.ttsFormat;
   }
 
   @override
   void dispose() {
+    _testLlm.cancel();
+    _testVoice?.dispose();
     for (final f in fields.values) {
       f.dispose();
     }
@@ -76,13 +85,92 @@ class _SettingsDialogState extends State<SettingsDialog> {
             return '请输入 HTTPS 地址，本机可使用 HTTP';
           }
         }
-        if (key == 'model' && !demo && (value ?? '').trim().isEmpty) {
-          return '请填写模型名称';
+        if ((key == 'model' && !demo ||
+                (key == 'ttsModel' || key == 'voice') && speak) &&
+            (value ?? '').trim().isEmpty) {
+          return '此项不能为空';
         }
         return null;
       },
     ),
   );
+  RoomSettings current({bool? demoOverride}) {
+    String read(String key) => fields[key]!.text.trim();
+    return RoomSettings(
+      siteUrl: read('site'),
+      llmUrl: read('llm'),
+      model: read('model'),
+      apiKey: read('key'),
+      ttsUrl: read('tts'),
+      ttsKey: read('ttsKey'),
+      ttsModel: read('ttsModel'),
+      voice: read('voice'),
+      ttsFormat: ttsFormat,
+      demo: demoOverride ?? demo,
+      speak: speak,
+    );
+  }
+
+  Future<void> testLlm() async {
+    setState(() {
+      testingLlm = true;
+      llmResult = null;
+    });
+    try {
+      var reply = '';
+      await for (final part in _testLlm.reply(
+        current(demoOverride: false),
+        [],
+        '请只回复：连接成功。',
+      )) {
+        reply += part;
+      }
+      if (reply.trim().isEmpty) throw const ApiFailure('接口连接成功，但模型没有返回文字');
+      if (mounted) {
+        setState(
+          () => llmResult =
+              '连接成功：${reply.length > 160 ? reply.substring(0, 160) : reply}',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(
+          () => llmResult = e is ApiFailure
+              ? e.message
+              : e is FormatException
+              ? e.message
+              : '连接失败，请检查地址和网络',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => testingLlm = false);
+    }
+  }
+
+  Future<void> testVoice() async {
+    setState(() {
+      testingVoice = true;
+      voiceResult = null;
+    });
+    try {
+      _testVoice ??= AudioVoice();
+      await _testVoice!.speak(current(), '你好，我是八千代。很高兴在月读空间见到你。');
+      if (mounted) setState(() => voiceResult = '音频已生成，正在试听。');
+    } catch (e) {
+      if (mounted) {
+        setState(
+          () => voiceResult = e is ApiFailure
+              ? e.message
+              : e is FormatException
+              ? e.message
+              : '试听失败，请检查语音设置',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => testingVoice = false);
+    }
+  }
+
   Future<void> save() async {
     if (!_form.currentState!.validate()) return;
     setState(() {
@@ -90,21 +178,9 @@ class _SettingsDialogState extends State<SettingsDialog> {
       error = null;
     });
     try {
-      String read(String key) => fields[key]!.text.trim();
-      await widget.controller.configure(
-        RoomSettings(
-          siteUrl: read('site'),
-          llmUrl: read('llm'),
-          model: read('model'),
-          apiKey: read('key'),
-          ttsUrl: read('tts'),
-          ttsKey: read('ttsKey'),
-          ttsModel: read('ttsModel'),
-          voice: read('voice'),
-          demo: demo,
-          speak: speak,
-        ),
-      );
+      _testLlm.cancel();
+      await _testVoice?.stop();
+      await widget.controller.configure(current());
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
@@ -160,29 +236,84 @@ class _SettingsDialogState extends State<SettingsDialog> {
                         style: TextStyle(fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 14),
-                      field('llm', 'Chat Completions 完整地址', url: true),
-                      field('model', '模型名称', hint: '例如你的 Ollama 模型名称'),
+                      field(
+                        'llm',
+                        '模型 API 地址 / Base URL',
+                        url: true,
+                        hint: 'https://api.example.com/v1',
+                      ),
+                      field('model', '模型名称', hint: '填写服务商提供的模型 ID'),
                       field('key', '模型 API Key（本机服务可留空）', secret: true),
                       const Text(
-                        '支持兼容 Chat Completions 的 SSE 接口。手机的 localhost 指向手机自身。',
+                        '支持 OpenAI 兼容 Chat Completions。可填写完整路径或 Base URL；手机的 localhost 指向手机自身。测试会向服务商发送一条简短请求。',
                         style: TextStyle(
                           fontSize: 12,
                           color: Color(0xff81768f),
                         ),
                       ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: testingLlm || saving ? null : testLlm,
+                        icon: const Icon(Icons.network_check, size: 18),
+                        label: Text(testingLlm ? '正在连接…' : '测试模型连接'),
+                      ),
+                      if (llmResult != null) SelectableText(llmResult!),
                       const SizedBox(height: 24),
                       SwitchListTile.adaptive(
                         contentPadding: EdgeInsets.zero,
                         title: const Text('语音回复'),
-                        subtitle: const Text('兼容语音接口，使用 PCM WAV 分析口型。'),
+                        subtitle: const Text('自动朗读模型回复。WAV 支持口型；也可选择 MP3。'),
                         value: speak,
                         onChanged: (v) => setState(() => speak = v),
                       ),
                       if (speak) ...[
-                        field('tts', 'Speech 完整地址', url: true),
+                        field(
+                          'tts',
+                          '语音 API 地址 / Base URL',
+                          url: true,
+                          hint: 'https://api.example.com/v1/audio/speech',
+                        ),
                         field('ttsModel', '语音模型'),
                         field('voice', '音色 ID'),
-                        field('ttsKey', '语音 API Key', secret: true),
+                        field('ttsKey', '语音 API Key（独立填写）', secret: true),
+                        DropdownButtonFormField<String>(
+                          initialValue: ttsFormat,
+                          decoration: const InputDecoration(labelText: '音频格式'),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'wav',
+                              child: Text('WAV · 支持 PCM 口型'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'mp3',
+                              child: Text('MP3 · 与网站默认格式一致'),
+                            ),
+                          ],
+                          onChanged: (v) => setState(() => ttsFormat = v!),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: testingVoice || saving
+                                  ? null
+                                  : testVoice,
+                              icon: const Icon(Icons.volume_up, size: 18),
+                              label: Text(testingVoice ? '正在生成…' : '语音试听'),
+                            ),
+                            TextButton(
+                              onPressed: () async {
+                                await _testVoice?.stop();
+                                if (mounted) {
+                                  setState(() => voiceResult = '已停止试听');
+                                }
+                              },
+                              child: const Text('停止试听'),
+                            ),
+                          ],
+                        ),
+                        if (voiceResult != null) SelectableText(voiceResult!),
                       ],
                       const SizedBox(height: 24),
                       const Text(

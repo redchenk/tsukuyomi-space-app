@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 
 import 'models.dart';
+import 'tts_client.dart';
 
 class WavEnvelope {
   WavEnvelope(this.levels, this.duration);
@@ -30,7 +29,14 @@ class WavEnvelope {
         offset = 0,
         length = 0;
     for (var p = 12; p + 8 <= bytes.length;) {
-      final size = b.getUint32(p + 4, Endian.little);
+      var size = b.getUint32(p + 4, Endian.little);
+      // Streaming WAV commonly uses an unknown-length sentinel. Finalize it
+      // after the HTTP body completes so native decoders can seek correctly.
+      if (label(p) == 'data' && size == 0xffffffff) {
+        size = bytes.length - p - 8;
+        b.setUint32(p + 4, size, Endian.little);
+        b.setUint32(4, bytes.length - 8, Endian.little);
+      }
       if (p + 8 + size > bytes.length) throw const FormatException('WAV 音频不完整');
       if (label(p) == 'fmt ' && size >= 16) {
         format = b.getUint16(p + 8, Endian.little);
@@ -88,7 +94,7 @@ class AudioVoice extends VoiceService {
   final _subscriptions = <StreamSubscription<dynamic>>[];
   Duration _position = Duration.zero;
   WavEnvelope? _envelope;
-  http.Client? _client;
+  final _tts = TtsClient();
   int _generation = 0;
   bool _disposed = false;
   @override
@@ -124,8 +130,7 @@ class AudioVoice extends VoiceService {
   @override
   Future<void> stop() async {
     _generation++;
-    _client?.close();
-    _client = null;
+    _tts.cancel();
     playing = false;
     _clock.reset();
     _clock.stop();
@@ -139,49 +144,22 @@ class AudioVoice extends VoiceService {
     await stop();
     if (_disposed) return;
     final generation = _generation;
-    final uri = endpointUri(settings.ttsUrl);
-    final client = http.Client();
-    _client = client;
+    final audio = await _tts.synthesize(settings, text);
+    if (generation != _generation || _disposed) return;
+    if (audio.format == 'wav') {
+      try {
+        _envelope = WavEnvelope.parse(audio.bytes);
+      } on FormatException {
+        // Native players can decode more WAV encodings than the lip analyzer.
+        _envelope = null;
+      }
+    }
+    _position = Duration.zero;
+    _clock.reset();
     try {
-      final request = http.Request('POST', uri)
-        ..followRedirects = false
-        ..headers.addAll({
-          'Content-Type': 'application/json',
-          if (settings.ttsKey.isNotEmpty)
-            'Authorization': 'Bearer ${settings.ttsKey}',
-        })
-        ..body = jsonEncode({
-          'model': settings.ttsModel,
-          'voice': settings.voice,
-          'input': text,
-          'response_format': 'wav',
-        });
-      final response = await client
-          .send(request)
-          .timeout(const Duration(seconds: 30));
-      if (response.statusCode != 200) {
-        throw ApiFailure('语音生成失败（HTTP ${response.statusCode}）');
-      }
-      final builder = BytesBuilder(copy: false);
-      await for (final chunk in response.stream.timeout(
-        const Duration(seconds: 30),
-      )) {
-        if (generation != _generation || _disposed) return;
-        if (builder.length + chunk.length > 24 * 1024 * 1024) {
-          throw const ApiFailure('语音超过样机大小限制');
-        }
-        builder.add(chunk);
-      }
-      final bytes = builder.takeBytes();
-      final envelope = WavEnvelope.parse(bytes);
-      if (generation != _generation || _disposed) return;
-      _envelope = envelope;
-      _position = Duration.zero;
-      _clock.reset();
-      await _player.play(BytesSource(bytes, mimeType: 'audio/wav'));
-    } finally {
-      client.close();
-      if (identical(client, _client)) _client = null;
+      await _player.play(BytesSource(audio.bytes, mimeType: audio.mimeType));
+    } catch (_) {
+      throw const ApiFailure('音频已生成但无法播放，请切换 WAV / MP3 格式后重试');
     }
   }
 
@@ -189,7 +167,7 @@ class AudioVoice extends VoiceService {
   void dispose() {
     _disposed = true;
     _generation++;
-    _client?.close();
+    _tts.cancel();
     for (final subscription in _subscriptions) {
       unawaited(subscription.cancel());
     }

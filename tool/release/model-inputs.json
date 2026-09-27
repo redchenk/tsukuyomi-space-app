@@ -1,0 +1,12 @@
+{
+  "tsukimi-yachiyo.model3.json": "e7baff7eae73cdf67d3ff92deaeb992507a9ce3e3eb1d9883d2279fefd066516",
+  "tsukimi-yachiyo.moc3": "5b669ba90aa97ed9fe7132253f537510b72d27a26c39983d8b0146c6b0320459",
+  "tsukimi-yachiyo.physics3.json": "6ee089519838ed249d208e6fd3f01f88d401c0d33c988002b9605a2732796d38",
+  "textures/desktop/texture_00.webp": "fecf20fd86427666db9e99c1d3b714348888f9d853088ccd8a54d484d70066ca",
+  "textures/desktop/texture_01.webp": "b81b624be20752e4a1984c31f2e2e6853c4aa51a1c8f13b3ae37dc14c2772003",
+  "expression_neutral.exp3.json": "0a496f2780705c068b6b5302882b2a88b705df5e2dfabf655fd44c74b0039842",
+  "expression_smile.exp3.json": "78c672018c45a0406e78836d49e804591cae4579d1ef619a04e1c3292b3d7d91",
+  "expression_bsmile.exp3.json": "6b3a0c80b6fb12f02e101eb6399ba185e2baff52d71340cd707cdeb55a0923b7",
+  "expression_namida.exp3.json": "33de5868d635e8b3eba4b2110e81fb43d4810262566072a827016d89d1501415",
+  "expression_tears.exp3.json": "1b70da871f6ca9ec664d07f48e95612bf104996387498a7fe078944a3ab803ad"
+}

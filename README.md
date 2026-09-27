@@ -1,6 +1,8 @@
-# 月读空间 · Flutter 原生技术样机
+# 月读空间 · Flutter 原生客户端
 
 Tsukuyomi Space 的独立 Flutter 客户端。当前聚焦 **Room：原生 Live2D → 流式对话 → WAV 语音与口型 → 本地保存和账号会话同步**。
+
+下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。0.2.0 验证版提供 Android APK、macOS Universal DMG、Windows 安装程序和 Linux DEB。
 
 默认进入明确标记的离线演示模式。演示回复来自本地固定文本，不会请求 AI 或上传会话。连接真实服务需在「房间设置」填写模型地址并关闭演示模式。
 
@@ -55,14 +57,14 @@ flutter run -d macos
 
 点击设置，关闭「离线演示」，填写：
 
-- **Chat Completions 完整地址**：例如本机 `http://localhost:11434/v1/chat/completions`，或你的服务商提供的 HTTPS 地址。
+- **模型 API 地址 / Base URL**：例如本机 `http://localhost:11434/v1/chat/completions`，或你的服务商提供的 HTTPS 地址。
 - **模型名称**：填写该端点实际提供的模型 ID。
 - **API Key**：只在服务需要时填写，不使用 GitHub 令牌。
 - **语音回复**：可选。填写兼容 Speech API 的完整地址、模型、音色和独立密钥。
 
-聊天目前支持 Chat Completions **SSE**，不支持 Responses/Anthropic 专用协议或工具调用。UTF-8 分片、CRLF、结束标记、超时、取消和截断均有测试。未完成回复不写入历史，保留用户输入供重试。桌面 Enter 发送、Shift + Enter 换行，也支持 ⌘ Enter / Ctrl Enter；⌘ K / Ctrl K 打开本机历史搜索。移动端回车换行，点击按钮发送。
+聊天支持 Chat Completions **SSE 和 JSON 返回**，不支持 Responses/Anthropic 专用协议或工具调用。UTF-8 分片、CRLF、结束标记、超时、取消和截断均有测试。未完成回复不写入历史，保留用户输入供重试。桌面 Enter 发送、Shift + Enter 换行，也支持 ⌘ Enter / Ctrl Enter；⌘ K / Ctrl K 打开本机历史搜索。移动端回车换行，点击按钮发送。
 
-TTS 请求 `response_format: wav`，目前分析 16-bit PCM WAV 的 20ms RMS 音量包络，并与播放器时间对齐控制口型。支持停止播放；尚未验证真实供应商音色或音素级口型。语音失败不撤销已保存的文字对话。
+TTS 支持 `response_format: wav` 或 `mp3`，设置中可独立试听。WAV 分析 16-bit PCM WAV 的 20ms RMS 音量包络，并与播放器时间对齐控制口型。支持停止播放；尚未验证真实供应商音色或音素级口型。语音失败不撤销已保存的文字对话。
 
 远程服务要求 HTTPS；HTTP 仅用于 localhost/回环地址及 Android 模拟器主机 `10.0.2.2`。手机上的 localhost 指手机自身，不能直接访问电脑的 Ollama。原生应用的网络访问仍受各平台网络权限约束。
 
@@ -84,7 +86,7 @@ TTS 请求 `response_format: wav`，目前分析 16-bit PCM WAV 的 20ms RMS 音
 
 长期记忆**捕获**由现有后端处理；样机尚未接入记忆检索注入、站点 SSE 实时订阅、站内推送、图片聊天或日记。
 
-API Key 与会话 Cookie 使用系统安全存储；设置和会话缓存使用本地 preferences。macOS Debug 使用系统登录 Keychain，以支持本机 ad-hoc 调试签名；Release 使用 Data Protection Keychain，并需要开发者签名与 Keychain capability。密码只用于当前登录请求，不持久化。
+API Key 与会话 Cookie 使用系统安全存储；设置和会话缓存使用本地 preferences。macOS 直接分发版使用系统登录 Keychain，兼容 ad-hoc 签名。密码只用于当前登录请求，不持久化。
 
 ## 检查与构建
 
@@ -103,7 +105,7 @@ flutter build macos --debug
 flutter build web
 ```
 
-真实模型测试产物：`artifacts/native-live2d.png`。普通 CI 使用明确返回不可用状态的原生占位库，不下载或分发私有模型/SDK，不将占位库测试作为 Live2D 验证。
+真实模型测试产物：`artifacts/native-live2d.png`。普通 CI 验证不带模型的开发壳；Release CI 从官方 SDK 与固定版本的原网站仓库取得资源并校验 SHA-256，运行真实模型测试，缺少 Cubism Core 时禁止发布。
 
 当前验证记录与未完成项见 [docs/prototype-status.md](docs/prototype-status.md)。CI 构建成功仅证明相应工程能够打包，不代表真机验收或应用商店发布完成。
 

@@ -243,9 +243,9 @@ class RoomController extends ChangeNotifier {
   Future<void> _speak(String text) async {
     try {
       await voice.speak(settings, text);
-    } catch (_) {
+    } catch (e) {
       if (!_disposed) {
-        error = '语音播放失败，对话已保存；请检查 TTS 设置';
+        error = e is ApiFailure ? e.message : '语音播放失败，对话已保存；请检查 TTS 设置';
         _changed();
       }
     }

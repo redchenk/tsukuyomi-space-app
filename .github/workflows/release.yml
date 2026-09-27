@@ -1,0 +1,143 @@
+name: Release installers
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  FLUTTER_VERSION: '3.47.5'
+  APP_VERSION: '0.2.0'
+  TSUKUYOMI_REQUIRE_CUBISM: '1'
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: macos
+          - os: windows-2022
+            target: windows
+          - os: ubuntu-22.04
+            target: linux
+          - os: ubuntu-22.04
+            target: android
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - if: matrix.target == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-good gstreamer1.0-libav
+      - if: matrix.target == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Download and verify licensed build inputs
+        run: python tool/release/prepare_assets.py
+      - run: flutter pub get
+      - name: Analyze and test including the real Cubism model
+        if: matrix.target != 'android'
+        run: |
+          flutter analyze
+          flutter test --dart-define=RUN_CUBISM_TESTS=true
+      - name: Build macOS universal release
+        if: matrix.target == 'macos'
+        run: |
+          flutter build macos --release
+          lipo -verify_arch arm64 x86_64 build/macos/Build/Products/Release/tsukuyomi_space_app.app/Contents/MacOS/tsukuyomi_space_app
+          codesign --verify --deep --strict build/macos/Build/Products/Release/tsukuyomi_space_app.app
+          mkdir -p dist build/dmg
+          cp -R build/macos/Build/Products/Release/tsukuyomi_space_app.app 'build/dmg/Tsukuyomi Space.app'
+          cp docs/release-guide.md THIRD_PARTY_NOTICES.md build/dmg/
+          ln -s /Applications build/dmg/Applications
+          hdiutil create -volname 'Tsukuyomi Space' -srcfolder build/dmg -ov -format UDZO "dist/tsukuyomi-space-$APP_VERSION-macos-universal.dmg"
+          hdiutil verify "dist/tsukuyomi-space-$APP_VERSION-macos-universal.dmg"
+      - name: Build Windows release
+        if: matrix.target == 'windows'
+        run: flutter build windows --release
+      - name: Package Windows with Visual C++ runtime
+        if: matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $crt = Get-ChildItem "$vs\VC\Redist\MSVC\*\x64\Microsoft.VC143.CRT" -Directory | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $crt) { throw 'Visual C++ runtime not found' }
+          Copy-Item "$($crt.FullName)\*.dll" build\windows\x64\runner\Release\
+          Copy-Item THIRD_PARTY_NOTICES.md,docs\release-guide.md build\windows\x64\runner\Release\
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath "dist\tsukuyomi-space-$env:APP_VERSION-windows-x64.zip"
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$env:APP_VERSION" tool\release\windows.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+      - name: Build and package Linux
+        if: matrix.target == 'linux'
+        run: |
+          flutter build linux --release
+          ldd build/linux/x64/release/bundle/tsukuyomi_space_app
+          python tool/release/package_linux.py
+          dpkg-deb --info "dist/tsukuyomi-space-$APP_VERSION-linux-x64.deb"
+      - name: Build signed Android APKs
+        if: matrix.target == 'android'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" && test -n "$ANDROID_KEYSTORE_PASSWORD"
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/tsukuyomi-release.jks"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          chmod 600 "$ANDROID_KEYSTORE_PATH"
+          trap 'rm -f "$ANDROID_KEYSTORE_PATH"' EXIT
+          flutter build apk --release --split-per-abi
+          mkdir -p dist
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            "$APKSIGNER" verify --verbose "build/app/outputs/flutter-apk/app-$abi-release.apk"
+            cp "build/app/outputs/flutter-apk/app-$abi-release.apk" "dist/tsukuyomi-space-$APP_VERSION-android-$abi.apk"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          path: dist
+          merge-multiple: true
+      - name: Verify complete set and publish preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          test "$(find dist -name '*.apk' | wc -l)" -eq 3
+          test "$(find dist -name '*.dmg' | wc -l)" -eq 1
+          test "$(find dist -name '*setup.exe' | wc -l)" -eq 1
+          test "$(find dist -name '*.deb' | wc -l)" -eq 1
+          cp docs/release-guide.md dist/INSTALL.md
+          cp THIRD_PARTY_NOTICES.md dist/
+          (cd dist && sha256sum * > SHA256SUMS.txt)
+          gh release create "$RELEASE_TAG" dist/* --verify-tag --prerelease --title "月读空间 $RELEASE_TAG · 跨平台验证版" --notes-file docs/release-notes.md

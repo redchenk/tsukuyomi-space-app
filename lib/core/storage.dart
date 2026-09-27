@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
-
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -22,7 +20,9 @@ class DeviceRoomStorage implements RoomStorage {
   DeviceRoomStorage(this.preferences);
   final SharedPreferences preferences;
   final FlutterSecureStorage _secure = const FlutterSecureStorage(
-    mOptions: MacOsOptions(usesDataProtectionKeychain: !kDebugMode),
+    // Direct downloads have no Apple team signature. The login keychain works
+    // with ad-hoc signing; the data-protection keychain requires a team profile.
+    mOptions: MacOsOptions(usesDataProtectionKeychain: false),
   );
   @override
   Future<String?> readSecret(String key) => _secure.read(key: 'tsukuyomi.$key');

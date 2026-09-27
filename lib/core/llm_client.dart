@@ -48,7 +48,7 @@ class LlmClient implements ChatService {
       }
       return;
     }
-    final uri = endpointUri(settings.llmUrl);
+    final uri = compatibleEndpoint(settings.llmUrl);
     if (settings.model.trim().isEmpty) throw const ApiFailure('请先在设置中填写模型名称');
     final client = _clientFactory();
     _active = client;
@@ -79,10 +79,33 @@ class LlmClient implements ChatService {
           .send(request)
           .timeout(const Duration(seconds: 30));
       if (response.statusCode != 200) {
-        throw ApiFailure(
-          '模型请求失败（HTTP ${response.statusCode}）',
-          status: response.statusCode,
-        );
+        throw providerFailure('模型请求', response.statusCode);
+      }
+      if ((response.headers['content-type'] ?? '').contains(
+        'application/json',
+      )) {
+        final body = <int>[];
+        await for (final chunk in response.stream.timeout(
+          const Duration(seconds: 45),
+        )) {
+          body.addAll(chunk);
+          if (body.length > 1024 * 1024) throw const ApiFailure('模型回复过大');
+        }
+        if (generation != _generation) return;
+        final value = jsonDecode(utf8.decode(body)) as Map<String, dynamic>;
+        final choice = (value['choices'] as List?)?.firstOrNull;
+        final content = choice?['message']?['content'];
+        if (value['error'] != null ||
+            content is! String ||
+            content.trim().isEmpty) {
+          throw const ApiFailure('模型服务没有返回可用的文字回复');
+        }
+        if (choice['finish_reason'] != null &&
+            choice['finish_reason'] != 'stop') {
+          throw const ApiFailure('模型回复未完整结束，请重试');
+        }
+        yield content;
+        return;
       }
       var total = 0;
       await for (final delta in decodeCompletion(
@@ -95,6 +118,10 @@ class LlmClient implements ChatService {
       }
     } on TimeoutException {
       throw const ApiFailure('模型响应超时，请稍后重试');
+    } on FormatException {
+      throw const ApiFailure('模型响应格式不兼容，请使用 Chat Completions 接口');
+    } on http.ClientException {
+      throw const ApiFailure('无法连接模型服务，请检查地址、网络与证书');
     } finally {
       client.close();
       if (identical(_active, client)) _active = null;
