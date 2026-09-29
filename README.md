@@ -12,11 +12,11 @@ Room 按 [现有网站](https://yachiyo.hk/room) 的桌面和手机版分别实�
 
 - **桌面（宽度 > 860）**：顶部导航、左侧角色舞台、右侧聊天工作区，包含聊天／日记／资料／便签标签、快捷话题和输入框。
 - **移动端（宽度 ≤ 860）**：全屏角色场景，顶部悬浮导航与房间工具，底部叠加聊天和胶囊输入框；弹出键盘时输入框上移，保持场景完整。
-- 聊天、历史搜索、新建会话、资料、本机便签、明暗主题、表情和安静陪伴可操作。核心导航和云端日记在应用内打开；投稿编辑器、百科、图库、游戏和音乐等扩展功能仍通过网站打开，图片聊天暂不可用。
+- 聊天、历史搜索、新建会话、资料、本机便签、明暗主题、表情和安静陪伴可操作。图片聊天支持压缩、上传、历史回读和失败恢复；房间音乐支持曲目、进度、音量与播放控制。核心导航和云端日记在应用内打开；投稿编辑器、百科、图库和游戏仍通过网站打开。
 
-新建会话会清空本次模型上下文，保留所有已保存的历史。会话分界目前只在本次运行有效，重启或切换账号后重新显示该范围的历史。便签需点击保存，仅存本机，与聊天草稿分开。
+房间中的「新建会话」会先确认清空；已登录时先清除网站聊天，再清除对应本机聊天与录制。需要留存时可先结束会话生成日记，或分享对话。便签需点击保存，仅存本机，与聊天草稿分开。
 
-截图对照、验证尺寸和功能边界见 [docs/ui-alignment.md](docs/ui-alignment.md)。
+Room / Room settings 功能对照见 [docs/room-parity.md](docs/room-parity.md)，本版截图、验证尺寸和验收边界见 [design-qa.md](design-qa.md)。
 
 ## 环境与启动
 
@@ -51,7 +51,7 @@ flutter run -d macos
 
 当前实现采用 **Cubism Native Core + Native Framework 物理计算，Flutter Canvas 绘制纹理三角网格**。没有 WebView、JavaScript 引擎或假角色动画。它用于验证模型与 Flutter 的原生数据链路；不是 Cubism 官方 GPU renderer 的直接封装。
 
-已支持普通/反向遮罩、标准加法/乘法混合、multiply/screen 色彩。明确拒绝 Cubism 5.3 的离屏部件和扩展混合；还未迁移网站完整的行为调度器、动作文件播放与表情过渡。
+已支持普通/反向遮罩、标准加法/乘法混合、multiply/screen 色彩；明确拒绝 Cubism 5.3 的离屏部件和扩展混合。网站表情与动作预设通过原生参数和舞台变换执行，支持队列、动作过渡、回复情绪反应与设置页 JSON 调试。任意 Cubism motion3 动作文件播放仍未实现。
 
 ## 连接模型与语音
 
@@ -60,11 +60,11 @@ flutter run -d macos
 - **模型 API 地址 / Base URL**：例如本机 `http://localhost:11434/v1/chat/completions`，或你的服务商提供的 HTTPS 地址。
 - **模型名称**：填写该端点实际提供的模型 ID。
 - **API Key**：只在服务需要时填写，不使用 GitHub 令牌。
-- **语音回复**：可选。填写兼容 Speech API 的完整地址、模型、音色和独立密钥。
+- **语音回复**：可选。选择服务预设，填写对应地址、模型、音色和独立密钥，先试听再保存。
 
-聊天支持 Chat Completions **SSE 和 JSON 返回**，不支持 Responses/Anthropic 专用协议或工具调用。UTF-8 分片、CRLF、结束标记、超时、取消和截断均有测试。未完成回复不写入历史，保留用户输入供重试。桌面 Enter 发送、Shift + Enter 换行，也支持 ⌘ Enter / Ctrl Enter；⌘ K / Ctrl K 打开本机历史搜索。移动端回车换行，点击按钮发送。
+聊天支持 OpenAI 兼容 Chat Completions / Responses、Anthropic Messages、Ollama 和网站代理，处理 **SSE、NDJSON 和完整 JSON**。UTF-8 分片、CRLF、结束标记、超时、取消和截断均有测试。设置中的 MCP 可列出工具，并按白名单在发送前调用搜索与图片理解，将结果加入模型上下文。未完成回复不写入历史，保留用户输入供重试。桌面 Enter 发送、Shift + Enter 换行，也支持 ⌘ Enter / Ctrl Enter；⌘ K / Ctrl K 打开本机历史搜索。移动端回车换行，点击按钮发送。
 
-TTS 支持 `response_format: wav` 或 `mp3`，设置中可独立试听。WAV 分析 16-bit PCM WAV 的 20ms RMS 音量包络，并与播放器时间对齐控制口型。支持停止播放；尚未验证真实供应商音色或音素级口型。语音失败不撤销已保存的文字对话。
+TTS 支持 OpenAI 兼容、MiMo、MiniMax、ElevenLabs、GPT-SoVITS 和网站代理，设置中可独立试听与停止。WAV 分析 16-bit PCM WAV 的 20ms RMS 音量包络，并与播放器时间对齐控制口型；MP3 使用估算包络。真实供应商音色与音素级口型仍需验收。语音失败不撤销已保存的文字对话。
 
 远程服务要求 HTTPS；HTTP 仅用于 localhost/回环地址及 Android 模拟器主机 `10.0.2.2`。手机上的 localhost 指手机自身，不能直接访问电脑的 Ollama。原生应用的网络访问仍受各平台网络权限约束。
 
@@ -80,11 +80,11 @@ TTS 支持 `response_format: wav` 或 `mp3`，设置中可独立试听。WAV 分
 | --- | --- |
 | `POST /api/auth/login`、`GET /api/auth/me`、`POST /api/auth/logout` | 账号会话 |
 | `GET /api/room/chat?limit=100` | 拉取完整问答轮次 |
-| `POST /api/room/chat/turn` | 用稳定 `turnId` 幂等保存一轮对话，`memoryEnabled: true` |
+| `POST /api/room/chat/turn` | 用稳定 `turnId` 幂等保存一轮对话，按长期记忆开关传递 `memoryEnabled` |
 
 先将完整轮次写入本地，再上传；失败轮次留在对应账号的待同步队列。启动、手动刷新、完成对话、返回前台及前台每 30 秒重试同步。演示/访客/站点/账号使用不同缓存范围，不自动导入访客历史。服务器是已同步历史的准源，其他设备的删除和修改会在下次同步反映。
 
-长期记忆捕获由现有后端处理；发送前检索网站记忆并注入本轮模型上下文。支持记忆检索、新增、编辑、删除及云端日记分页阅读。站点 SSE 实时订阅、系统推送和图片聊天尚未接入。
+已登录账号的长期记忆捕获由现有后端处理；发送前检索网站记忆并注入本轮模型上下文，游客使用本机记忆。支持记忆检索、新增、编辑、删除、向量同步，以及云端日记分页阅读、生成、删除、存档导入/导出和人设编辑。站点 SSE 实时订阅与系统推送尚未接入。
 
 文章支持搜索、分类、排序、分页、HTML / Markdown 阅读、评论、点赞、收藏与前台有效阅读计数。广场支持留言、回复、点赞、检索及筛选；成长支持签到、任务、等级路径、邀请分享和记录；个人中心支持简介编辑、文章、留言、收藏、通知。
 
@@ -111,7 +111,7 @@ flutter build web
 
 真实模型测试产物：`artifacts/native-live2d.png`。普通 CI 验证不带模型的开发壳；Release CI 从官方 SDK 与固定版本的原网站仓库取得资源并校验 SHA-256，运行真实模型测试，缺少 Cubism Core 时禁止发布。
 
-当前验证记录与未完成项见 [docs/prototype-status.md](docs/prototype-status.md)。CI 构建成功仅证明相应工程能够打包，不代表真机验收或应用商店发布完成。
+本版五个平台的 Release 构建和 Android 原生模型动画检查已通过，安装包与校验和见 [v0.4.0-beta.1](https://github.com/redchenk/tsukuyomi-space-app/releases/tag/v0.4.0-beta.1)。129 项自动化测试、2 项隔离网站后端集成测试和界面对照的验收记录见 [design-qa.md](design-qa.md)。外部付费服务与已签名 iPhone 安装仍需使用实际账号和设备验证。
 
 眨眼后高光发白的修正与原生验证方法见 [docs/live2d-blink-fix.md](docs/live2d-blink-fix.md)。
 
