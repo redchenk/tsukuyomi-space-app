@@ -65,6 +65,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       accountId: () => c.account?.id,
     );
     _scope = repo.scope;
+    _search.text = Uri.parse(widget.path).queryParameters['q'] ?? '';
     if (Uri.parse(widget.path).queryParameters['tab'] == 'diary') _tab = '日记';
     c.addListener(_accountChanged);
     _restoreDraft();

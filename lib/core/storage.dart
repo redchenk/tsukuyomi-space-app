@@ -40,6 +40,7 @@ class DeviceRoomStorage implements RoomStorage {
           : Map<String, dynamic>.from(jsonDecode(source) as Map),
       apiKey: await readSecret('llmKey') ?? '',
       ttsKey: await readSecret('ttsKey') ?? '',
+      mcpKey: await readSecret('mcpKey') ?? '',
     );
   }
 
@@ -47,6 +48,7 @@ class DeviceRoomStorage implements RoomStorage {
   Future<void> saveSettings(RoomSettings value) async {
     await writeSecret('llmKey', value.apiKey);
     await writeSecret('ttsKey', value.ttsKey);
+    await writeSecret('mcpKey', value.mcpKey);
     if (!await preferences.setString('settings', jsonEncode(value.toJson()))) {
       throw const ApiFailure('设置保存失败');
     }

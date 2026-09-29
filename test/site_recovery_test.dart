@@ -210,6 +210,9 @@ class RecallSite extends FakeSite implements SiteDataService {
     String path, [
     Map<String, dynamic>? body,
   ]) async {
+    if (!path.startsWith('/api/room/memory?')) {
+      return {'success': true, 'data': {}};
+    }
     recalls++;
     return {
       'success': true,

@@ -70,10 +70,56 @@ class RoomSettings {
     this.ttsFormat = 'wav',
     this.demo = true,
     this.speak = false,
+    this.options = const {},
+    this.mcpKey = '',
   });
   final String siteUrl, llmUrl, model, apiKey, ttsUrl, ttsKey, ttsModel, voice;
   final String ttsFormat;
   final bool demo, speak;
+
+  /// Additional Room settings. Secrets stay in system secure storage.
+  final Map<String, dynamic> options;
+  final String mcpKey;
+  bool flag(String key, [bool fallback = false]) =>
+      options[key] as bool? ?? fallback;
+  String option(String key, [String fallback = '']) =>
+      options[key]?.toString() ?? fallback;
+  double number(String key, [double fallback = 0]) =>
+      (options[key] as num?)?.toDouble() ?? fallback;
+  List<Map<String, dynamic>> rows(String key) => (options[key] as List? ?? [])
+      .whereType<Map>()
+      .map((v) => Map<String, dynamic>.from(v))
+      .toList();
+  RoomSettings copyWith({
+    String? siteUrl,
+    String? llmUrl,
+    String? model,
+    String? apiKey,
+    String? ttsUrl,
+    String? ttsKey,
+    String? ttsModel,
+    String? voice,
+    String? ttsFormat,
+    bool? demo,
+    bool? speak,
+    Map<String, dynamic>? options,
+    String? mcpKey,
+  }) => RoomSettings(
+    siteUrl: siteUrl ?? this.siteUrl,
+    llmUrl: llmUrl ?? this.llmUrl,
+    model: model ?? this.model,
+    apiKey: apiKey ?? this.apiKey,
+    ttsUrl: ttsUrl ?? this.ttsUrl,
+    ttsKey: ttsKey ?? this.ttsKey,
+    ttsModel: ttsModel ?? this.ttsModel,
+    voice: voice ?? this.voice,
+    ttsFormat: ttsFormat ?? this.ttsFormat,
+    demo: demo ?? this.demo,
+    speak: speak ?? this.speak,
+    options: options ?? this.options,
+    mcpKey: mcpKey ?? this.mcpKey,
+  );
+
   Map<String, dynamic> toJson() => {
     'siteUrl': siteUrl,
     'llmUrl': llmUrl,
@@ -84,11 +130,13 @@ class RoomSettings {
     'ttsFormat': ttsFormat,
     'demo': demo,
     'speak': speak,
+    'options': options,
   };
   factory RoomSettings.fromJson(
     Map<String, dynamic> j, {
     String apiKey = '',
     String ttsKey = '',
+    String mcpKey = '',
   }) => RoomSettings(
     siteUrl: j['siteUrl'] as String? ?? 'https://yachiyo.hk',
     llmUrl:
@@ -102,6 +150,8 @@ class RoomSettings {
     ttsFormat: j['ttsFormat'] == 'mp3' ? 'mp3' : 'wav',
     demo: j['demo'] as bool? ?? true,
     speak: j['speak'] as bool? ?? false,
+    options: Map<String, dynamic>.from(j['options'] as Map? ?? {}),
+    mcpKey: mcpKey,
   );
 }
 
@@ -112,18 +162,29 @@ class ChatTurn {
     required this.assistant,
     required this.createdAt,
     this.pending = false,
+    this.image,
+    this.memoryEnabled = true,
   });
   final String id, user, assistant;
   final DateTime createdAt;
-  final bool pending;
-  ChatTurn synced() =>
-      ChatTurn(id: id, user: user, assistant: assistant, createdAt: createdAt);
+  final bool pending, memoryEnabled;
+  final Map<String, dynamic>? image;
+  ChatTurn synced() => ChatTurn(
+    id: id,
+    user: user,
+    assistant: assistant,
+    createdAt: createdAt,
+    image: image,
+    memoryEnabled: memoryEnabled,
+  );
   Map<String, dynamic> toJson() => {
     'id': id,
     'user': user,
     'assistant': assistant,
     'createdAt': createdAt.toIso8601String(),
     'pending': pending,
+    'image': image,
+    'memoryEnabled': memoryEnabled,
   };
   factory ChatTurn.fromJson(Map<String, dynamic> j) => ChatTurn(
     id: j['id'] as String,
@@ -131,6 +192,8 @@ class ChatTurn {
     assistant: j['assistant'] as String,
     createdAt: DateTime.parse(j['createdAt'] as String),
     pending: j['pending'] == true,
+    image: j['image'] is Map ? Map<String, dynamic>.from(j['image']) : null,
+    memoryEnabled: j['memoryEnabled'] != false,
   );
 }
 

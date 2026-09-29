@@ -1,8 +1,8 @@
 # 月读空间 · Flutter 原生客户端
 
-Tsukuyomi Space 的独立 Flutter 客户端。0.3.0 提供原生 Room、登录、会话与记忆、文章阅读、广场、成长和个人中心，直接连接原网站 API。
+Tsukuyomi Space 的独立 Flutter 客户端。0.4.0 提供原生 Room、登录、会话与记忆、文章阅读、广场、成长和个人中心，直接连接原网站 API。
 
-下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。0.3.0 提供 Android APK、macOS Universal DMG、Windows 安装程序、Linux DEB 和供用户自签的 iOS IPA。
+下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。0.4.0 提供 Android APK、macOS Universal DMG、Windows 安装程序、Linux DEB 和供用户自签的 iOS IPA。
 
 默认进入明确标记的离线演示模式。演示回复来自本地固定文本，不会请求 AI 或上传会话。连接真实服务需在「房间设置」填写模型地址并关闭演示模式。
 

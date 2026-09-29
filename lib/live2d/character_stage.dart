@@ -1,11 +1,18 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/rendering.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
 
 import '../core/voice_service.dart';
+import '../core/models.dart';
+import '../core/room_reference.dart';
+import '../core/room_archive.dart';
+import '../core/room_files.dart';
+import 'room_animation.dart';
 import '../features/room/room_style.dart';
 
 class CharacterStage extends StatefulWidget {
@@ -18,11 +25,27 @@ class CharacterStage extends StatefulWidget {
     this.onSettings,
     this.onReady,
     this.onMusic,
+    this.musicTitle = 'Remember',
+    this.musicPlaying = false,
+    this.musicLoading = false,
+    this.onMusicToggle,
     this.modelLoader,
+    this.animation,
+    this.settings = const RoomSettings(),
+    this.world = const {},
+    this.onWorld,
+    this.onVoiceSettings,
   });
   final VoiceService voice;
+  final RoomAnimation? animation;
+  final RoomSettings settings;
+  final Map<String, dynamic> world;
+  final VoidCallback? onWorld, onVoiceSettings;
   final bool loadNative, mobile, keyboardOpen;
   final VoidCallback? onSettings, onMusic;
+  final String musicTitle;
+  final bool musicPlaying, musicLoading;
+  final VoidCallback? onMusicToggle;
   final ValueChanged<bool>? onReady;
   final Future<Live2DModel> Function()? modelLoader;
   @override
@@ -32,6 +55,7 @@ class CharacterStage extends StatefulWidget {
 class _CharacterStageState extends State<CharacterStage>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   Live2DModel? _model;
+  final _captureKey = GlobalKey(), _fullCaptureKey = GlobalKey();
   String? _failure;
   late final Ticker _ticker;
   Duration _last = Duration.zero;
@@ -51,13 +75,17 @@ class _CharacterStageState extends State<CharacterStage>
       if (delta <= 0) return;
       _last = elapsed;
       _seconds += delta;
+      widget.animation?.advance(delta.clamp(0, .05));
+      _model?.parameterOverrides = widget.animation?.parameters ?? {};
       _model?.tick(
         _seconds,
         delta.clamp(0, .05),
         mouth: widget.voice.mouth,
         lookX: _x,
         lookY: _y,
-        expression: _expression,
+        expression: widget.animation?.current != null
+            ? widget.animation!.expression
+            : _expression,
       );
     });
     if (widget.loadNative) unawaited(_load());
@@ -72,6 +100,7 @@ class _CharacterStageState extends State<CharacterStage>
         return;
       }
       setState(() => _model = model);
+      if (widget.animation != null) widget.animation!.ready = true;
       widget.onReady?.call(true);
       _ticker.start();
     } catch (e) {
@@ -103,6 +132,7 @@ class _CharacterStageState extends State<CharacterStage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _ticker.dispose();
+    if (widget.animation != null) widget.animation!.ready = false;
     _model?.dispose();
     super.dispose();
   }
@@ -152,8 +182,30 @@ class _CharacterStageState extends State<CharacterStage>
                 fit: BoxFit.contain,
                 excludeFromSemantics: true,
               )
-            : RepaintBoundary(
-                child: CustomPaint(painter: Live2DPainter(_model!)),
+            : AnimatedBuilder(
+                animation: _model!,
+                child: RepaintBoundary(
+                  child: CustomPaint(painter: Live2DPainter(_model!)),
+                ),
+                builder: (context, child) {
+                  final a = widget.animation;
+                  return Transform.translate(
+                    offset: Offset(
+                      widget.settings.number('modelX', 0) + (a?.x ?? 0),
+                      widget.settings.number('modelY', 0) + (a?.y ?? 0),
+                    ),
+                    child: Transform.rotate(
+                      angle: (a?.rotation ?? 0) * 3.141592653589793 / 180,
+                      child: Transform.scale(
+                        scale:
+                            widget.settings.number('modelScale', 100) /
+                            100 *
+                            (a?.scale ?? 1),
+                        child: child,
+                      ),
+                    ),
+                  );
+                },
               ),
       ),
     ),
@@ -199,8 +251,8 @@ class _CharacterStageState extends State<CharacterStage>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '• LIVE2D ROOM',
+                    Text(
+                      '• LIVE2D ROOM${widget.world['city'] == null ? '' : ' · ${widget.world['city']}'}',
                       style: TextStyle(
                         fontSize: 9,
                         letterSpacing: 2.5,
@@ -391,29 +443,59 @@ class _CharacterStageState extends State<CharacterStage>
     },
   );
 
-  void _sceneInfo() => showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('月夜小屋'),
-      content: const Text('此刻，在月读相遇。'),
-      actions: [
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-            _diagnostics();
-          },
-          child: const Text('角色状态'),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-            widget.onSettings?.call();
-          },
-          child: const Text('房间与角色设置'),
-        ),
-      ],
-    ),
-  );
+  void _sceneInfo() {
+    if (widget.onWorld != null) {
+      widget.onWorld!();
+      return;
+    }
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('月夜小屋'),
+        content: const Text('此刻，在月读相遇。'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _diagnostics();
+            },
+            child: const Text('角色状态'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onSettings?.call();
+            },
+            child: const Text('房间与角色设置'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveScreenshot(bool expanded) async {
+    try {
+      final boundary =
+          (expanded ? _fullCaptureKey : _captureKey).currentContext!
+                  .findRenderObject()
+              as RenderRepaintBoundary;
+      final image = await boundary.toImage(pixelRatio: 2);
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+      image.dispose();
+      if (!mounted || bytes == null) return;
+      await exportRoomFile(
+        context,
+        bytes.buffer.asUint8List(),
+        'tsukuyomi-room-${DateTime.now().millisecondsSinceEpoch}.png',
+        'image/png',
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('截图保存失败，请重试')));
+      }
+    }
+  }
 
   Widget _toolbar(bool expanded) {
     final p = RoomStyle(context);
@@ -446,7 +528,7 @@ class _CharacterStageState extends State<CharacterStage>
                               style: TextStyle(fontSize: 10, color: p.muted),
                             ),
                             Text(
-                              '选择喜欢的歌',
+                              widget.musicTitle,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(fontSize: 8, color: p.muted),
                             ),
@@ -458,19 +540,43 @@ class _CharacterStageState extends State<CharacterStage>
                 ),
               ),
             ),
+            IconButton(
+              tooltip: widget.musicPlaying ? '暂停音乐' : '播放音乐',
+              onPressed: widget.musicLoading ? null : widget.onMusicToggle,
+              icon: widget.musicLoading
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      widget.musicPlaying
+                          ? CupertinoIcons.pause_fill
+                          : CupertinoIcons.play_fill,
+                      size: 16,
+                    ),
+            ),
             PopupMenuButton<String>(
               tooltip: '表情',
               initialValue: _expression,
               enabled: _model != null,
-              onSelected: (v) => setState(() => _expression = v),
+              onSelected: (v) {
+                if (widget.animation != null) {
+                  widget.animation!.enqueue({
+                    'expression': v,
+                    'durationMs': 5000,
+                  });
+                } else {
+                  setState(() => _expression = v);
+                }
+              },
               itemBuilder: (_) => [
-                for (final e in const {
-                  'neutral': '自然',
-                  'smile': '微笑',
-                  'bsmile': '开心',
-                  'tears': '泪光',
-                }.entries)
-                  PopupMenuItem(value: e.key, child: Text(e.value)),
+                for (final e in jsonRows(
+                  RoomReference.map('live2d')['expressions'],
+                ))
+                  PopupMenuItem(
+                    value: '${e['id']}',
+                    child: Text('${e['label']}'),
+                  ),
               ],
               child: Padding(
                 padding: const EdgeInsets.all(8),
@@ -485,18 +591,30 @@ class _CharacterStageState extends State<CharacterStage>
                 ),
               ),
             ),
-            IconButton(
-              style: IconButton.styleFrom(
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                minimumSize: const Size(32, 32),
-                padding: const EdgeInsets.all(6),
-              ),
-              tooltip: _paused ? '继续动作' : '暂停动作',
-              onPressed: _model == null ? null : _toggleMotion,
-              icon: Icon(
-                _paused ? CupertinoIcons.play : CupertinoIcons.pause,
-                size: 17,
-              ),
+            PopupMenuButton<String>(
+              tooltip: '动作',
+              enabled: _model != null,
+              onSelected: (v) {
+                if (v == 'pause') {
+                  _toggleMotion();
+                } else {
+                  widget.animation?.enqueue({'motion': v, 'durationMs': 2800});
+                }
+              },
+              itemBuilder: (_) => [
+                for (final m in jsonRows(
+                  RoomReference.map('live2d')['motions'],
+                ))
+                  PopupMenuItem(
+                    value: '${m['id']}',
+                    child: Text('${m['label']}'),
+                  ),
+                PopupMenuItem(
+                  value: 'pause',
+                  child: Text(_paused ? '继续动作' : '暂停动作'),
+                ),
+              ],
+              icon: const Icon(CupertinoIcons.move, size: 17),
             ),
             if (box.maxWidth > 520) const SizedBox(width: 10),
             IconButton(
@@ -505,9 +623,9 @@ class _CharacterStageState extends State<CharacterStage>
                 minimumSize: const Size(32, 32),
                 padding: const EdgeInsets.all(6),
               ),
-              tooltip: '渲染状态',
-              onPressed: _diagnostics,
-              icon: const Icon(CupertinoIcons.info_circle, size: 17),
+              tooltip: '保存角色截图',
+              onPressed: () => _saveScreenshot(expanded),
+              icon: const Icon(CupertinoIcons.camera, size: 17),
             ),
             IconButton(
               style: IconButton.styleFrom(
@@ -520,8 +638,12 @@ class _CharacterStageState extends State<CharacterStage>
                   ? () => Navigator.pop(context)
                   : () => showDialog<void>(
                       context: context,
-                      builder: (_) =>
-                          Dialog.fullscreen(child: _scene(expanded: true)),
+                      builder: (_) => Dialog.fullscreen(
+                        child: RepaintBoundary(
+                          key: _fullCaptureKey,
+                          child: _scene(expanded: true),
+                        ),
+                      ),
                     ),
               icon: Icon(
                 expanded
@@ -531,7 +653,7 @@ class _CharacterStageState extends State<CharacterStage>
               ),
             ),
             FilledButton.icon(
-              onPressed: widget.onSettings,
+              onPressed: widget.onVoiceSettings ?? widget.onSettings,
               style: FilledButton.styleFrom(
                 backgroundColor: p.primary,
                 foregroundColor: p.onPrimary,
@@ -552,5 +674,6 @@ class _CharacterStageState extends State<CharacterStage>
   }
 
   @override
-  Widget build(BuildContext context) => _scene();
+  Widget build(BuildContext context) =>
+      RepaintBoundary(key: _captureKey, child: _scene());
 }

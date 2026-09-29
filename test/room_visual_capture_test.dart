@@ -11,6 +11,8 @@ import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
 
 import 'support/fakes.dart';
 
+import 'package:tsukuyomi_space_app/core/models.dart';
+
 // Opt-in local visual QA: real Cubism and system fonts, never Ahem screenshots.
 // CI does not have the locally licensed model/SDK or macOS fonts.
 void main() {
@@ -53,9 +55,13 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
-    for (final size in [const Size(1440, 960), const Size(390, 844)]) {
+    for (final size in [const Size(1417, 960), const Size(390, 844)]) {
       final c = RoomController(
-        storage: MemoryStorage(),
+        storage: MemoryStorage()
+          ..value = const RoomSettings(
+            demo: false,
+            llmUrl: 'https://api.openai.com/v1/chat/completions',
+          ),
         chat: FakeChat(),
         site: FakeSite(),
         voice: SilentVoice(),
@@ -84,7 +90,7 @@ void main() {
         final image = await boundary.toImage();
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
         final path =
-            'artifacts/ui-alignment/flutter-${size.width > 860 ? 'desktop' : 'mobile'}.png';
+            'artifacts/room-parity/native-room-${size.width > 860 ? 'desktop' : 'mobile'}.png';
         final file = File(path);
         await file.parent.create(recursive: true);
         await file.writeAsBytes(bytes!.buffer.asUint8List());
