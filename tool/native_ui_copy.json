@@ -2298,5 +2298,155 @@
     "媒体地址无效",
     "メディアのURLが無効です",
     "Invalid media address"
+  ],
+  [
+    "房间",
+    "ルーム",
+    "Room"
+  ],
+  [
+    "内容创作",
+    "コンテンツ作成",
+    "Create"
+  ],
+  [
+    "社区",
+    "コミュニティ",
+    "Community"
+  ],
+  [
+    "账户与设置",
+    "アカウントと設定",
+    "Account and settings"
+  ],
+  [
+    "连接模型，开始聊天",
+    "モデルを接続してチャット開始",
+    "Connect a model to start chatting"
+  ],
+  [
+    "保存并开始聊天",
+    "保存してチャット開始",
+    "Save and start chatting"
+  ],
+  [
+    "查看新消息",
+    "新しいメッセージを見る",
+    "View new messages"
+  ],
+  [
+    "文章信息",
+    "記事情報",
+    "Article details"
+  ],
+  [
+    "分类、封面与摘要",
+    "カテゴリ・表紙・要約",
+    "Category, cover and summary"
+  ],
+  [
+    "选择工作目录",
+    "作業フォルダを選択",
+    "Choose workspace"
+  ],
+  [
+    "自动模式",
+    "自動モード",
+    "Automatic"
+  ],
+  [
+    "结构化兼容模式",
+    "構造化互換モード",
+    "Structured compatibility"
+  ],
+  [
+    "让 Agent 帮你完成任务",
+    "Agent でタスクを実行",
+    "Complete tasks with Agent"
+  ],
+  [
+    "选择工作目录后，可以编辑文件、运行命令，或协助创作文章。",
+    "作業フォルダを選択し、ファイル編集やコマンド実行、記事作成を行えます。",
+    "Choose a workspace to edit files, run commands or write articles."
+  ],
+  [
+    "打开文章编辑器",
+    "記事エディターを開く",
+    "Open article editor"
+  ],
+  [
+    "描述要完成的任务",
+    "実行するタスクを入力",
+    "Describe your task"
+  ],
+  [
+    "预览文章草稿",
+    "記事の下書きをプレビュー",
+    "Preview article draft"
+  ],
+  [
+    "允许此次操作",
+    "今回の操作を許可",
+    "Allow this operation"
+  ],
+  [
+    "拒绝",
+    "拒否",
+    "Decline"
+  ],
+  [
+    "停止",
+    "停止",
+    "Stop"
+  ],
+  [
+    "撤销草稿修改",
+    "下書きの変更を元に戻す",
+    "Undo draft edit"
+  ],
+  [
+    "已撤销草稿修改",
+    "下書きの変更を元に戻しました",
+    "Draft edit undone"
+  ],
+  [
+    "正在启动 Agent",
+    "Agent 起動中",
+    "Starting Agent"
+  ],
+  [
+    "Agent 已停止",
+    "Agent を停止しました",
+    "Agent stopped"
+  ],
+  [
+    "任务已完成",
+    "タスク完了",
+    "Task complete"
+  ],
+  [
+    "此操作会写入外部服务",
+    "外部サービスへ書き込みます",
+    "This operation writes to an external service"
+  ],
+  [
+    "命令请求目录外访问或网络权限",
+    "コマンドがフォルダ外へのアクセスかネットワーク権限を要求しています",
+    "The command requests outside-folder access or network permission"
+  ],
+  [
+    "命令请求提权；当前沙箱仅支持普通用户执行",
+    "コマンドが権限昇格を要求しています。このサンドボックスは一般ユーザーのみ対応です",
+    "The command requests elevation; this sandbox supports ordinary users only"
+  ],
+  [
+    "画廊管理",
+    "ギャラリー管理",
+    "Gallery management"
+  ],
+  [
+    "执行外部 MCP 工具前，请确认工具与参数",
+    "外部 MCP ツールの実行前にツールと引数を確認してください",
+    "Confirm the external MCP tool and arguments"
   ]
 ]

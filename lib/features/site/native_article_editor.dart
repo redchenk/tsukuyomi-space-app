@@ -1,6 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
+
+import '../../core/agent/agent_types.dart';
+import '../../core/models.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -8,16 +13,18 @@ import '../room/room_controller.dart';
 import 'native_asset_service.dart';
 import 'site_widgets.dart';
 
-class NativeArticleEditor extends ChangeNotifier {
+class NativeArticleEditor extends ChangeNotifier implements AgentArticleDraft {
   NativeArticleEditor(this.room, this.path, {NativeAssetService? service})
     : assets = service ?? NativeAssetService(room) {
     _scope = assets.scope;
     _baseline = Map.of(fields);
     room.addListener(_accountChanged);
+    room.articleDrafts[draftKey] = this;
   }
   final RoomController room;
   final NativeAssetService assets;
   final String path;
+  @override
   final fields = <String, dynamic>{
     'title': '',
     'category': '其他',
@@ -40,8 +47,35 @@ class NativeArticleEditor extends ChangeNotifier {
   bool _disposed = false;
   Timer? _draftTimer;
   String get id => Uri.parse(path).queryParameters['id'] ?? '';
+  @override
   String get draftKey =>
       'article-editor:${assets.scope}:${id.isEmpty ? 'new' : id}';
+  @override
+  String get revision =>
+      sha256.convert(utf8.encode(jsonEncode(fields))).toString();
+
+  @override
+  void applyAgentDraft(String expectedRevision, Map<String, dynamic> changes) {
+    if (_disposed || loading || submitting) {
+      throw const ApiFailure('文章正在操作，请稍后重试');
+    }
+    if (expectedRevision != revision) {
+      throw const ApiFailure('草稿已被修改，请重新读取并比较差异', status: 409);
+    }
+    if (changes.keys.any((key) => !fields.containsKey(key))) {
+      throw const ApiFailure('文章字段无效');
+    }
+    for (final entry in changes.entries) {
+      if (!{'cover_image', 'cover_image_asset_id'}.contains(entry.key) &&
+          entry.value is! String) {
+        throw const ApiFailure('文章字段必须是文本');
+      }
+    }
+    fields.addAll(changes);
+    _draftRevision++;
+    _changed();
+  }
+
   bool get dirty => jsonEncode(fields) != jsonEncode(_baseline);
   List<Map<String, dynamic>> get allowedCategories =>
       categories.where((item) => moderator || item['name'] != '公告').toList();
@@ -67,7 +101,12 @@ class NativeArticleEditor extends ChangeNotifier {
             .catchError((_) {}),
       );
     }
+    final oldKey = 'article-editor:$_scope:${id.isEmpty ? 'new' : id}';
+    if (identical(room.articleDrafts[oldKey], this)) {
+      room.articleDrafts.remove(oldKey);
+    }
     _scope = assets.scope;
+    room.articleDrafts[draftKey] = this;
     _request++;
     _summary++;
     _draftRevision++;
@@ -170,6 +209,7 @@ class NativeArticleEditor extends ChangeNotifier {
     });
   }
 
+  @override
   Future<bool> saveDraft() async {
     final key = draftKey, scope = assets.scope, revision = _draftRevision;
     _draftTimer?.cancel();
@@ -246,6 +286,7 @@ class NativeArticleEditor extends ChangeNotifier {
     }
   }
 
+  @override
   Future<Map<String, dynamic>?> submit() async {
     if (submitting || summarizing || loading) return null;
     if (room.account == null || room.sessionExpired) {
@@ -314,6 +355,9 @@ class NativeArticleEditor extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (identical(room.articleDrafts[draftKey], this)) {
+      room.articleDrafts.remove(draftKey);
+    }
     _disposed = true;
     _request++;
     _summary++;

@@ -34,10 +34,17 @@ class DeviceRoomStorage implements RoomStorage {
   @override
   Future<RoomSettings> settings() async {
     final source = preferences.getString('settings');
+    final data = source == null
+        ? <String, dynamic>{}
+        : Map<String, dynamic>.from(jsonDecode(source) as Map);
+    // Upgrade the old implicit demo default without touching demo history.
+    if (!preferences.containsKey('room-first-v6')) {
+      data['demo'] = false;
+      await preferences.setString('settings', jsonEncode(data));
+      await preferences.setBool('room-first-v6', true);
+    }
     return RoomSettings.fromJson(
-      source == null
-          ? {}
-          : Map<String, dynamic>.from(jsonDecode(source) as Map),
+      data,
       apiKey: await readSecret('llmKey') ?? '',
       ttsKey: await readSecret('ttsKey') ?? '',
       mcpKey: await readSecret('mcpKey') ?? '',

@@ -65,7 +65,11 @@ class RoomWorkspace extends ChangeNotifier {
   String note = '', worldStatus = '', status = '';
   int _epoch = 0;
   bool _disposed = false;
-  bool get online => !c.settings.demo && c.account != null && !c.sessionExpired;
+  bool get online =>
+      !c.settings.demo &&
+      c.account != null &&
+      !c.sessionExpired &&
+      !c.verifyingSession;
   void changed() {
     if (!_disposed) notifyListeners();
   }

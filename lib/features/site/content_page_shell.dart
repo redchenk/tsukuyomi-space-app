@@ -21,6 +21,7 @@ class ContentPageShell extends StatelessWidget {
     this.notice = '',
     this.onRefresh,
     this.maxWidth = 1200,
+    this.toolbar,
   });
   final RoomController controller;
   final String title, error, notice;
@@ -29,6 +30,7 @@ class ContentPageShell extends StatelessWidget {
   final bool loading;
   final Future<void> Function()? onRefresh;
   final Widget child;
+  final Widget? toolbar;
   final double maxWidth;
   @override
   Widget build(BuildContext context) {
@@ -103,6 +105,16 @@ class ContentPageShell extends StatelessWidget {
                     child: const SiteText('重新登录'),
                   ),
                 ],
+              ),
+            if (toolbar != null)
+              Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: narrow ? 14 : 24),
+                    child: toolbar,
+                  ),
+                ),
               ),
             Expanded(
               child: onRefresh == null

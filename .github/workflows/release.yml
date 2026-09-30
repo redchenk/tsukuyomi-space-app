@@ -90,10 +90,32 @@ jobs:
       - name: Download and verify licensed build inputs
         run: python tool/release/prepare_assets.py
       - run: python -m unittest discover -s tool/release -p 'test_*.py'
+      - run: python -m unittest discover -s tool/agent -p 'test_*.py'
       - run: flutter pub get
       - run: dart format --output=none --set-exit-if-changed lib test packages/tsukuyomi_live2d/lib packages/tsukuyomi_live2d/hook
       - run: flutter analyze --no-pub
-      - run: flutter test --no-pub --concurrency=1 --dart-define=RUN_CUBISM_TESTS=true
+      - name: Check out original site backend fixture
+        uses: actions/checkout@v4
+        with:
+          repository: redchenk/tsukuyomi-space
+          ref: 06a04d7043336f3494f80451bb22e8becab5c219
+          path: build/site-fixture-source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: build/site-fixture-source/package-lock.json
+      - run: npm ci --prefix build/site-fixture-source
+      - name: Run all source and real backend regressions
+        run: |
+          node tool/testing/site_room_fixture.cjs build/site-fixture-source > /tmp/site-fixture.log 2>&1 &
+          SITE_FIXTURE_PID=$!
+          trap 'kill "$SITE_FIXTURE_PID"' EXIT
+          for attempt in {1..30}; do
+            curl --silent --output /dev/null http://127.0.0.1:4184/ && break
+            sleep 1
+          done
+          RUN_SITE_FIXTURE=1 flutter test --no-pub --concurrency=1 --dart-define=RUN_CUBISM_TESTS=true --dart-define=RUN_WEBSITE_INTEGRATION=true
   build:
     needs: [metadata, quality]
     strategy:
@@ -150,11 +172,15 @@ jobs:
       - name: Download and verify licensed build inputs
         run: python tool/release/prepare_assets.py
       - run: flutter pub get
+      - name: Prepare fixed desktop Agent runtimes
+        if: matrix.target == 'macos' || matrix.target == 'windows' || matrix.target == 'linux'
+        run: python tool/agent/prepare_runtime.py --target "${{ matrix.target }}"
       - name: Build macOS universal release
         if: matrix.target == 'macos'
         run: |
           flutter build macos --release
           APP=build/macos/Build/Products/Release/tsukuyomi_space_app.app
+          python tool/agent/package_runtime.py --platform macos --bundle "$APP"
           ARCHS="$(lipo -archs "$APP/Contents/MacOS/tsukuyomi_space_app")"
           [[ "$ARCHS" == *arm64* && "$ARCHS" == *x86_64* ]]
           codesign --verify --deep --strict "$APP"
@@ -175,6 +201,7 @@ jobs:
         if: matrix.target == 'windows'
         run: |
           flutter build windows --release
+          python tool/agent/package_runtime.py --platform windows --bundle build/windows/x64/runner/Release
           python tool/release/verify_assets.py build/windows/x64/runner/Release/data/flutter_assets
       - name: Package Windows with Visual C++ runtime
         if: matrix.target == 'windows'
@@ -204,6 +231,7 @@ jobs:
         if: matrix.target == 'linux'
         run: |
           flutter build linux --release
+          python tool/agent/package_runtime.py --platform linux --bundle build/linux/x64/release/bundle
           python tool/release/verify_assets.py build/linux/x64/release/bundle/data/flutter_assets
           python tool/release/package_linux.py
           dpkg-deb --info "dist/tsukuyomi-space-$APP_VERSION-linux-x64.deb"
@@ -228,6 +256,15 @@ jobs:
             cp "$APK" "dist/tsukuyomi-space-$APP_VERSION-android-$abi.apk"
           done
           python tool/release/verify_apks.py dist/*.apk
+      - name: Exercise packaged OpenCode, MCP gateway and Codex sandbox
+        if: matrix.target == 'macos' || matrix.target == 'windows' || matrix.target == 'linux'
+        run: |
+          case "${{ matrix.target }}" in
+            macos) RUNTIME=build/macos/Build/Products/Release/tsukuyomi_space_app.app/Contents/Resources/agent ;;
+            windows) RUNTIME=build/windows/x64/runner/Release/agent ;;
+            linux) RUNTIME=build/linux/x64/release/bundle/agent ;;
+          esac
+          flutter test --no-pub test/desktop_agent_test.dart --dart-define=RUN_AGENT_TESTS=true --dart-define=AGENT_BUNDLE_PATH="$RUNTIME"
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.target }}

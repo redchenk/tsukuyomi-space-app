@@ -21,7 +21,6 @@ import 'features/site/site_page.dart';
 import 'features/site/hub_page.dart';
 import 'features/site/site_navigation.dart';
 import 'features/settings/settings_page.dart';
-import 'features/site/access_page.dart';
 import 'features/site/wiki_page.dart';
 import 'features/site/reality_page.dart';
 import 'features/site/friend_links_page.dart';
@@ -47,7 +46,7 @@ Future<void> main() async {
     site: SiteClient(),
     voice: AudioVoice(),
   );
-  runApp(TsukuyomiApp(controller: controller, initialPath: '/'));
+  runApp(TsukuyomiApp(controller: controller));
   await controller.initialize();
 }
 
@@ -321,15 +320,6 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
             path: path!,
             onGo: go,
             onTheme: _toggleTheme,
-          );
-        }
-        if (route == '/') {
-          return AccessPage(
-            controller: c,
-            path: path!,
-            onGo: go,
-            onTheme: _toggleTheme,
-            playVideo: widget.loadNative,
           );
         }
         if (route == '/wiki' || route?.startsWith('/wiki/') == true) {

@@ -1,0 +1,771 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:tsukuyomi_space_app/core/agent/agent_types.dart';
+import 'package:tsukuyomi_space_app/core/agent/agent_tools.dart';
+import 'package:tsukuyomi_space_app/core/agent/agent_binaries.dart';
+import 'package:tsukuyomi_space_app/core/agent/agent_provider.dart';
+import 'package:tsukuyomi_space_app/core/agent/opencode_agent_runtime.dart';
+import 'package:tsukuyomi_space_app/core/agent/structured_agent_runtime.dart';
+import 'package:tsukuyomi_space_app/core/models.dart';
+import 'package:tsukuyomi_space_app/features/agent/desktop_agent_controller.dart';
+import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
+
+import 'support/fakes.dart';
+
+import 'package:tsukuyomi_space_app/core/llm_client.dart';
+
+class ScriptedAgentChat implements ChatService {
+  ScriptedAgentChat(this.answers);
+  final List<String> answers;
+  int requests = 0;
+  @override
+  Stream<String> reply(
+    RoomSettings settings,
+    List<ChatTurn> history,
+    String message,
+  ) => Stream.value(answers[requests++]);
+  @override
+  void cancel() {}
+}
+
+void main() {
+  late Directory temporary, workspace;
+  late List<AgentEvent> events;
+  late ToolGateway gateway;
+  setUp(() async {
+    temporary = await Directory.systemTemp.createTemp('tsukuyomi-agent-test-');
+    workspace = await Directory('${temporary.path}/workspace').create();
+    events = [];
+    gateway = ToolGateway(
+      workspace: workspace.path,
+      approve: (_) async => false,
+      emit: events.add,
+      commandRunner: SandboxCommandRunner('missing'),
+    );
+    gateway.begin();
+  });
+  tearDown(() async {
+    gateway.cancel();
+    await temporary.delete(recursive: true);
+  });
+
+  test('real file roundtrip is scoped and emits an actual diff', () async {
+    await gateway.call('fs_write', {
+      'path': 'notes/test.md',
+      'content': 'hello 月読',
+    });
+    expect(
+      await File('${workspace.path}/notes/test.md').readAsString(),
+      'hello 月読',
+    );
+    expect(
+      (await gateway.call('fs_read', {'path': 'notes/test.md'}))['content'],
+      'hello 月読',
+    );
+    expect(events.where((e) => e.type == 'diff').single.data['before'], '');
+  });
+  test('traversal and symlink escapes require approval', () async {
+    final outside = File('${temporary.path}/outside.txt');
+    await outside.writeAsString('private');
+    await expectLater(
+      gateway.call('fs_read', {'path': '../outside.txt'}),
+      throwsA(isA<ApiFailure>()),
+    );
+    if (!Platform.isWindows) {
+      await Link('${workspace.path}/linked.txt').create(outside.path);
+      await expectLater(
+        gateway.call('fs_write', {'path': 'linked.txt', 'content': 'changed'}),
+        throwsA(isA<ApiFailure>()),
+      );
+      expect(await outside.readAsString(), 'private');
+    }
+  });
+  test(
+    'schema rejects unknown parameters and tools without executing',
+    () async {
+      await expectLater(
+        gateway.call('fs_write', {
+          'path': 'test',
+          'content': 'x',
+          'extra': true,
+        }),
+        throwsA(isA<ApiFailure>()),
+      );
+      await expectLater(
+        gateway.call('arbitrary_shell', {}),
+        throwsA(isA<ApiFailure>()),
+      );
+      expect(await File('${workspace.path}/test').exists(), false);
+    },
+  );
+  test(
+    'cancel invalidates a pending approval even when it later resolves true',
+    () async {
+      final answer = Completer<bool>(), asked = Completer<void>();
+      final controlled = ToolGateway(
+        workspace: workspace.path,
+        approve: (_) {
+          asked.complete();
+          return answer.future;
+        },
+        emit: events.add,
+        commandRunner: SandboxCommandRunner('missing'),
+        additional: [
+          AgentTool(
+            'publish',
+            'publish',
+            {},
+            [],
+            (_) async => 'bad',
+            confirm: true,
+          ),
+        ],
+      );
+      controlled.begin();
+      final call = controlled.call('publish', {});
+      await asked.future;
+      controlled.cancel();
+      answer.complete(true);
+      await expectLater(call, throwsA(isA<ApiFailure>()));
+      expect(events.where((e) => e.type == 'toolResult'), isEmpty);
+    },
+  );
+  test(
+    'structured mode executes validated actions, repairs once, then answers',
+    () async {
+      final chat = ScriptedAgentChat([
+        'plain invalid response',
+        '{"type":"tool","name":"fs_write","arguments":{"path":"result.md","content":"完成"}}',
+        '{"type":"final","text":"已保存"}',
+      ]);
+      final runtime = StructuredAgentRuntime(gateway, chat: chat);
+      await runtime.send(
+        AgentSession(id: 'test', owner: 'guest', workspace: workspace.path),
+        'write a note',
+        const RoomSettings(model: 'fixture'),
+        events.add,
+      );
+      expect(await File('${workspace.path}/result.md').readAsString(), '完成');
+      expect(chat.requests, 3);
+      expect(events.last.text, '已保存');
+    },
+  );
+  test(
+    'two malformed actions stop; no text is executed as a command',
+    () async {
+      final runtime = StructuredAgentRuntime(
+        gateway,
+        chat: ScriptedAgentChat([
+          'rm -rf /',
+          '{"type":"tool","name":"unknown","arguments":{}}',
+        ]),
+      );
+      await expectLater(
+        runtime.send(
+          AgentSession(id: 'test', owner: 'guest', workspace: workspace.path),
+          'task',
+          const RoomSettings(model: 'fixture'),
+          events.add,
+        ),
+        throwsA(isA<ApiFailure>()),
+      );
+      expect(events, isEmpty);
+    },
+  );
+
+  for (final protocol in ['openai', 'responses', 'anthropic', 'ollama']) {
+    test(
+      'native provider conversion preserves tool arguments and results: $protocol',
+      () async {
+        final endpoint = switch (protocol) {
+          'responses' => 'https://provider.test/v1/responses',
+          'anthropic' => 'https://provider.test/v1/messages',
+          'ollama' => 'http://localhost:11434/api/chat',
+          _ => 'https://provider.test/v1/chat/completions',
+        };
+        final client = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map;
+          expect(body['model'], 'configured-model');
+          expect(body['stream'], false);
+          expect(body['tools'], isNotEmpty);
+          final data = switch (protocol) {
+            'responses' => {
+              'output': [
+                {
+                  'type': 'function_call',
+                  'call_id': 'call1',
+                  'name': 'fs_read',
+                  'arguments': '{"path":"test"}',
+                },
+              ],
+            },
+            'anthropic' => {
+              'content': [
+                {
+                  'type': 'tool_use',
+                  'id': 'call1',
+                  'name': 'fs_read',
+                  'input': {'path': 'test'},
+                },
+              ],
+            },
+            'ollama' => {
+              'message': {
+                'content': '',
+                'tool_calls': [
+                  {
+                    'id': 'call1',
+                    'function': {
+                      'name': 'fs_read',
+                      'arguments': {'path': 'test'},
+                    },
+                  },
+                ],
+              },
+            },
+            _ => {
+              'choices': [
+                {
+                  'message': {
+                    'role': 'assistant',
+                    'tool_calls': [
+                      {
+                        'id': 'call1',
+                        'type': 'function',
+                        'function': {
+                          'name': 'fs_read',
+                          'arguments': '{"path":"test"}',
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          };
+          return http.Response(
+            jsonEncode(data),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+        final bridge = AgentProviderBridge(
+          RoomSettings(
+            llmUrl: endpoint,
+            model: 'configured-model',
+            apiKey: 'private-key',
+          ),
+          clientFactory: () => client,
+        );
+        final response = await bridge.complete({
+          'messages': [
+            {'role': 'system', 'content': 'tools'},
+            {'role': 'user', 'content': 'read file'},
+            {
+              'role': 'assistant',
+              'tool_calls': [
+                {
+                  'id': 'before',
+                  'function': {
+                    'name': 'fs_read',
+                    'arguments': '{"path":"old"}',
+                  },
+                },
+              ],
+            },
+            {
+              'role': 'tool',
+              'tool_call_id': 'before',
+              'content': 'old contents',
+            },
+          ],
+          'tools': [
+            {
+              'type': 'function',
+              'function': {
+                'name': 'fs_read',
+                'description': 'read',
+                'parameters': {
+                  'type': 'object',
+                  'properties': {
+                    'path': {'type': 'string'},
+                  },
+                  'required': ['path'],
+                },
+              },
+            },
+          ],
+        });
+        expect(response['choices'][0]['finish_reason'], 'tool_calls');
+        expect(
+          response['choices'][0]['message']['tool_calls'][0]['function']['arguments'],
+          '{"path":"test"}',
+        );
+      },
+    );
+  }
+
+  test(
+    'gateway enforces twenty actions and cannot execute without a sandbox',
+    () async {
+      for (var i = 0; i < 20; i++) {
+        await gateway.call('fs_list', {});
+      }
+      await expectLater(
+        gateway.call('fs_list', {}),
+        throwsA(isA<ApiFailure>()),
+      );
+      gateway.begin();
+      await expectLater(
+        gateway.call('command', {'command': 'echo must not execute'}),
+        throwsA(isA<ApiFailure>()),
+      );
+    },
+  );
+  test(
+    'JSON schema validates nullable enum, nested bounds and reference failures',
+    () {
+      validateArguments({
+        'type': ['integer', 'null'],
+        'minimum': 0,
+      }, null);
+      expect(
+        () => validateArguments({'type': 'integer', 'minimum': 0}, -1),
+        throwsA(isA<ApiFailure>()),
+      );
+      expect(
+        () => validateArguments({
+          'enum': ['read', 'write'],
+        }, 'delete'),
+        throwsA(isA<ApiFailure>()),
+      );
+      expect(
+        () => validateArguments({r'$ref': '#/unknown'}, {}),
+        throwsA(isA<ApiFailure>()),
+      );
+    },
+  );
+
+  for (final protocol in ['openai', 'responses', 'anthropic', 'ollama']) {
+    test(
+      'structured fallback uses the configured real HTTP protocol: $protocol',
+      () async {
+        var requests = 0;
+        final client = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map;
+          expect(body['model'], 'configured-model');
+          final action = requests++ == 0
+              ? {
+                  'type': 'tool',
+                  'name': 'fs_write',
+                  'arguments': {
+                    'path': 'compat.txt',
+                    'content': 'compat $protocol',
+                  },
+                }
+              : {'type': 'final', 'text': 'Done'};
+          final text = jsonEncode(action);
+          final payload = switch (protocol) {
+            'responses' => {
+              'status': 'completed',
+              'output': [
+                {
+                  'type': 'message',
+                  'content': [
+                    {'type': 'output_text', 'text': text},
+                  ],
+                },
+              ],
+            },
+            'anthropic' => {
+              'stop_reason': 'end_turn',
+              'content': [
+                {'type': 'text', 'text': text},
+              ],
+            },
+            'ollama' => {
+              'done': true,
+              'message': {'role': 'assistant', 'content': text},
+            },
+            _ => {
+              'choices': [
+                {
+                  'message': {'role': 'assistant', 'content': text},
+                  'finish_reason': 'stop',
+                },
+              ],
+            },
+          };
+          return http.Response(
+            jsonEncode(payload),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+        final runtime = StructuredAgentRuntime(
+          gateway,
+          chat: LlmClient(clientFactory: () => client),
+        );
+        await runtime.send(
+          AgentSession(id: 'compat', owner: 'guest', workspace: workspace.path),
+          'Save a note',
+          RoomSettings(
+            model: 'configured-model',
+            llmUrl: switch (protocol) {
+              'responses' => 'https://provider.test/v1/responses',
+              'anthropic' => 'https://provider.test/v1/messages',
+              'ollama' => 'http://localhost:11434/api/chat',
+              _ => 'https://provider.test/v1/chat/completions',
+            },
+          ),
+          events.add,
+        );
+        expect(requests, 2);
+        expect(
+          await File('${workspace.path}/compat.txt').readAsString(),
+          'compat $protocol',
+        );
+      },
+    );
+  }
+
+  const native = bool.fromEnvironment('RUN_AGENT_TESTS');
+  test(
+    'bundled Codex enforces directory access and kills shell children',
+    () async {
+      final binaries = await AgentBinaries.locate();
+      final runner = SandboxCommandRunner(binaries.codex);
+      final result = await runner.run(
+        workspace.path,
+        Platform.isWindows
+            ? 'echo hello>inside.txt'
+            : 'printf hello > inside.txt',
+      );
+      expect(result['exitCode'], 0, reason: result['stderr'].toString());
+      expect(await File('${workspace.path}/inside.txt').exists(), true);
+      final outside = File('${temporary.path}/outside.txt');
+      final escaped = await runner.run(
+        workspace.path,
+        Platform.isWindows
+            ? 'echo bad>"${outside.path}"'
+            : "printf bad > '${outside.path}'",
+      );
+      expect(escaped['exitCode'], isNot(0));
+      expect(await outside.exists(), false);
+      await outside.writeAsString('outside-private');
+      final readCommand = Platform.isWindows
+          ? 'type "${outside.path}"'
+          : "cat '${outside.path}'";
+      final deniedRead = await runner.run(workspace.path, readCommand);
+      expect(
+        deniedRead['exitCode'],
+        isNot(0),
+        reason: 'The default sandbox must deny reads outside the selected workspace.',
+      );
+      final allowedRead = await runner.run(
+        workspace.path,
+        readCommand,
+        readRoots: [temporary.path],
+      );
+      expect(
+        allowedRead['exitCode'],
+        0,
+        reason: allowedRead['stderr'].toString(),
+      );
+      expect(allowedRead['stdout'], contains('outside-private'));
+      final future = runner.run(
+        workspace.path,
+        Platform.isWindows
+            ? 'ping -n 30 127.0.0.1>nul & echo late>cancelled.txt'
+            : 'sleep 30 & wait; printf late > cancelled.txt',
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      final cancelled = expectLater(future, throwsA(isA<ApiFailure>()));
+      await runner.cancel();
+      await cancelled;
+      expect(await File('${workspace.path}/cancelled.txt').exists(), false);
+    },
+    skip: !native,
+    timeout: const Timeout(Duration(seconds: 60)),
+  );
+
+  for (final protocol in ['openai', 'responses', 'anthropic', 'ollama']) {
+    test(
+      'real OpenCode, native MCP gateway, process recovery without replay: $protocol',
+      () async {
+        final binaries = await AgentBinaries.locate();
+        var requests = 0;
+        final provider = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        provider.listen((request) async {
+          final body =
+              jsonDecode(await utf8.decoder.bind(request).join()) as Map;
+          requests++;
+          final messages =
+              body['messages'] as List? ?? body['input'] as List? ?? [];
+          final toolResult = messages.any(
+            (m) =>
+                m['role'] == 'tool' ||
+                m['type'] == 'function_call_output' ||
+                (m['content'] is List &&
+                    (m['content'] as List).any(
+                      (c) => c['type'] == 'tool_result',
+                    )),
+          );
+          final tools = body['tools'] as List? ?? [];
+          final selected = tools.cast<Map>().firstWhere(
+            (t) => ((t['function']?['name'] ?? t['name']) as String).endsWith(
+              'fs_write',
+            ),
+          );
+          final name = selected['function']?['name'] ?? selected['name'];
+          final message = toolResult
+              ? {'role': 'assistant', 'content': 'Saved fixture file.'}
+              : {
+                  'role': 'assistant',
+                  'content': '',
+                  'tool_calls': [
+                    {
+                      'id': 'call_fixture',
+                      'type': 'function',
+                      'function': {
+                        'name': name,
+                        'arguments':
+                            '{"path":"agent.txt","content":"native gateway"}',
+                      },
+                    },
+                  ],
+                };
+          final arguments = {'path': 'agent.txt', 'content': 'native gateway'};
+          final payload = switch (protocol) {
+            'responses' => {
+              'id': 'fixture',
+              'status': 'completed',
+              'output': [
+                toolResult
+                    ? {
+                        'type': 'message',
+                        'role': 'assistant',
+                        'content': [
+                          {
+                            'type': 'output_text',
+                            'text': 'Saved fixture file.',
+                          },
+                        ],
+                      }
+                    : {
+                        'type': 'function_call',
+                        'call_id': 'call_fixture',
+                        'name': name,
+                        'arguments': jsonEncode(arguments),
+                      },
+              ],
+            },
+            'anthropic' => {
+              'id': 'fixture',
+              'type': 'message',
+              'role': 'assistant',
+              'stop_reason': toolResult ? 'end_turn' : 'tool_use',
+              'content': [
+                toolResult
+                    ? {'type': 'text', 'text': 'Saved fixture file.'}
+                    : {
+                        'type': 'tool_use',
+                        'id': 'call_fixture',
+                        'name': name,
+                        'input': arguments,
+                      },
+              ],
+            },
+            'ollama' => {
+              'done': true,
+              'message': toolResult
+                  ? {'role': 'assistant', 'content': 'Saved fixture file.'}
+                  : {
+                      'role': 'assistant',
+                      'content': '',
+                      'tool_calls': [
+                        {
+                          'function': {'name': name, 'arguments': arguments},
+                        },
+                      ],
+                    },
+            },
+            _ => {
+              'id': 'fixture',
+              'object': 'chat.completion',
+              'choices': [
+                {
+                  'index': 0,
+                  'message': message,
+                  'finish_reason': toolResult ? 'stop' : 'tool_calls',
+                },
+              ],
+              'usage': {
+                'prompt_tokens': 1,
+                'completion_tokens': 1,
+                'total_tokens': 2,
+              },
+            },
+          };
+          request.response.headers.contentType = ContentType.json;
+          request.response.write(jsonEncode(payload));
+          await request.response.close();
+        });
+        final settings = RoomSettings(
+          model: 'fixture',
+          llmUrl:
+              'http://127.0.0.1:${provider.port}${switch (protocol) {
+                'responses' => '/v1/responses',
+                'anthropic' => '/v1/messages',
+                'ollama' => '/api/chat',
+                _ => '/v1/chat/completions',
+              }}',
+        );
+        final session = AgentSession(
+          id: 'integration',
+          owner: 'fixture',
+          workspace: workspace.path,
+        );
+        final runtime = OpenCodeAgentRuntime(
+          binaries,
+          gateway,
+          settings,
+          dataDirectory: '${temporary.path}/runtime-data',
+        );
+        try {
+          await runtime.send(
+            session,
+            'Write agent.txt using the provided tool.',
+            settings,
+            events.add,
+          );
+          expect(
+            await File('${workspace.path}/agent.txt').readAsString(),
+            'native gateway',
+          );
+          expect(events.where((e) => e.type == 'toolResult'), hasLength(1));
+          expect(
+            events.where((e) => e.type == 'assistant').last.text,
+            'Saved fixture file.',
+          );
+          final before = requests;
+          await runtime.resume(session);
+          expect(requests, before);
+          await runtime.dispose();
+          final recovered = OpenCodeAgentRuntime(
+            binaries,
+            gateway,
+            settings,
+            dataDirectory: '${temporary.path}/runtime-data',
+          );
+          try {
+            await recovered.resume(session);
+            expect(requests, before);
+            session.events.add(AgentEvent('assistant', 'Saved fixture file.'));
+            session.nativeId = 'ses_missing_fixture';
+            await recovered.resume(session);
+            expect(
+              requests,
+              before,
+              reason: 'Missing server session stores transcript without running any model or tool.',
+            );
+            expect(
+              await File('${workspace.path}/agent.txt').readAsString(),
+              'native gateway',
+            );
+          } finally {
+            await recovered.dispose();
+          }
+        } finally {
+          await runtime.dispose();
+          await provider.close(force: true);
+        }
+      },
+      skip: !native,
+      timeout: const Timeout(Duration(seconds: 90)),
+    );
+  }
+  test(
+    'desktop mode warms up without a model call and auto-falls back before executing tools',
+    () async {
+      var requests = 0, structured = 0;
+      final provider = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      provider.listen((request) async {
+        final body = jsonDecode(await utf8.decoder.bind(request).join()) as Map;
+        requests++;
+        request.response.headers.contentType = ContentType.json;
+        if ((body['tools'] as List? ?? []).isNotEmpty) {
+          request.response.statusCode = 400;
+          request.response.write(
+            jsonEncode({
+              'error': {'message': 'tools unsupported'},
+            }),
+          );
+        } else {
+          final action = structured++ == 0
+              ? {
+                  'type': 'tool',
+                  'name': 'fs_write',
+                  'arguments': {'path': 'auto.txt', 'content': 'auto fallback'},
+                }
+              : {'type': 'final', 'text': 'Finished'};
+          request.response.write(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {
+                    'role': 'assistant',
+                    'content': jsonEncode(action),
+                  },
+                  'finish_reason': 'stop',
+                },
+              ],
+            }),
+          );
+        }
+        await request.response.close();
+      });
+      final store = MemoryStorage()
+        ..value = RoomSettings(
+          model: 'fixture',
+          llmUrl: 'http://127.0.0.1:${provider.port}/v1/chat/completions',
+        );
+      final room = RoomController(
+        storage: store,
+        chat: FakeChat(),
+        site: FakeSite(),
+        voice: SilentVoice(),
+      );
+      await room.initialize();
+      final agent = DesktopAgentController(
+        room,
+        runtimeDataDirectory: '${temporary.path}/controller-runtime',
+      );
+      try {
+        await agent.selectWorkspace(workspace.path);
+        expect(agent.error, isEmpty);
+        expect(requests, 0);
+        await agent.send('Save auto.txt');
+        expect(agent.error, isEmpty);
+        expect(agent.status, '结构化兼容模式');
+        expect(structured, 2);
+        expect(
+          await File('${workspace.path}/auto.txt').readAsString(),
+          'auto fallback',
+        );
+        await agent.stop();
+      } finally {
+        agent.dispose();
+        room.dispose();
+        await provider.close(force: true);
+      }
+    },
+    skip: !native,
+    timeout: const Timeout(Duration(seconds: 90)),
+  );
+}

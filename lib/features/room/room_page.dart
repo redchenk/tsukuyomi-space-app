@@ -6,6 +6,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
 
@@ -20,10 +21,14 @@ import 'room_search.dart';
 import '../../live2d/character_stage.dart';
 import '../settings/settings_dialog.dart';
 import '../site/login_dialog.dart';
+import '../site/native_rich_text.dart';
 import '../site/site_navigation.dart';
 import 'room_controller.dart';
 import 'room_panels.dart';
 import 'room_style.dart';
+import 'room_quick_setup.dart';
+import '../agent/agent_panel.dart';
+import '../agent/desktop_agent_controller.dart';
 
 class _SendMessageIntent extends Intent {
   const _SendMessageIntent();
@@ -51,11 +56,20 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
   final _input = TextEditingController(), _scroll = ScrollController();
   final _focus = FocusNode();
   final _stageKey = GlobalKey();
+  final _conversationCenter = GlobalKey();
+  DateTime _openedAt = DateTime.now();
+  final _historicalIds = <String>{};
   late final RoomMusic _roomMusic;
   late final bool _ownsMusic;
   String _musicState = '';
   String _lastScope = '', _lastDraft = '', _panel = '聊天';
   bool _ready = false, _quiet = false;
+  final _unread = ValueNotifier<bool>(false);
+  DesktopAgentController? _agent;
+  Map<String, IconData> get _roomTabs => {
+    ..._tabs,
+    if (desktopAgentSupported) 'Agent': Icons.auto_awesome,
+  };
   RoomController get c => widget.controller;
   static const _tabs = <String, IconData>{
     '聊天': CupertinoIcons.chat_bubble,
@@ -68,10 +82,11 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _lastScope = c.scope;
+    _historicalIds.addAll(c.visibleTurns.map((t) => t.id));
     _lastDraft = c.draft;
     _input.text = c.draft;
     c.addListener(_update);
-    _input.addListener(_inputChanged);
+    c.streamRevision.addListener(_followConversation);
     final shared = SiteMusicScope.maybeOf(context);
     _ownsMusic = shared == null;
     _roomMusic = (shared ?? RoomMusic(c))..addListener(_musicChanged);
@@ -89,15 +104,29 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     }
   }
 
-  void _inputChanged() {
-    if (mounted) setState(() {});
+  void _followConversation() {
+    if (!mounted || !_scroll.hasClients) return;
+    if (_scroll.position.extentAfter > 100) {
+      _unread.value = true;
+      return;
+    }
+    final pixels = _scroll.position.pixels;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          _scroll.hasClients &&
+          (_scroll.position.pixels - pixels).abs() < 1) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     c.removeListener(_update);
-    _input.removeListener(_inputChanged);
+    c.streamRevision.removeListener(_followConversation);
+    _unread.dispose();
+    _agent?.dispose();
     _input.dispose();
     _scroll.dispose();
     _focus.dispose();
@@ -121,6 +150,13 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
 
   void _update() {
     if (!mounted) return;
+    if (_lastScope != c.scope) {
+      _openedAt = DateTime.now();
+      _historicalIds
+        ..clear()
+        ..addAll(c.visibleTurns.map((t) => t.id));
+      _unread.value = false;
+    }
     if (_lastScope != c.scope ||
         _lastDraft != c.draft ||
         (!c.generating && _input.text.isEmpty && c.draft.isNotEmpty)) {
@@ -131,6 +167,9 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     final nearBottom =
         !_scroll.hasClients || _scroll.position.extentAfter < 100;
     setState(() {});
+    if (!nearBottom && (c.visibleTurns.isNotEmpty || c.generating)) {
+      _unread.value = true;
+    }
     if (nearBottom && (c.visibleTurns.isNotEmpty || c.generating)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _scroll.hasClients) {
@@ -208,10 +247,17 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     unawaited(showRoomMusic(context, _roomMusic));
   }
 
-  void _selectPanel(String panel) => setState(() {
-    _panel = panel;
-    _quiet = false;
-  });
+  void _selectPanel(String panel) {
+    if (panel == 'Agent' && _agent == null) {
+      _agent = DesktopAgentController(c);
+      unawaited(_agent!.restore());
+    }
+    setState(() {
+      _panel = panel;
+      _quiet = false;
+    });
+  }
+
   Future<void> _attach() async {
     final scope = c.scope;
     try {
@@ -239,6 +285,8 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
             ? Image.memory(
                 base64Decode(data.split(',').last),
                 height: height,
+                cacheHeight: (height * MediaQuery.devicePixelRatioOf(context))
+                    .ceil(),
                 fit: BoxFit.contain,
                 errorBuilder: error,
               )
@@ -248,6 +296,8 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                     ? null
                     : {'Cookie': c.site.cookie!},
                 height: height,
+                cacheHeight: (height * MediaQuery.devicePixelRatioOf(context))
+                    .ceil(),
                 fit: BoxFit.contain,
                 errorBuilder: error,
               ),
@@ -272,6 +322,12 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
           child: LayoutBuilder(
             builder: (context, box) {
               final mobile = box.maxWidth <= RoomStyle.breakpoint;
+              final headerHeight = math.max(
+                mobile ? 60.0 : 68.0,
+                MediaQuery.textScalerOf(context).scale(21) * 1.2 +
+                    MediaQuery.textScalerOf(context).scale(10) * 1.2 +
+                    24,
+              );
               final landscape = mobile && box.maxHeight < 500 && keyboard == 0;
               final stage = CharacterStage(
                 key: _stageKey,
@@ -346,7 +402,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                     Positioned(
                       left: 24,
                       right: 24,
-                      top: 104,
+                      top: math.max(104, headerHeight + 36),
                       bottom: 20,
                       child: Row(
                         children: [
@@ -358,9 +414,13 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                     ),
                   ] else ...[
                     Positioned.fill(child: stage),
-                    Positioned(top: 82, left: 16, child: _mobileTools()),
                     Positioned(
-                      top: 82,
+                      top: headerHeight + 22,
+                      left: 16,
+                      child: _mobileTools(),
+                    ),
+                    Positioned(
+                      top: headerHeight + 22,
                       right: 16,
                       child: _roundButton(
                         '房间设置',
@@ -397,7 +457,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                     right: mobile
                         ? 12
                         : math.max(24, (box.maxWidth - 1320) / 2),
-                    height: mobile ? 60 : 68,
+                    height: headerHeight,
                     child: RoomNavigation(
                       mobile: mobile,
                       width: box.maxWidth,
@@ -456,7 +516,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
         offset: const Offset(0, 54),
         icon: const Icon(CupertinoIcons.chat_bubble, size: 23),
         onSelected: (v) {
-          if (_tabs.containsKey(v)) {
+          if (_roomTabs.containsKey(v)) {
             _selectPanel(v);
           } else if (v == 'new') {
             _newConversation();
@@ -481,14 +541,14 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
             child: const SiteText('新建会话'),
           ),
           const PopupMenuItem(value: 'history', child: SiteText('查看对话开头')),
-          for (final e in _tabs.entries)
+          for (final e in _roomTabs.entries)
             PopupMenuItem(
               value: e.key,
               child: Row(
                 children: [
                   Icon(e.value, size: 18),
                   const SizedBox(width: 12),
-                  Text(e.key),
+                  SiteText(e.key),
                 ],
               ),
             ),
@@ -568,7 +628,10 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 12),
           Container(
-            height: 43,
+            height: math.max(
+              43,
+              MediaQuery.textScalerOf(context).scale(12) * 1.5 + 16,
+            ),
             margin: const EdgeInsets.only(bottom: 14),
             decoration: BoxDecoration(
               border: Border(bottom: BorderSide(color: p.line)),
@@ -581,7 +644,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       children: [
-                        for (final e in _tabs.entries)
+                        for (final e in _roomTabs.entries)
                           Padding(
                             padding: const EdgeInsets.only(right: 6),
                             child: Semantics(
@@ -602,7 +665,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                                   ),
                                 ),
                                 icon: Icon(e.value, size: 16),
-                                label: Text(
+                                label: SiteText(
                                   e.key,
                                   style: const TextStyle(fontSize: 12),
                                 ),
@@ -635,13 +698,15 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _utilityPanel() => RoomUtilityPanel(
-    key: ValueKey('${c.scope}:$_panel'),
-    panel: _panel,
-    controller: c,
-    onSettings: _settings,
-    onOpenWebsite: () => _website('/room'),
-  );
+  Widget _utilityPanel() => _panel == 'Agent'
+      ? AgentPanel(controller: _agent!, onGo: (path) => _website(path))
+      : RoomUtilityPanel(
+          key: ValueKey('${c.scope}:$_panel'),
+          panel: _panel,
+          controller: c,
+          onSettings: _settings,
+          onOpenWebsite: () => _website('/room'),
+        );
   Widget _mobilePanel() {
     final p = RoomStyle(context);
     return Container(
@@ -656,7 +721,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
         children: [
           Row(
             children: [
-              Text(_panel, style: const TextStyle(fontSize: 18)),
+              SiteText(_panel, style: const TextStyle(fontSize: 18)),
               const Spacer(),
               IconButton(
                 tooltip: siteTranslate(context, '返回聊天'),
@@ -681,105 +746,32 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     return Column(
       children: [
         Expanded(
-          child: c.loading && turns.isEmpty
+          child:
+              !c.loading && !c.settings.demo && c.settings.model.trim().isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: RoomQuickSetup(controller: c),
+                )
+              : c.loading && turns.isEmpty
               ? const Center(child: CircularProgressIndicator())
               : turns.isEmpty && !c.generating
               ? _welcome(mobile: mobile, short: short || keyboard)
-              : ListView(
-                  controller: _scroll,
-                  padding: EdgeInsets.fromLTRB(
-                    mobile ? 16 : 1,
-                    mobile ? 40 : 12,
-                    mobile ? 16 : 1,
-                    6,
-                  ),
-                  children: [
-                    if (c.sharedConversation != null)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 18),
-                        child: Text(
-                          '${c.sharedConversation!['title'] ?? '公开对话片段'} · ${c.sharedConversation!['author'] ?? ''}',
-                          style: TextStyle(color: p.muted),
-                        ),
-                      ),
-                    for (final turn in turns) ...[
-                      if (turn.image != null)
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: _image(turn.image!),
-                        ),
-                      if (turn.user.isNotEmpty)
-                        _bubble(
-                          turn.user,
-                          user: true,
-                          mobile: mobile,
-                          time: turn.createdAt,
-                        ),
-                      _replyBubbles(
-                        turn.assistant,
-                        mobile: mobile,
-                        time: turn.createdAt,
-                      ),
-                      Wrap(
-                        alignment: WrapAlignment.end,
-                        children: [
-                          if (!c.isSharedTurn(turn) &&
-                              !turn.pending &&
-                              turn.image == null &&
-                              turn.id == turns.last.id) ...[
-                            if (turn.user.isNotEmpty)
-                              TextButton(
-                                onPressed: c.canSend
-                                    ? () => editRoomTurn(context, c, turn)
-                                    : null,
-                                child: const SiteText('编辑'),
-                              ),
-                            TextButton(
-                              onPressed: c.canSend
-                                  ? () => c.send(
-                                      turn.user,
-                                      opener: turn.user.isEmpty,
-                                      replacement: turn,
-                                    )
-                                  : null,
-                              child: const SiteText('重新生成'),
-                            ),
-                          ],
-                          if (!c.isSharedTurn(turn) &&
-                              turn.user.isNotEmpty &&
-                              turn.image == null)
-                            TextButton(
-                              onPressed: c.canSend
-                                  ? () => shareRoomTurn(context, c, turn)
-                                  : null,
-                              child: const SiteText('分享'),
-                            ),
-                        ],
-                      ),
-                      if (turn.pending)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: SiteText(
-                            '已保存在本机 · 等待同步',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: mobile ? Colors.white : p.muted,
-                            ),
-                          ),
-                        ),
-                    ],
-                    if (c.generating) ...[
-                      _bubble(c.sendingText, user: true, mobile: mobile),
-                      _replyBubbles(
-                        cleanRoomReply(c.partial).isEmpty
-                            ? '正在想怎么回答你…'
-                            : cleanRoomReply(c.partial),
-                        mobile: mobile,
-                        streaming: true,
-                      ),
-                    ],
-                  ],
-                ),
+              : _messageList(turns, mobile: mobile),
+        ),
+        ValueListenableBuilder<bool>(
+          valueListenable: _unread,
+          builder: (context, unread, _) => unread
+              ? TextButton.icon(
+                  icon: const Icon(Icons.arrow_downward, size: 16),
+                  label: const SiteText('查看新消息'),
+                  onPressed: () {
+                    _unread.value = false;
+                    if (_scroll.hasClients) {
+                      _scroll.jumpTo(_scroll.position.maxScrollExtent);
+                    }
+                  },
+                )
+              : const SizedBox.shrink(),
         ),
         if (c.error.isNotEmpty)
           Padding(
@@ -815,7 +807,11 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
               ),
             ),
           ),
-        if (!keyboard && turns.isEmpty && !c.generating) _suggestions(mobile),
+        if (!keyboard &&
+            turns.isEmpty &&
+            !c.generating &&
+            (c.settings.demo || c.settings.model.isNotEmpty))
+          _suggestions(mobile),
         if (c.attachment != null)
           Padding(
             padding: const EdgeInsets.all(8),
@@ -840,7 +836,10 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
           ),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: mobile ? 12 : 0),
-          child: _composer(mobile),
+          child: AnimatedBuilder(
+            animation: _input,
+            builder: (context, _) => _composer(mobile),
+          ),
         ),
         if (!mobile)
           Padding(
@@ -873,9 +872,13 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                       size: 14,
                     ),
                   ),
-                SiteText(
-                  'AI 角色对话 · 请理性判断生成内容',
-                  style: TextStyle(fontSize: 8, color: p.muted),
+                Flexible(
+                  child: SiteText(
+                    'AI 角色对话 · 请理性判断生成内容',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 8, color: p.muted),
+                  ),
                 ),
               ],
             ),
@@ -889,6 +892,180 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _messageList(List<ChatTurn> turns, {required bool mobile}) {
+    // History grows upwards from a fixed centre. New replies grow downwards,
+    // keeping the same pixel offset while the user reads older messages.
+    final history = <ChatTurn>[], recent = <ChatTurn>[];
+    for (final turn in turns) {
+      if (_historicalIds.contains(turn.id) ||
+          !turn.createdAt.isAfter(_openedAt)) {
+        history.add(turn);
+      } else {
+        recent.add(turn);
+      }
+    }
+    final historyIndices = {
+      for (var i = 0; i < history.length; i++)
+        history[i].id: history.length - 1 - i,
+    };
+    final recentIndices = {
+      for (var i = 0; i < recent.length; i++) recent[i].id: i,
+    };
+    final shared = c.sharedConversation;
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (notification.metrics.extentAfter < 16 && _unread.value) {
+          _unread.value = false;
+        }
+        return false;
+      },
+      child: CustomScrollView(
+        key: ValueKey('conversation:${c.scope}'),
+        controller: _scroll,
+        center: _conversationCenter,
+        anchor: 1,
+        scrollCacheExtent: const ScrollCacheExtent.pixels(240),
+        slivers: [
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: mobile ? 16 : 1),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  if (index == history.length) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 18),
+                      child: Text(shared?['title']?.toString() ?? '公开对话片段'),
+                    );
+                  }
+                  final turn = history[history.length - 1 - index];
+                  return _turnItem(
+                    turn,
+                    mobile: mobile,
+                    last: turn.id == turns.last.id,
+                  );
+                },
+                childCount: history.length + (shared == null ? 0 : 1),
+                findChildIndexCallback: (key) =>
+                    key is ValueKey<String> ? historyIndices[key.value] : null,
+              ),
+            ),
+          ),
+          SliverPadding(
+            key: _conversationCenter,
+            padding: EdgeInsets.fromLTRB(
+              mobile ? 16 : 1,
+              0,
+              mobile ? 16 : 1,
+              6,
+            ),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  if (index < recent.length) {
+                    final turn = recent[index];
+                    return _turnItem(
+                      turn,
+                      mobile: mobile,
+                      last: turn.id == turns.last.id,
+                    );
+                  }
+                  return AnimatedBuilder(
+                    key: const ValueKey('streaming-reply'),
+                    animation: c.streamRevision,
+                    builder: (context, _) => Column(
+                      children: [
+                        _bubble(c.sendingText, user: true, mobile: mobile),
+                        _replyBubbles(
+                          cleanRoomReply(c.partial).isEmpty
+                              ? '正在想怎么回答你…'
+                              : cleanRoomReply(c.partial),
+                          mobile: mobile,
+                          streaming: true,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                childCount: recent.length + (c.generating ? 1 : 0),
+                findChildIndexCallback: (key) =>
+                    key is ValueKey<String> ? recentIndices[key.value] : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _turnItem(ChatTurn turn, {required bool mobile, required bool last}) {
+    final p = RoomStyle(context);
+    return RepaintBoundary(
+      key: ValueKey(turn.id),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (turn.image != null)
+            Align(alignment: Alignment.centerRight, child: _image(turn.image!)),
+          if (turn.user.isNotEmpty)
+            _bubble(
+              turn.user,
+              user: true,
+              mobile: mobile,
+              time: turn.createdAt,
+            ),
+          _replyBubbles(turn.assistant, mobile: mobile, time: turn.createdAt),
+          Wrap(
+            alignment: WrapAlignment.end,
+            children: [
+              if (!c.isSharedTurn(turn) &&
+                  !turn.pending &&
+                  turn.image == null &&
+                  last) ...[
+                if (turn.user.isNotEmpty)
+                  TextButton(
+                    onPressed: c.canSend
+                        ? () => editRoomTurn(context, c, turn)
+                        : null,
+                    child: const SiteText('编辑'),
+                  ),
+                TextButton(
+                  onPressed: c.canSend
+                      ? () => c.send(
+                          turn.user,
+                          opener: turn.user.isEmpty,
+                          replacement: turn,
+                        )
+                      : null,
+                  child: const SiteText('重新生成'),
+                ),
+              ],
+              if (!c.isSharedTurn(turn) &&
+                  turn.user.isNotEmpty &&
+                  turn.image == null)
+                TextButton(
+                  onPressed: c.canSend
+                      ? () => shareRoomTurn(context, c, turn)
+                      : null,
+                  child: const SiteText('分享'),
+                ),
+            ],
+          ),
+          if (turn.pending)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: SiteText(
+                '已保存在本机 · 等待同步',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: mobile ? Colors.white : p.muted,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1052,9 +1229,10 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
             color: p.ink,
           ),
           decoration: InputDecoration(
-            hintText: mobile && c.settings.demo
-                ? '离线演示 · 和八千代聊聊…'
-                : '和八千代说点什么…',
+            hintText: siteTranslate(
+              context,
+              mobile && c.settings.demo ? '离线演示 · 和八千代聊聊…' : '和八千代说点什么…',
+            ),
             filled: false,
             isDense: true,
             hintStyle: TextStyle(
@@ -1171,13 +1349,20 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     );
   }
 
+  bool _hasMarkdown(String text) =>
+      RegExp(r'(^|\n)\s*(#{1,6} |[-*] |[0-9]+\. |~~~)|\*\*|\[[^\]]+\]\(')
+          .hasMatch(text) ||
+      text.contains(String.fromCharCode(96) * 3);
+
   Widget _replyBubbles(
     String text, {
     required bool mobile,
     DateTime? time,
     bool streaming = false,
   }) {
-    final parts = splitRoomReply(text);
+    final parts = !streaming && _hasMarkdown(text)
+        ? [text]
+        : splitRoomReply(text);
     return Column(
       children: [
         for (var i = 0; i < parts.length; i++)
@@ -1283,14 +1468,21 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                           bottomRight: const Radius.circular(20),
                         ),
                       ),
-                      child: SelectableText(
-                        text,
-                        style: TextStyle(
-                          fontSize: mobile ? 14 : 13,
-                          height: 1.8,
-                          color: user ? p.accent : p.ink,
-                        ),
-                      ),
+                      child: !user && !streaming && _hasMarkdown(text)
+                          ? NativeRichText(
+                              content: text,
+                              format: 'markdown',
+                              site: c.settings.siteUrl,
+                              onNavigate: (path) => _website(path),
+                            )
+                          : SelectableText(
+                              text,
+                              style: TextStyle(
+                                fontSize: mobile ? 14 : 13,
+                                height: 1.8,
+                                color: user ? p.accent : p.ink,
+                              ),
+                            ),
                     ),
                     if (!streaming && controls)
                       Row(

@@ -384,6 +384,85 @@ class _EditorPageState extends State<EditorPage> {
           alignLabelWithHint: true,
         ),
       );
+  Widget _toolbar() => Material(
+    color: Theme.of(context).colorScheme.surface,
+    borderRadius: BorderRadius.circular(14),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final entry in {
+                'write': '撰写',
+                'split': '分栏',
+                'preview': '预览',
+              }.entries)
+                ChoiceChip(
+                  label: SiteText(entry.value),
+                  selected: view == entry.key,
+                  onSelected: (_) => setState(() => view = entry.key),
+                ),
+            ],
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final action in [
+                  'H2',
+                  'H3',
+                  '加粗',
+                  '斜体',
+                  '删除线',
+                  '高亮',
+                  '防剧透',
+                  '引用',
+                  '列表',
+                  '有序列表',
+                  '代码',
+                  '链接',
+                  '分隔线',
+                ])
+                  TextButton(
+                    onPressed: editor.submitting ? null : () => format(action),
+                    child: SiteText(action),
+                  ),
+                PopupMenuButton<String>(
+                  tooltip: siteTranslate(context, '插入内容块'),
+                  onSelected: insertSnippet,
+                  itemBuilder: (_) => [
+                    for (final name in nativeMarkdownTemplates.keys)
+                      PopupMenuItem(value: name, child: SiteText(name)),
+                  ],
+                  child: const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: SiteText('内容块'),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => embed(false),
+                  child: const SiteText('媒体卡片'),
+                ),
+                TextButton(
+                  onPressed: () => embed(true),
+                  child: const Text('iframe'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () => assetPicker(),
+                  child: const SiteText('上传 / 选择附件'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final writable =
@@ -440,12 +519,13 @@ class _EditorPageState extends State<EditorPage> {
         error: editor.error,
         notice: editor.notice,
         onRefresh: editor.initialize,
+        toolbar: writable && !editor.loading ? _toolbar() : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SiteText(
               editor.id.isEmpty ? '写下新的创作' : '编辑文章',
-              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
             if (!writable)
@@ -467,205 +547,154 @@ class _EditorPageState extends State<EditorPage> {
                 !editor.loading && editor.categories.isNotEmpty) ...[
               input('title', '标题', maxLength: 180),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 16,
-                runSpacing: 12,
+              ExpansionTile(
+                key: const Key('article-metadata'),
+                title: const SiteText('文章信息'),
+                subtitle: const SiteText('分类、封面与摘要'),
+                tilePadding: EdgeInsets.zero,
                 children: [
-                  SizedBox(
-                    width: 240,
-                    child: DropdownButtonFormField<String>(
-                      initialValue:
-                          editor.allowedCategories.any(
-                            (item) => item['name'] == editor.fields['category'],
-                          )
-                          ? '${editor.fields['category']}'
-                          : null,
-                      decoration: InputDecoration(
-                        labelText: siteTranslate(context, '分类'),
-                      ),
-                      items: [
-                        for (final item in editor.allowedCategories)
-                          DropdownMenuItem(
-                            value: '${item['name']}',
-                            child: Text('${item['name']}'),
-                          ),
-                      ],
-                      onChanged: editor.submitting
-                          ? null
-                          : (value) => editor.change('category', value),
-                    ),
-                  ),
-                  SizedBox(width: 160, child: input('read_time', '阅读时长')),
-                  SizedBox(
-                    width: 200,
-                    child: DropdownButtonFormField<String>(
-                      initialValue: '${editor.fields['content_format']}',
-                      decoration: InputDecoration(
-                        labelText: siteTranslate(context, '正文格式'),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'markdown',
-                          child: Text('Markdown'),
-                        ),
-                        DropdownMenuItem(value: 'html', child: Text('HTML')),
-                      ],
-                      onChanged: editor.submitting
-                          ? null
-                          : (value) => editor.change('content_format', value),
-                    ),
-                  ),
-                  if (editor.moderator && editor.id.isNotEmpty)
-                    SizedBox(
-                      width: 180,
-                      child: DropdownButtonFormField<String>(
-                        initialValue: '${editor.fields['status']}',
-                        decoration: InputDecoration(
-                          labelText: siteTranslate(context, '发布状态'),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'published',
-                            child: SiteText('已发布'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'draft',
-                            child: SiteText('站点草稿'),
-                          ),
-                        ],
-                        onChanged: editor.submitting
-                            ? null
-                            : (value) => editor.change('status', value),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              SiteCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SiteText('封面图片'),
-                    if (cover.isNotEmpty)
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 12,
+                    children: [
                       SizedBox(
-                        height: 180,
-                        child: Image.network(
-                          endpointUri(widget.controller.settings.siteUrl)
-                              .resolve(cover)
-                              .toString(),
-                          fit: BoxFit.contain,
-                          headers:
-                              endpointUri(widget.controller.settings.siteUrl)
-                                          .resolve(cover)
-                                          .origin ==
-                                      endpointUri(
-                                        widget.controller.settings.siteUrl,
-                                      ).origin &&
-                                  widget.controller.site.cookie != null
-                              ? {'Cookie': widget.controller.site.cookie!}
+                        width: 240,
+                        child: DropdownButtonFormField<String>(
+                          initialValue:
+                              editor.allowedCategories.any(
+                                (item) =>
+                                    item['name'] == editor.fields['category'],
+                              )
+                              ? '${editor.fields['category']}'
                               : null,
-                          errorBuilder: (_, _, _) => const SiteText('封面暂时无法预览'),
+                          decoration: InputDecoration(
+                            labelText: siteTranslate(context, '分类'),
+                          ),
+                          items: [
+                            for (final item in editor.allowedCategories)
+                              DropdownMenuItem(
+                                value: '${item['name']}',
+                                child: Text('${item['name']}'),
+                              ),
+                          ],
+                          onChanged: editor.submitting
+                              ? null
+                              : (value) => editor.change('category', value),
                         ),
                       ),
-                    Wrap(
-                      children: [
-                        TextButton(
-                          onPressed: () => assetPicker(cover: true),
-                          child: const SiteText('上传 / 选择封面'),
-                        ),
-                        if (cover.isNotEmpty)
-                          TextButton(
-                            onPressed: () {
-                              editor.change('cover_image', null);
-                              editor.change('cover_image_asset_id', null);
-                            },
-                            child: const SiteText('移除封面'),
+                      SizedBox(width: 160, child: input('read_time', '阅读时长')),
+                      SizedBox(
+                        width: 200,
+                        child: DropdownButtonFormField<String>(
+                          initialValue: '${editor.fields['content_format']}',
+                          decoration: InputDecoration(
+                            labelText: siteTranslate(context, '正文格式'),
                           ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'markdown',
+                              child: Text('Markdown'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'html',
+                              child: Text('HTML'),
+                            ),
+                          ],
+                          onChanged: editor.submitting
+                              ? null
+                              : (value) =>
+                                    editor.change('content_format', value),
+                        ),
+                      ),
+                      if (editor.moderator && editor.id.isNotEmpty)
+                        SizedBox(
+                          width: 180,
+                          child: DropdownButtonFormField<String>(
+                            initialValue: '${editor.fields['status']}',
+                            decoration: InputDecoration(
+                              labelText: siteTranslate(context, '发布状态'),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'published',
+                                child: SiteText('已发布'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'draft',
+                                child: SiteText('站点草稿'),
+                              ),
+                            ],
+                            onChanged: editor.submitting
+                                ? null
+                                : (value) => editor.change('status', value),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  SiteCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SiteText('封面图片'),
+                        if (cover.isNotEmpty)
+                          SizedBox(
+                            height: 180,
+                            child: Image.network(
+                              endpointUri(widget.controller.settings.siteUrl)
+                                  .resolve(cover)
+                                  .toString(),
+                              fit: BoxFit.contain,
+                              headers:
+                                  endpointUri(
+                                            widget.controller.settings.siteUrl,
+                                          ).resolve(cover).origin ==
+                                          endpointUri(
+                                            widget.controller.settings.siteUrl,
+                                          ).origin &&
+                                      widget.controller.site.cookie != null
+                                  ? {'Cookie': widget.controller.site.cookie!}
+                                  : null,
+                              errorBuilder: (_, _, _) =>
+                                  const SiteText('封面暂时无法预览'),
+                            ),
+                          ),
+                        Wrap(
+                          children: [
+                            TextButton(
+                              onPressed: () => assetPicker(cover: true),
+                              child: const SiteText('上传 / 选择封面'),
+                            ),
+                            if (cover.isNotEmpty)
+                              TextButton(
+                                onPressed: () {
+                                  editor.change('cover_image', null);
+                                  editor.change('cover_image_asset_id', null);
+                                },
+                                child: const SiteText('移除封面'),
+                              ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              input('excerpt', '摘要', lines: 3, maxLength: 200),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  onPressed: editor.summarizing || editor.submitting
-                      ? null
-                      : editor.summarize,
-                  child: SiteText(editor.summarizing ? '正在生成…' : '自动生成摘要'),
-                ),
-              ),
-              if (editor.summaryMessage.isNotEmpty)
-                SiteText(editor.summaryMessage),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final entry in {
-                    'write': '撰写',
-                    'split': '分栏',
-                    'preview': '预览',
-                  }.entries)
-                    ChoiceChip(
-                      label: SiteText(entry.value),
-                      selected: view == entry.key,
-                      onSelected: (_) => setState(() => view = entry.key),
-                    ),
-                ],
-              ),
-              Wrap(
-                spacing: 4,
-                children: [
-                  for (final action in [
-                    'H2',
-                    'H3',
-                    '加粗',
-                    '斜体',
-                    '删除线',
-                    '高亮',
-                    '防剧透',
-                    '引用',
-                    '列表',
-                    '有序列表',
-                    '代码',
-                    '链接',
-                    '分隔线',
-                  ])
-                    TextButton(
-                      onPressed: editor.submitting
+                  ),
+                  const SizedBox(height: 18),
+                  input('excerpt', '摘要', lines: 3, maxLength: 200),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: editor.summarizing || editor.submitting
                           ? null
-                          : () => format(action),
-                      child: SiteText(action),
-                    ),
-                  PopupMenuButton<String>(
-                    tooltip: siteTranslate(context, '插入内容块'),
-                    onSelected: insertSnippet,
-                    itemBuilder: (_) => [
-                      for (final name in nativeMarkdownTemplates.keys)
-                        PopupMenuItem(value: name, child: SiteText(name)),
-                    ],
-                    child: const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: SiteText('内容块'),
+                          : editor.summarize,
+                      child: SiteText(editor.summarizing ? '正在生成…' : '自动生成摘要'),
                     ),
                   ),
-                  TextButton(
-                    onPressed: () => embed(false),
-                    child: const SiteText('媒体卡片'),
-                  ),
-                  TextButton(
-                    onPressed: () => embed(true),
-                    child: const Text('iframe'),
-                  ),
-                  FilledButton.tonal(
-                    onPressed: () => assetPicker(),
-                    child: const SiteText('上传 / 选择附件'),
-                  ),
+                  if (editor.summaryMessage.isNotEmpty)
+                    SiteText(editor.summaryMessage),
+                  const SizedBox(height: 12),
                 ],
               ),
+              const SizedBox(height: 12),
               LayoutBuilder(
                 builder: (context, constraints) => view == 'preview'
                     ? preview

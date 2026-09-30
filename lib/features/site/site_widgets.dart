@@ -12,6 +12,7 @@ import '../room/room_music.dart';
 import 'native_rich_text.dart';
 import 'site_search.dart';
 import 'site_chrome.dart';
+import 'site_explore_menu.dart';
 
 const siteDestinations = <String, String>{
   '/hub': '中枢大厅',
@@ -30,7 +31,6 @@ const siteDestinations = <String, String>{
   '/reality': '现实连接',
   '/editor': '创作文章',
   '/attachments': '附件管理',
-  '/agent-os': 'Agent OS',
 };
 String siteDestinationLabel(BuildContext context, String path) {
   const keys = {
@@ -167,7 +167,9 @@ class SiteHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
-      final compact = box.maxWidth < 1050;
+      final compact =
+          box.maxWidth <
+          1050 * (MediaQuery.textScalerOf(context).scale(14) / 14);
       return SiteCard(
         padding: EdgeInsets.symmetric(
           horizontal: compact ? 12 : 24,
@@ -195,6 +197,7 @@ class SiteHeader extends StatelessWidget {
                       style: TextStyle(
                         fontFamily: RoomStyle.serif,
                         fontSize: 21,
+                        height: 1.2,
                         letterSpacing: 2,
                       ),
                     ),
@@ -202,7 +205,7 @@ class SiteHeader extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 10),
+                      style: const TextStyle(fontSize: 10, height: 1.2),
                     ),
                   ],
                 ),
@@ -227,13 +230,25 @@ class SiteHeader extends StatelessWidget {
               for (final path in ['/hub', '/stage', '/plaza', '/wiki'])
                 TextButton(
                   onPressed: () => onGo(path),
-                  child: Text(siteDestinationLabel(context, path)),
+                  child: SiteText(
+                    const {
+                      '/hub': '中枢',
+                      '/stage': '舞台',
+                      '/plaza': '广场',
+                      '/wiki': '百科',
+                    }[path]!,
+                  ),
                 ),
             if (!compact)
               IconButton(
                 onPressed: onTheme,
                 icon: const Icon(CupertinoIcons.moon),
-                tooltip: '切换主题',
+                tooltip: siteTranslate(
+                  context,
+                  Theme.of(context).brightness == Brightness.dark
+                      ? '切换浅色主题'
+                      : '切换深色主题',
+                ),
               ),
             IconButton(
               onPressed: onLogin,
@@ -247,10 +262,23 @@ class SiteHeader extends StatelessWidget {
                 tooltip: siteTr(context, 'notifications'),
                 icon: const SiteNotificationBadge(),
               ),
-            PopupMenuButton<String>(
-              tooltip: '探索',
+            SiteExploreMenu(
+              currentPath: ModalRoute.of(context)?.settings.name ?? '',
+              administrator:
+                  username != null &&
+                  (role == 'admin' || role == 'super_admin'),
+              actions: {
+                if (compact) 'search': '搜索月读空间',
+                if (compact) 'music': '全站音乐',
+                'theme': '切换主题',
+                'language:zh': '中文',
+                'language:ja': '日本語',
+                'language:en': 'English',
+              },
               onSelected: (path) {
-                if (path == 'search') {
+                if (path == 'theme') {
+                  onTheme?.call();
+                } else if (path == 'search') {
                   final controller = SiteControllerScope.maybeOf(context);
                   if (controller != null) {
                     showSiteSearch(context, controller, onGo);
@@ -265,44 +293,6 @@ class SiteHeader extends StatelessWidget {
                   onGo(path);
                 }
               },
-              icon: const Icon(Icons.menu),
-              itemBuilder: (_) => [
-                if (compact && SiteMusicScope.maybeOf(context) != null)
-                  const PopupMenuItem(value: 'music', child: SiteText('全站音乐')),
-                if (compact && SiteLocaleScope.maybeOf(context) != null) ...[
-                  const PopupMenuItem(
-                    value: 'language:zh',
-                    child: SiteText('中文'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'language:ja',
-                    child: SiteText('日本語'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'language:en',
-                    child: SiteText('English'),
-                  ),
-                ],
-                if (compact && SiteControllerScope.maybeOf(context) != null)
-                  const PopupMenuItem(
-                    value: 'search',
-                    child: SiteText('搜索月读空间'),
-                  ),
-                for (final item in siteDestinations.entries)
-                  PopupMenuItem(
-                    value: item.key,
-                    child: Text(siteDestinationLabel(context, item.key)),
-                  ),
-                if (username != null &&
-                    (role == 'admin' || role == 'super_admin')) ...[
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(value: '/admin', child: SiteText('内容管理')),
-                  const PopupMenuItem(
-                    value: '/terminal',
-                    child: SiteText('管理终端'),
-                  ),
-                ],
-              ],
             ),
             if (!compact)
               FilledButton.icon(

@@ -76,7 +76,30 @@ class NativeArticleDocument {
   final Set<String> anchorIds;
 }
 
+final _documentCache = <String, NativeArticleDocument>{};
+int _cachedCharacters = 0;
+
 NativeArticleDocument parseNativeArticle(String content, String format) {
+  final key = '$format:$content';
+  final cached = _documentCache.remove(key);
+  if (cached != null) {
+    _documentCache[key] = cached;
+    return cached;
+  }
+  final document = _parseNativeArticle(content, format);
+  if (key.length < 131072) {
+    _documentCache[key] = document;
+    _cachedCharacters += key.length + document.html.length;
+    while (_documentCache.length > 64 || _cachedCharacters > 1048576) {
+      final first = _documentCache.keys.first;
+      final removed = _documentCache.remove(first)!;
+      _cachedCharacters -= first.length + removed.html.length;
+    }
+  }
+  return document;
+}
+
+NativeArticleDocument _parseNativeArticle(String content, String format) {
   final fragment = html.parseFragment(
     format == 'html' ? content : _markdown(content),
   );

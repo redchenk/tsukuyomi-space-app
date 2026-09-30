@@ -1,18 +1,18 @@
 # 月读空间 · Flutter 原生客户端
 
-Tsukuyomi Space 的独立 Flutter 客户端。0.5.0 整站测试版提供原生 Room、统一认证、内容阅读与创作、社区、游戏和管理页面，直接连接原网站 API。
+Tsukuyomi Space 的独立 Flutter 客户端。0.6.0 Room / 桌面 Agent 测试版提供原生 Room、统一认证、内容阅读与创作、社区、游戏和管理页面，直接连接原网站 API。
 
 整站原生页面包含入口、Hub、Wiki、图库、附件库、编辑器、像素工坊、辉夜跑酷、友链、公开主页、管理后台和 Live2D 工作台，支持跨设备事件、中文／日语／英语、全站搜索及八千代导览。后台只向有效登录的 admin／super_admin 显示和开放；本地、合并与云端记忆来源跟进原站最新逻辑。实现与验收边界见 [整站迁移记录](docs/native-full-site-implementation-2026-09-30.md)。
 
 下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。发布包包括 Android APK、macOS Universal DMG、Windows 安装程序、Linux DEB 和供用户自签的 iOS IPA。
 
-默认进入明确标记的离线演示模式。演示回复来自本地固定文本，不会请求 AI 或上传会话。连接真实服务需在「房间设置」填写模型地址并关闭演示模式。
+所有平台打开即进入 Room，不播放 Access 动画。默认关闭演示；首次使用在聊天区填写模型地址、名称和 Key，保存后直接真实聊天。已有配置直接可用，本地历史先加载，登录与同步随后执行。升级保留独立演示历史。
 
 ## 与网站一致的双端界面
 
 Room 按 [现有网站](https://yachiyo.hk/room) 的桌面和手机版分别实现，复用夜景、背景与角色素材：
 
-- **桌面（宽度 > 860）**：顶部导航、左侧角色舞台、右侧聊天工作区，包含聊天／日记／资料／便签标签、快捷话题和输入框。
+- **桌面（宽度 > 860）**：顶部导航、左侧角色舞台、右侧聊天工作区，包含聊天／Agent／日记／资料／便签标签、快捷话题和输入框。
 - **移动端（宽度 ≤ 860）**：全屏角色场景，顶部悬浮导航与房间工具，底部叠加聊天和胶囊输入框；弹出键盘时输入框上移，保持场景完整。
 - 聊天、历史搜索、新建会话、资料、本机便签、明暗主题、表情和安静陪伴可操作。图片聊天支持压缩、上传、历史回读和失败恢复；房间音乐支持曲目、进度、音量与播放控制。投稿编辑器、百科、图库、像素工坊和游戏均在应用内以 Flutter 页面打开。
 
@@ -33,6 +33,14 @@ flutter run -d macos
 
 macOS 使用 Swift Package Manager；尚未支持 SwiftPM 的视频及 OAuth WebView 插件由 CocoaPods 集成，构建前需安装 CocoaPods。iOS 需要相应 Xcode SDK，Android 需要 Android SDK/NDK。Windows 和 Linux 在各自系统构建。
 
+## 桌面 Agent
+
+Windows/macOS/Linux 在 Room 的 Agent 标签选择工作目录并输入任务。安装包捆绑固定 OpenCode **1.18.33** 与 Codex **0.159.0**，首次使用才启动；普通聊天不依赖 CLI。模型、API 地址和 Key 复用 Room 配置，支持 Chat Completions、Responses、Anthropic 与 Ollama，也可选择严格结构化兼容模式。
+
+文件、命令、MCP、文章草稿修改/撤销和发布统一经工具网关。越界、MCP 和服务器写入展示具体内容确认；命令仅在系统沙箱运行，默认 120 秒超时、20 次工具上限，缺失沙箱则停止。提权当前不支持。账号、站点或模型配置切换会取消任务和审批。恢复会话不会重放已完成操作。
+
+开发环境先执行 `python3 tool/agent/prepare_runtime.py --target macos`（或 windows/linux）。桌面发布构建后执行 `package_runtime.py` 将运行时复制到安装目录；二进制不提交到 Git。详细功能核对表、基准数据和限制见 [0.6 验收](docs/native-room-agent-v0.6.md)。
+
 ## 启用真实 Live2D
 
 1. 从 [Live2D 官方下载页](https://www.live2d.com/en/sdk/download/native/) 获取 **Cubism SDK for Native 5 R5**，阅读相应许可并解压。
@@ -49,7 +57,7 @@ flutter run -d macos
 
 脚本仅复制文件到本项目，不修改来源。SDK 放在 `packages/tsukuyomi_live2d/vendor/cubism/`，模型放在 `assets/live2d/`，二者均被 Git 忽略。更改 SDK 是否存在后必须执行 `flutter clean`，使原生构建钩子重新检测。
 
-加载成功后「角色状态」显示 `Cubism Native`，支持注视、眨眼、呼吸、模型物理、表情和口型。信息按钮显示网格数量及最近一次模型更新耗时；该耗时**不代表 GPU 绘制时间或实际帧率**。模型更新跟随屏幕刷新，切到后台暂停；纹理着色器缓存复用，遮罩按网格边界裁剪。当前 Mac Release 基准的动画更新约 21fps → 60fps，数值不代表所有设备。
+加载成功后「角色状态」显示 `Cubism Native`，支持注视、眨眼、呼吸、模型物理、表情和口型。信息按钮显示网格数量及最近一次模型更新耗时；该耗时**不代表 GPU 绘制时间或实际帧率**。桌面默认 60fps、移动端 30fps，并按帧耗时自适应；离开页面或切到后台暂停；纹理着色器缓存复用，遮罩按网格边界裁剪。当前 Mac Release 基准的动画更新约 21fps → 60fps，数值不代表所有设备。
 
 当前实现采用 **Cubism Native Core + Native Framework 物理计算，Flutter Canvas 绘制纹理三角网格**。没有 WebView、JavaScript 引擎或假角色动画。它用于验证模型与 Flutter 的原生数据链路；不是 Cubism 官方 GPU renderer 的直接封装。
 
@@ -57,7 +65,7 @@ flutter run -d macos
 
 ## 连接模型与语音
 
-点击设置，关闭「离线演示」，填写：
+首次可在聊天区直接填写模型；完整配置在房间设置中填写：
 
 - **模型 API 地址 / Base URL**：例如本机 `http://localhost:11434/v1/chat/completions`，或你的服务商提供的 HTTPS 地址。
 - **模型名称**：填写该端点实际提供的模型 ID。
@@ -86,7 +94,7 @@ TTS 支持 OpenAI 兼容、MiMo、MiniMax、ElevenLabs、GPT-SoVITS 和网站代
 
 先将完整轮次写入本地，再上传；失败轮次留在对应账号的待同步队列。启动、手动刷新、完成对话、返回前台及前台每 30 秒重试同步。演示/访客/站点/账号使用不同缓存范围，不自动导入访客历史。服务器是已同步历史的准源，其他设备的删除和修改会在下次同步反映。
 
-已登录账号的长期记忆捕获由现有后端处理；发送前检索网站记忆并注入本轮模型上下文，游客使用本机记忆。支持记忆检索、新增、编辑、删除、向量同步，以及云端日记分页阅读、生成、删除、存档导入/导出和人设编辑。站点 SSE 实时订阅与系统推送尚未接入。
+已登录账号的长期记忆捕获由现有后端处理；发送前检索网站记忆并注入本轮模型上下文，游客使用本机记忆。支持记忆检索、新增、编辑、删除、向量同步，以及云端日记分页阅读、生成、删除、存档导入/导出和人设编辑。已接入站点 SSE 实时订阅；原生系统推送尚未接入。
 
 文章支持搜索、分类、排序、分页、HTML / Markdown 阅读、评论、点赞、收藏与前台有效阅读计数。广场支持留言、回复、点赞、检索及筛选；成长支持签到、任务、等级路径、邀请分享和记录；个人中心支持简介编辑、文章、留言、收藏、通知。
 

@@ -3,7 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/rendering.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
 
@@ -13,6 +14,7 @@ import '../core/room_reference.dart';
 import '../core/room_archive.dart';
 import '../core/room_files.dart';
 import 'room_animation.dart';
+import 'live2d_scene_controller.dart';
 import '../features/room/room_style.dart';
 
 class CharacterStage extends StatefulWidget {
@@ -54,13 +56,13 @@ class CharacterStage extends StatefulWidget {
 
 class _CharacterStageState extends State<CharacterStage>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  Live2DModel? _model;
+  Live2DModel? get _model => _sceneController.model;
   final _captureKey = GlobalKey(), _fullCaptureKey = GlobalKey();
   final _sceneRevision = ValueNotifier<int>(0);
   String? _failure;
-  late final Ticker _ticker;
-  Duration _last = Duration.zero;
-  double _seconds = 0, _x = 0, _y = 0;
+  late final Live2DSceneController _sceneController;
+  bool _routeVisible = true, _fullscreen = false;
+  double _x = 0, _y = 0;
   bool _paused = false;
   bool _visible = true;
   String _expression = 'neutral';
@@ -71,28 +73,26 @@ class _CharacterStageState extends State<CharacterStage>
     _visible =
         WidgetsBinding.instance.lifecycleState == null ||
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
-    _ticker = createTicker((elapsed) {
-      if (_last == Duration.zero) {
-        _last = elapsed;
-        return;
-      }
-      final delta = (elapsed - _last).inMicroseconds / 1000000;
-      if (delta <= 0) return;
-      _last = elapsed;
-      _seconds += delta;
-      widget.animation?.advance(delta.clamp(0, .05));
-      _model?.parameterOverrides = widget.animation?.parameters ?? {};
-      _model?.tick(
-        _seconds,
-        delta.clamp(0, .05),
-        mouth: widget.voice.mouth,
-        lookX: _x,
-        lookY: _y,
-        expression: widget.animation?.current != null
-            ? widget.animation!.expression
-            : _expression,
-      );
-    });
+    _sceneController = Live2DSceneController(
+      vsync: this,
+      mobile:
+          defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS,
+      onTick: (seconds, delta) {
+        widget.animation?.advance(delta.clamp(0, .05));
+        _model?.parameterOverrides = widget.animation?.parameters ?? {};
+        _model?.tick(
+          seconds,
+          delta.clamp(0, .05),
+          mouth: widget.voice.mouth,
+          lookX: _x,
+          lookY: _y,
+          expression: widget.animation?.current != null
+              ? widget.animation!.expression
+              : _expression,
+        );
+      },
+    );
     if (widget.loadNative) unawaited(_load());
   }
 
@@ -105,7 +105,7 @@ class _CharacterStageState extends State<CharacterStage>
         model.dispose();
         return;
       }
-      _updateScene(() => _model = model);
+      _updateScene(() => _sceneController.attach(model));
       if (widget.animation != null) widget.animation!.ready = true;
       widget.onReady?.call(true);
       _syncTicker();
@@ -127,12 +127,18 @@ class _CharacterStageState extends State<CharacterStage>
 
   void _syncTicker() {
     if (!mounted) return;
-    if (_visible && !_paused && _model != null) {
-      _last = Duration.zero;
-      if (!_ticker.isActive) _ticker.start();
-    } else {
-      _ticker.stop();
-    }
+    _sceneController.active =
+        _visible &&
+        (_routeVisible || _fullscreen) &&
+        !_paused &&
+        _model != null;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _routeVisible = TickerMode.valuesOf(context).enabled;
+    _syncTicker();
   }
 
   @override
@@ -153,10 +159,9 @@ class _CharacterStageState extends State<CharacterStage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _ticker.dispose();
+    _sceneController.dispose();
     _sceneRevision.dispose();
     if (widget.animation != null) widget.animation!.ready = false;
-    _model?.dispose();
     super.dispose();
   }
 
@@ -167,7 +172,7 @@ class _CharacterStageState extends State<CharacterStage>
       content: Text(
         _model == null
             ? (_failure ?? '正在载入原生 Live2D 模型…')
-            : 'Cubism Native · ${_model!.meshes.length} 个网格\n最近模型更新 ${_model!.updateMilliseconds.toStringAsFixed(1)} ms\n跟随屏幕刷新率，此数值不包含 GPU 绘制耗时。',
+            : 'Cubism Native · ${_model!.meshes.length} 个网格\n最近模型更新 ${_model!.updateMilliseconds.toStringAsFixed(1)} ms\n自适应帧率，此数值不包含 GPU 绘制耗时。',
       ),
       actions: [
         TextButton(
@@ -208,7 +213,7 @@ class _CharacterStageState extends State<CharacterStage>
             : AnimatedBuilder(
                 animation: _model!,
                 child: RepaintBoundary(
-                  child: CustomPaint(painter: Live2DPainter(_model!)),
+                  child: CustomPaint(painter: _sceneController.painter),
                 ),
                 builder: (context, child) {
                   final a = widget.animation;
@@ -264,7 +269,9 @@ class _CharacterStageState extends State<CharacterStage>
               left: mobile ? -box.maxWidth * .25 : -box.maxWidth * .005,
               width: box.maxWidth * (mobile ? 1.5 : 1.08),
               height: box.maxHeight * (mobile ? .90 : .86),
-              child: _character(),
+              child: _fullscreen && !expanded
+                  ? const SizedBox.shrink()
+                  : _character(),
             ),
             if (!mobile) ...[
               Positioned(
@@ -659,18 +666,7 @@ class _CharacterStageState extends State<CharacterStage>
               tooltip: expanded ? '退出全屏舞台' : '全屏角色舞台',
               onPressed: expanded
                   ? () => Navigator.pop(context)
-                  : () => showDialog<void>(
-                      context: context,
-                      builder: (_) => AnimatedBuilder(
-                        animation: _sceneRevision,
-                        builder: (_, _) => Dialog.fullscreen(
-                          child: RepaintBoundary(
-                            key: _fullCaptureKey,
-                            child: _scene(expanded: true),
-                          ),
-                        ),
-                      ),
-                    ),
+                  : _openFullscreen,
               icon: Icon(
                 expanded
                     ? CupertinoIcons.fullscreen_exit
@@ -697,6 +693,30 @@ class _CharacterStageState extends State<CharacterStage>
         ),
       ),
     );
+  }
+
+  Future<void> _openFullscreen() async {
+    _updateScene(() => _fullscreen = true);
+    _syncTicker();
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (_) => AnimatedBuilder(
+          animation: _sceneRevision,
+          builder: (_, _) => Dialog.fullscreen(
+            child: RepaintBoundary(
+              key: _fullCaptureKey,
+              child: _scene(expanded: true),
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        _updateScene(() => _fullscreen = false);
+        _syncTicker();
+      }
+    }
   }
 
   @override

@@ -37,7 +37,9 @@ String? nativeSitePath(Uri uri) {
   var query = uri.query;
   if (path == '/user-center') path = '/user';
   if (path == '/room-settings') path = '/room/settings';
-  if (path == '/access') path = '/';
+  if ({'/', '/access', '/access.html', '/index.html'}.contains(path)) {
+    path = '/room';
+  }
   if (path == '/arena' || path.startsWith('/arena/')) path = '/pixel';
   if (path == '/article') {
     final id = uri.queryParameters['id']?.trim() ?? '';

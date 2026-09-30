@@ -7,7 +7,7 @@ import 'package:tsukuyomi_space_app/core/storage.dart';
 import 'package:tsukuyomi_space_app/core/voice_service.dart';
 
 class MemoryStorage implements RoomStorage {
-  RoomSettings value = const RoomSettings();
+  RoomSettings value = const RoomSettings(demo: true);
   final secrets = <String, String>{};
   final histories = <String, List<ChatTurn>>{};
   final drafts = <String, String>{};

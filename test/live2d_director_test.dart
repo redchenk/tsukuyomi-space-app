@@ -261,6 +261,7 @@ void main() {
   test('director persistent history uses real account keys even when Room scope is demo', () async {
     final storage = MemoryStorage(), chat = DirectorChat();
     final room = directorRoom(storage: storage)
+      ..settings = const RoomSettings(demo: true)
       ..account = const Account('alice', 'Alice');
     final aliceKey = 'live2d-director-history:https://yachiyo.hk:alice';
     final bobKey = 'live2d-director-history:https://yachiyo.hk:bob';

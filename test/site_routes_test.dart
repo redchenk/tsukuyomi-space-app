@@ -5,8 +5,10 @@ void main() {
   test('native routes retain aliases, queries, slugs and fragments', () {
     final routes = {
       '/hub': '/hub',
-      '/': '/',
-      '/access': '/',
+      '/': '/room',
+      '/access': '/room',
+      '/access.html': '/room',
+      '/index.html': '/room',
       '/wiki': '/wiki',
       '/wiki/characters/yachiyo': '/wiki/characters/yachiyo',
       '/wiki/terms/tsukuyomi#source': '/wiki/terms/tsukuyomi#source',

@@ -169,6 +169,7 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pump();
       expect(c.sharedConversation, isNull);
+      c.pause();
       expect(tester.takeException(), isNull);
     },
   );

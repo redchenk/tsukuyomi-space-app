@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../../core/llm_client.dart';
+import '../../core/agent/agent_types.dart';
 import '../../core/models.dart';
 import '../../core/site_client.dart';
 import '../../core/storage.dart';
@@ -23,7 +24,7 @@ class RoomController extends ChangeNotifier {
   }) {
     workspace = RoomWorkspace(this);
     workspace.addListener(_changed);
-    voice.addListener(_changed);
+    voice.addListener(_voiceChanged);
     if (site is SiteClient) {
       (site as SiteClient).onUnauthorized = expireSession;
       (site as SiteClient).onReaderCookie = (origin, value) {
@@ -41,6 +42,15 @@ class RoomController extends ChangeNotifier {
       };
     }
   }
+  bool _voicePlaying = false;
+  void _voiceChanged() {
+    if (_voicePlaying != voice.playing) {
+      _voicePlaying = voice.playing;
+      _changed();
+    }
+  }
+
+  final articleDrafts = <String, AgentArticleDraft>{};
   final RoomStorage storage;
   final ChatService chat;
   final SiteService site;
@@ -136,25 +146,38 @@ class RoomController extends ChangeNotifier {
   ChatTurn? _sharedTurn;
   DateTime? _beforeShareStart;
   Set<String> _beforeShareIds = {};
-  List<ChatTurn> get visibleTurns => [
-    ?_sharedTurn,
-    ...(_conversationStart == null
-        ? turns
-        : turns
-              .where(
-                (t) =>
-                    !_previousConversationIds.contains(t.id) &&
-                    !t.createdAt.isBefore(_conversationStart!),
-              )
-              .toList()),
-  ];
+  List<ChatTurn> get visibleTurns =>
+      _conversationStart == null && _sharedTurn == null
+      ? turns
+      : [
+          ?_sharedTurn,
+          ...(_conversationStart == null
+              ? turns
+              : turns
+                    .where(
+                      (t) =>
+                          !_previousConversationIds.contains(t.id) &&
+                          !t.createdAt.isBefore(_conversationStart!),
+                    )
+                    .toList()),
+        ];
   bool isSharedTurn(ChatTurn turn) => turn.id == _sharedTurn?.id;
   String get scope => settings.demo
       ? 'demo'
       : '${endpointUri(settings.siteUrl).origin}:${account?.id ?? 'guest'}';
   String get _sessionKey => 'session.${endpointUri(settings.siteUrl).origin}';
-  bool get canSend =>
-      !generating && !busy && !loading && !_syncing && !_committing;
+  bool get canSend => !generating && !busy && !loading && !_committing;
+  final streamRevision = ValueNotifier<int>(0);
+  Timer? _streamRefresh;
+  bool sessionVerified = false;
+  bool verifyingSession = false;
+  void _streamChanged() {
+    _streamRefresh ??= Timer(const Duration(milliseconds: 32), () {
+      _streamRefresh = null;
+      if (!_disposed) streamRevision.value++;
+    });
+  }
+
   int get pendingCount => turns.where((t) => t.pending).length;
   void _changed() {
     if (!_disposed) notifyListeners();
@@ -165,6 +188,7 @@ class RoomController extends ChangeNotifier {
   void expireSession() {
     if (account == null || sessionExpired) return;
     sessionExpired = true;
+    sessionVerified = false;
     _closeEvents();
     syncStatus = '登录已过期，请重新登录；本机内容已保留';
     unawaited(_writeCredential(_sessionKey, null).catchError((_) {}));
@@ -221,11 +245,19 @@ class RoomController extends ChangeNotifier {
           } catch (_) {}
         }
         _setSessionCookie(await storage.readSecret(_sessionKey));
+        verifyingSession = site.cookie != null;
         await _loadScope();
+        loading = false;
         _changed();
         if (site.cookie != null) {
           try {
-            account = await site.me(settings.siteUrl);
+            final verified = await site.me(settings.siteUrl);
+            if (_disposed) return;
+            final differentAccount = account?.id != verified.id;
+            if (differentAccount) stop();
+            account = verified;
+            sessionVerified = true;
+            if (differentAccount) await _loadScope();
             await _rememberAccount();
           } on ApiFailure catch (e) {
             if (e.status == 401 || e.status == 403) {
@@ -237,11 +269,15 @@ class RoomController extends ChangeNotifier {
           sessionExpired = true;
         }
       }
-      await _loadScope();
+      verifyingSession = false;
+      if (loading) await _loadScope();
+      loading = false;
+      _changed();
       if (account != null) await sync();
     } catch (_) {
       error = '无法读取本地设置或安全存储，请检查系统密钥环';
     } finally {
+      verifyingSession = false;
       loading = false;
       _startRetry();
       _changed();
@@ -327,6 +363,7 @@ class RoomController extends ChangeNotifier {
       settings = value;
       if (changedAccount) {
         account = null;
+        sessionVerified = false;
         _setSessionCookie(null);
         sessionExpired = false;
       }
@@ -365,6 +402,7 @@ class RoomController extends ChangeNotifier {
           : await site.login(settings.siteUrl, username, password);
       await _writeCredential(_sessionKey, site.cookie);
       account = user;
+      sessionVerified = true;
       await _rememberAccount();
       sessionExpired = false;
       await _loadScope();
@@ -399,6 +437,7 @@ class RoomController extends ChangeNotifier {
       _setSessionCookie(null);
       await _writeCredential(_sessionKey, null);
       account = null;
+      sessionVerified = false;
       await _rememberAccount();
       sessionExpired = false;
       await _loadScope();
@@ -658,7 +697,7 @@ class RoomController extends ChangeNotifier {
       )) {
         if (generation != _generation || _disposed) return;
         partial += delta;
-        _changed();
+        _streamChanged();
       }
       if (generation != _generation || _disposed) return;
       if (partial.trim().isEmpty) throw const ApiFailure('模型没有返回可显示的回复');
@@ -799,6 +838,7 @@ class RoomController extends ChangeNotifier {
     if (account == null ||
         settings.demo ||
         sessionExpired ||
+        verifyingSession ||
         _syncing ||
         generating) {
       return;
@@ -843,7 +883,12 @@ class RoomController extends ChangeNotifier {
       final remote = await site.history(settings.siteUrl);
       // The server owns the canonical list, including edits/deletions from other devices.
       if (targetScope != scope || _disposed) return;
-      turns = remote;
+      final remoteIds = remote.map((t) => t.id).toSet();
+      // A new turn may finish while this request is in flight.
+      turns = [
+        ...remote,
+        ...turns.where((t) => t.pending && !remoteIds.contains(t.id)),
+      ];
       await storage.saveHistory(targetScope, turns);
       syncStatus = '已与月读空间同步';
     } catch (e) {
@@ -984,6 +1029,8 @@ class RoomController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _streamRefresh?.cancel();
+    streamRevision.dispose();
     _closeEvents();
     _diaryClient?.cancel();
     _retry?.cancel();
@@ -993,7 +1040,7 @@ class RoomController extends ChangeNotifier {
     workspace.removeListener(_changed);
     workspace.dispose();
     animation.dispose();
-    voice.removeListener(_changed);
+    voice.removeListener(_voiceChanged);
     voice.dispose();
     super.dispose();
   }
