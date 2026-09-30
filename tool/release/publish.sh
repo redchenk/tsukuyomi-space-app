@@ -30,12 +30,15 @@ gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$r
 release_id=$(python "$release_tools/draft_release.py" find --input "$release_list" --tag "$RELEASE_TAG" --commit "$RELEASE_COMMIT")
 if [[ -z "$release_id" ]]; then
   [[ "$REQUIRE_EXISTING_DRAFT" != true ]] || { echo 'Recovery requires the existing validated draft.'; exit 1; }
-  gh release create "$RELEASE_TAG" --target "$RELEASE_COMMIT" --draft --title "月读空间 $RELEASE_TAG" --notes-file "$RELEASE_NOTES"
-  gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$release_list"
-  release_id=$(python "$release_tools/draft_release.py" find --input "$release_list" --tag "$RELEASE_TAG" --commit "$RELEASE_COMMIT")
+  # The release list can lag creation. Use the validated POST response rather
+  # than rediscovering the new draft through an eventually consistent list.
+  python "$release_tools/draft_release.py" payload --draft --output "$RUNNER_TEMP/release-create.json" --tag "$RELEASE_TAG" --commit "$RELEASE_COMMIT" --prerelease "$PRERELEASE" --notes "$RELEASE_NOTES"
+  gh api --method POST "repos/$GITHUB_REPOSITORY/releases" --input "$RUNNER_TEMP/release-create.json" > "$release_json"
+  release_id=$(python "$release_tools/draft_release.py" id --input "$release_json" --tag "$RELEASE_TAG" --commit "$RELEASE_COMMIT")
+else
+  gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > "$release_json"
 fi
 [[ "$release_id" =~ ^[1-9][0-9]*$ ]] || { echo 'A numeric draft release ID is required.'; exit 1; }
-gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > "$release_json"
 write_manifest
 if python "$release_tools/verify_dist.py" "$DIST_DIR" --version "$APP_VERSION" --remote-manifest "$manifest_json" > "$RUNNER_TEMP/release-asset-check.log" 2>&1; then
   cat "$RUNNER_TEMP/release-asset-check.log"
