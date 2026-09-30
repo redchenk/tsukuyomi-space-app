@@ -266,7 +266,7 @@ jobs:
           (cd dist && sha256sum --check SHA256SUMS.txt)
       - name: Upload complete release and publish
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN || github.token }}
           RELEASE_TAG: ${{ needs.metadata.outputs.tag }}
           PRERELEASE: ${{ needs.metadata.outputs.prerelease }}
           RELEASE_COMMIT: ${{ needs.metadata.outputs.ref }}

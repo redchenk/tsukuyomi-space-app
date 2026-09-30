@@ -60,6 +60,8 @@ Agent OS 保留原站独立部署的外部入口，其运行环境不随 Flutter
 
 若五平台构建与原生检查全部成功、仅 `publish` 失败，可在 Actions 运行 `Recover verified release`，填写原发布任务的 `source_run_id` 和既有草稿的 `tag`。恢复流程核对原提交、全部前置任务和未过期产物，再逐个比较草稿的 11 个文件与原产物的 SHA-256；匹配后按数字 Release ID 公开。原产物不完整、源码有业务变更或摘要不匹配时会停止，并保留草稿。
 
+恢复的历史提交相对默认分支 `main` 包含 `.github/workflows/` 变化时，GitHub 要求发布凭证具有修改工作流的权限；`GITHUB_TOKEN` 无法获得该权限。此时可为仓库配置专用 Actions secret `RELEASE_PUBLISH_TOKEN`：细粒度 PAT 或 GitHub App token 需要此仓库的 `Contents: write` 和 `Workflows: write`，classic PAT 需要 `repo` 与 `workflow` scope。两个发行流程仅在最终发布步骤使用该 secret，未配置时使用 `GITHUB_TOKEN`；既有 tag 或省略 `target_commitish` 也不保证解除历史目标的权限检查。[GitHub Release 权限说明](https://docs.github.com/en/rest/releases/releases#update-a-release)
+
 ## 开发者复现原生服务验收
 
 Windows 开发与 CI 使用 Visual Studio 2022 的 C++ 桌面开发工具链；普通构建与发行构建均固定 `windows-2022` runner。当前 QQ 授权容器使用的原生协程接口尚未适配 Visual Studio 18，因此不要直接切换到跟随新版 Visual Studio 的 `windows-latest`。

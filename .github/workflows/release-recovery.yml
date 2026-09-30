@@ -60,7 +60,7 @@ jobs:
           git show "$SOURCE_SHA:docs/release-notes.md" > "$RUNNER_TEMP/source-release-notes.md"
       - name: Verify existing draft downloads and publish by numeric release ID
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN || github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
           RELEASE_COMMIT: ${{ steps.source.outputs.source_sha }}
           APP_VERSION: ${{ steps.source.outputs.version }}
