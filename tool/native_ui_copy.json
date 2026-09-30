@@ -2448,5 +2448,45 @@
     "执行外部 MCP 工具前，请确认工具与参数",
     "外部 MCP ツールの実行前にツールと引数を確認してください",
     "Confirm the external MCP tool and arguments"
+  ],
+  [
+    "登录用户名与用户 ID 不可修改",
+    "ログインユーザー名とユーザー ID は変更できません",
+    "Login username and user ID cannot be changed"
+  ],
+  [
+    "昵称应为 1 至 32 个字符",
+    "ニックネームは1〜32文字で入力してください",
+    "Nickname must contain 1–32 characters"
+  ],
+  [
+    "昵称不能包含控制字符",
+    "ニックネームに制御文字は使用できません",
+    "Nickname cannot contain control characters"
+  ],
+  [
+    "昵称包含无效字符",
+    "ニックネームに無効な文字が含まれています",
+    "Nickname contains invalid characters"
+  ],
+  [
+    "本机 GPT-SoVITS 直接连接；公网地址通过网站代理，需要登录。",
+    "ローカル GPT-SoVITS は直接接続します。公開サーバーはサイトのプロキシを使用し、ログインが必要です。",
+    "Local GPT-SoVITS connects directly; remote endpoints use the website proxy and require sign-in."
+  ],
+  [
+    "站内登录用户名",
+    "サイトのログインユーザー名",
+    "Site login username"
+  ],
+  [
+    "GPT-SoVITS 请填写本机或公网 /tts 地址",
+    "GPT-SoVITS のローカルまたは公開 /tts URL を入力してください",
+    "Enter a local or remote GPT-SoVITS /tts URL"
+  ],
+  [
+    "公网 GPT-SoVITS 未返回音频，请检查 /tts 地址",
+    "公開 GPT-SoVITS が音声を返しませんでした。/tts URL を確認してください",
+    "Remote GPT-SoVITS did not return audio; check the /tts URL"
   ]
 ]

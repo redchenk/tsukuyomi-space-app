@@ -652,7 +652,7 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
       _field(
         'qq-name',
         _qqName,
-        '站内展示用户名',
+        '站内登录用户名',
         maxLength: 24,
         validator: _required,
       ),

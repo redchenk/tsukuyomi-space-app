@@ -39,7 +39,8 @@ class _UserCenterPageState extends State<UserCenterPage> {
   bool _loading = true, _saving = false;
   Map<String, dynamic> _profile = {}, _growth = {};
   final Map<String, List<Map<String, dynamic>>> _content = {};
-  final _bio = TextEditingController(),
+  final _nickname = TextEditingController(),
+      _bio = TextEditingController(),
       _search = TextEditingController(),
       _currentPassword = TextEditingController(),
       _newPassword = TextEditingController(),
@@ -81,6 +82,7 @@ class _UserCenterPageState extends State<UserCenterPage> {
       _growth = {};
       _content.clear();
       for (final field in [
+        _nickname,
         _bio,
         _search,
         _currentPassword,
@@ -102,6 +104,7 @@ class _UserCenterPageState extends State<UserCenterPage> {
     _epoch++;
     c.removeListener(_accountChanged);
     for (final field in [
+      _nickname,
       _bio,
       _search,
       _currentPassword,
@@ -128,8 +131,14 @@ class _UserCenterPageState extends State<UserCenterPage> {
         (await _request('GET', '/api/user/profile'))['data'],
       );
       if (!mounted || epoch != _epoch || scope != _accountScope) return;
+      await c.updateAccountProfile(profile);
+      if (!mounted || epoch != _epoch || scope != _accountScope) return;
       setState(() {
         _profile = profile;
+        _nickname.text = userDisplayName(
+          profile,
+          fallback: c.account!.displayName,
+        );
         _bio.text = textOf(profile, 'bio');
       });
       // Each panel reports its own failure; an optional endpoint cannot hide a
@@ -351,6 +360,15 @@ class _UserCenterPageState extends State<UserCenterPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text('用户名：${textOf(_profile, 'username')}'),
+        Text('ID：${textOf(_profile, 'id')}'),
+        const SiteText('登录用户名与用户 ID 不可修改'),
+        const SizedBox(height: 12),
+        TextField(
+          key: const Key('account-nickname'),
+          controller: _nickname,
+          enabled: !_saving && !_loading,
+          decoration: InputDecoration(labelText: siteTranslate(context, '昵称')),
+        ),
         const SizedBox(height: 8),
         Text('邮箱：${textOf(_profile, 'email', '未绑定邮箱')}'),
         const SizedBox(height: 8),
@@ -368,9 +386,17 @@ class _UserCenterPageState extends State<UserCenterPage> {
         FilledButton(
           onPressed: _saving || _loading
               ? null
-              : () => _write('PUT', '/api/user/profile', {
-                  'bio': _bio.text,
-                }, '个人资料已保存'),
+              : () {
+                  final invalid = nicknameError(_nickname.text);
+                  if (invalid != null) {
+                    setState(() => _error = invalid);
+                    return;
+                  }
+                  _write('PUT', '/api/user/profile', {
+                    'bio': _bio.text,
+                    'nickname': _nickname.text.trim(),
+                  }, '个人资料已保存');
+                },
           child: const SiteText('保存资料'),
         ),
         const SizedBox(height: 18),
@@ -689,7 +715,10 @@ class _UserCenterPageState extends State<UserCenterPage> {
               children: [
                 SiteAvatar(
                   value: textOf(_profile, 'avatar'),
-                  name: textOf(_profile, 'username', c.account!.username),
+                  name: userDisplayName(
+                    _profile,
+                    fallback: c.account!.displayName,
+                  ),
                   site: c.settings.siteUrl,
                   size: 88,
                 ),
@@ -697,7 +726,10 @@ class _UserCenterPageState extends State<UserCenterPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      textOf(_profile, 'username', c.account!.username),
+                      userDisplayName(
+                        _profile,
+                        fallback: c.account!.displayName,
+                      ),
                       style: const TextStyle(fontSize: 32),
                     ),
                     Text(textOf(_profile, 'bio', '记录你的月下旅程')),

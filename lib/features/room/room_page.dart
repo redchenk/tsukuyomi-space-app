@@ -486,7 +486,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                           : _account,
                       accountLabel: c.sessionExpired
                           ? '重新登录'
-                          : c.account?.username ?? '登录',
+                          : c.account?.displayName ?? '登录',
                     ),
                   ),
                 ],

@@ -80,7 +80,7 @@ class ContentPageShell extends StatelessWidget {
               padding: EdgeInsets.all(narrow ? 14 : 24),
               child: SiteHeader(
                 title: title,
-                username: controller.account?.username,
+                username: controller.account?.displayName,
                 role: controller.sessionExpired
                     ? null
                     : controller.account?.role,

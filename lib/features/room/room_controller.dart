@@ -218,8 +218,33 @@ class RoomController extends ChangeNotifier {
       _accountKey,
       account == null
           ? ''
-          : jsonEncode({'id': account!.id, 'username': account!.username}),
+          : jsonEncode({
+              'id': account!.id,
+              'username': account!.username,
+              'nickname': account!.nickname,
+            }),
     );
+  }
+
+  Future<void> updateAccountProfile(Map profile) async {
+    final current = account;
+    if (_disposed ||
+        current == null ||
+        '${profile['id']}' != current.id ||
+        '${profile['username']}' != current.username) {
+      return;
+    }
+    final name = '${profile['nickname'] ?? current.nickname}'.trim();
+    if (name == current.nickname) return;
+    account = Account(
+      current.id,
+      current.username,
+      nickname: name,
+      role: current.role,
+      scope: current.scope,
+    );
+    await _rememberAccount();
+    _changed();
   }
 
   Future<void> initialize() async {
@@ -241,7 +266,11 @@ class RoomController extends ChangeNotifier {
         if (hint.isNotEmpty) {
           try {
             final j = jsonDecode(hint);
-            account = Account(j['id'], j['username']);
+            account = Account(
+              j['id'],
+              j['username'],
+              nickname: '${j['nickname'] ?? ''}',
+            );
           } catch (_) {}
         }
         _setSessionCookie(await storage.readSecret(_sessionKey));

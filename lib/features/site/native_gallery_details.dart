@@ -73,8 +73,7 @@ class NativeGalleryImage extends StatelessWidget {
 }
 
 String galleryUploaderName(Map asset) {
-  final name = '${asset['owner_username'] ?? ''}'.trim();
-  return name.isEmpty ? '站点归档' : name;
+  return userDisplayName(asset, prefix: 'owner', fallback: '站点归档');
 }
 
 String galleryUploaderAvatar(Map asset, String site) {

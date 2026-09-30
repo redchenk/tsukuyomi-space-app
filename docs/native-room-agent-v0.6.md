@@ -1,6 +1,6 @@
 # 0.6.0 Room 与桌面 Agent 验收
 
-原站代码基准：`06a04d7043336f3494f80451bb22e8becab5c219`。客户端版本：`0.6.0+6`，发布标签：`v0.6.0-beta.1`。本轮沿用原站后端、账号权限和用户模型配置，未新增公共模型服务。
+原站代码基准：`6f784dd80093ab43c7d1140485411a77e82df366`。客户端版本：`0.6.0+6`，发布标签：`v0.6.0-beta.1`。本轮沿用原站后端、账号权限和用户模型配置，未新增公共模型服务。
 
 ## 页面、操作、权限与 API 核对表
 
@@ -28,7 +28,7 @@
 | `/wiki` | 19 条目、91 图片、交叉链接、目录与来源 | 公开 | 原站生成的静态归档 | `site_archive_pages_test` |
 | `/friend-links`、`/reality` | 目录、申请、说明、联络链接 | 公开；原申请校验 | friend-links、原说明数据 | 静态/后端回归；外链保留原目标 |
 | 登录、注册、忘记密码、QQ | 验证码、确认密码、回跳、绑定、补全资料 | 原服务器会话 | `/api/auth/*` | `native_auth_test`、login / account 回归 |
-| `/user`、公开主页 | 资料、头像、密码、绑定、个人文章/留言/收藏/像素 | 当前账号 / 公开资料 | `/api/user/*`、mine、bookmarks、manage | `user_center_account_test`、full-site backend |
+| `/user`、公开主页 | 独立昵称、只读 ID/登录用户名、资料、头像、密码、绑定、个人文章/留言/收藏/像素 | 当前账号 / 公开资料 | `/api/user/*`、mine、bookmarks、manage | `user_center_account_test`、full-site backend |
 | `/growth` | 签到、每日任务、邀请、分享、成长记录 | 原站账号规则 | `/api/growth/*` | `site_growth_test`、daily-view / backend |
 | `/notifications` | 分页、角标、单条/全部已读、偏好、目标跳转 | 当前有效账号 | `/api/user/notifications*` | notification / share / anchor 真后端回归 |
 | `/admin` | 分类、内容审核、编辑、删除及用户管理 | 服务端有效 admin / super_admin | 原 moderation / admin 接口 | 入口隐藏；直接访问也验证；`management_native_test`、full-site backend |
@@ -53,6 +53,10 @@
 外部 MCP 工具均显示参数确认，不能仅依赖服务器的 `readOnlyHint` 绕过确认。上传先创建不可变快照，展示内容及摘要，确认后发送该快照。文章发布显示完整字段并在确认前后检查版本。注销、切换站点/账号和模型配置变更均使待执行操作与审批失效。恢复本地任务不会发送旧工具操作；若 OpenCode 的旧会话不存在，只用 `noReply` 存储历史文字上下文。
 
 OpenAI Chat Completions、Responses、Anthropic Messages、Ollama 原生工具协议分别转换。明确拒绝 tools 的模型在尚未执行工具时回退到结构化模式；用户也可显式选择。结构化动作解析失败修复一次，再失败停止；文本不会被直接当作命令执行。网站聊天代理使用结构化模式。
+
+## 最新原站契约
+
+基于原站 `6f784dd` 新增的独立昵称契约，用户中心通过 `/api/user/profile` 保存昵称，后台改为 POST `/users/:id/nickname`。登录用户名、ID、主页和头像 URL、权限与隔离键保持固定；内容作者、公开主页、图库、留言和排行榜优先展示昵称。昵称验证遵循 32 个 Unicode 码点与控制字符限制。GPT-SoVITS 按端点选择传输，本机直连，公网通过需要登录的网站代理，完整传递参考音频、提示和权重路径；语音播放保持原站日语转换逻辑。
 
 ## 性能对比
 
@@ -84,7 +88,7 @@ flutter drive --profile -d macos --driver=test_driver/performance_driver.dart \
 
 完整后端、模型和截图复验使用新的临时 Express/SQLite fixture，方法同 [整站迁移记录](native-full-site-implementation-2026-09-30.md)，并加 `--dart-define=RUN_AGENT_TESTS=true`。发布流水线在 macOS、Windows、Linux 分别执行真实 OpenCode 与系统沙箱测试，再打包两个 Mac 架构及 Windows/Linux x64 的运行时。每个 bundle 含 `runtime-manifest.json` 和许可证；Release 整包另附 `SHA256SUMS.txt`。
 
-最终本地完整回归通过 459 项，无失败、无跳过；包含真实原站临时后端、原生 Cubism、界面截图以及安装包内签名后的 OpenCode / Codex。Python 发布校验 35 项与运行时校验 3 项通过，静态分析无问题。退出请求等待 Agent 保存及关闭，启动失败释放运行时后可重新尝试；捆绑运行时路径在启动前解析为绝对真实路径。五平台构建与发布结果以流水线完成后的交付记录为准。
+最终本地完整回归通过 465 项，无失败、无跳过；包含当前原站 `6f784dd` 的临时后端、独立昵称与身份不可变校验、远程 GPT-SoVITS 代理、原生 Cubism、界面截图以及安装包内签名后的 OpenCode / Codex。Python 发布校验 35 项与运行时校验 3 项通过，静态分析无问题。退出请求等待 Agent 保存及关闭，启动失败释放运行时后可重新尝试；捆绑运行时路径在启动前解析为绝对真实路径。五平台构建与发布结果以流水线完成后的交付记录为准。
 
 ## 已知限制
 

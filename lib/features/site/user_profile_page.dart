@@ -3,6 +3,7 @@ import '../../core/site_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/site_client.dart';
+import '../../core/models.dart';
 import '../../core/site_repository.dart';
 import '../room/room_controller.dart';
 import '../room/room_style.dart';
@@ -186,7 +187,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   @override
   Widget build(BuildContext context) => NativeSiteShell(
     controller: c,
-    title: '$username 的公开主页',
+    title: '${userDisplayName(user, fallback: username)} 的公开主页',
     onGo: widget.onGo,
     onTheme: widget.onTheme,
     onRefresh: _load,
@@ -202,14 +203,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
         if (_profile.isNotEmpty) ...[
           NativeSiteSection(
             translate: false,
-            title: textOf(user, 'username', username),
+            title: userDisplayName(user, fallback: username),
             subtitle: textOf(user, 'bio', '这位创作者还没有写下个人简介。'),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SiteAvatar(
                   value: textOf(user, 'avatar'),
-                  name: textOf(user, 'username', username),
+                  name: userDisplayName(user, fallback: username),
                   site: c.settings.siteUrl,
                   size: 90,
                 ),

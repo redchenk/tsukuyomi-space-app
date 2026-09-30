@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/site_localization.dart';
+import '../../core/models.dart';
 import '../room/room_controller.dart';
 import '../room/room_style.dart';
 import '../site/login_dialog.dart';
@@ -219,7 +220,7 @@ class _GamePageState extends State<GamePage>
                           onTheme: widget.onTheme,
                           username: widget.controller.sessionExpired
                               ? null
-                              : widget.controller.account?.username,
+                              : widget.controller.account?.displayName,
                           role: widget.controller.sessionExpired
                               ? null
                               : widget.controller.account?.role,
@@ -575,7 +576,8 @@ class _GamePageState extends State<GamePage>
             child: ListView.builder(
               itemCount: session.entries.length,
               itemBuilder: (context, i) {
-                final e = session.entries[i], name = '${e['username'] ?? '月'}';
+                final e = session.entries[i],
+                    name = userDisplayName(e, fallback: '月');
                 return ListTile(
                   selected:
                       session.authenticated &&

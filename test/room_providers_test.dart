@@ -14,6 +14,84 @@ import 'compatible_services_test.dart' show wav;
 import 'support/fakes.dart';
 
 void main() {
+  test('GPT-SoVITS transport follows the endpoint even for legacy proxy preferences', () {
+    for (final local in [
+      'http://localhost:9880/tts',
+      'http://127.0.0.1:9880/tts',
+      'http://[::1]:9880/tts',
+      '',
+    ]) {
+      expect(
+        ttsUsesProxy(
+          RoomSettings(
+            ttsUrl: local,
+            options: {'ttsProvider': 'gpt-sovits', 'ttsProxy': true},
+          ),
+        ),
+        false,
+      );
+    }
+    expect(
+      ttsUsesProxy(
+        const RoomSettings(
+          ttsUrl: 'https://voice.example/tts',
+          options: {'ttsProvider': 'gpt-sovits', 'ttsProxy': false},
+        ),
+      ),
+      true,
+    );
+  });
+  test(
+    'remote GPT-SoVITS proxies the complete request and checks audio content',
+    () async {
+      var calls = 0;
+      final client = TtsClient(
+        clientFactory: () => MockClient((request) async {
+          calls++;
+          expect(request.method, 'POST');
+          expect(request.url.toString(), 'https://site.example/api/tts');
+          expect(request.headers['cookie'], 'website-session');
+          expect(request.headers['authorization'], isNull);
+          final body = jsonDecode(request.body) as Map;
+          expect(body['apiUrl'], 'https://voice.example/tts');
+          expect(body['refAudioPath'], '/remote/voice.wav');
+          expect(body['gptWeightPath'], 'GPT_weights/voice.ckpt');
+          expect(body['sovitsWeightPath'], 'SoVITS_weights/voice.pth');
+          expect(body['promptText'], '参考文本');
+          return calls == 1
+              ? http.Response.bytes(
+                  wav(),
+                  200,
+                  headers: {'content-type': 'audio/wav'},
+                )
+              : http.Response(
+                  '<html>bad endpoint</html>',
+                  200,
+                  headers: {'content-type': 'text/html'},
+                );
+        }),
+      )..siteCookie = 'website-session';
+      const settings = RoomSettings(
+        siteUrl: 'https://site.example',
+        ttsUrl: 'https://voice.example/tts',
+        options: {
+          'ttsProvider': 'gpt-sovits',
+          'ttsProxy': false,
+          'refAudioPath': '/remote/voice.wav',
+          'gptWeightPath': 'GPT_weights/voice.ckpt',
+          'sovitsWeightPath': 'SoVITS_weights/voice.pth',
+          'promptText': '参考文本',
+        },
+      );
+      expect((await client.synthesize(settings, '你好')).format, 'wav');
+      await expectLater(
+        client.synthesize(settings, '你好'),
+        throwsA(isA<ApiFailure>()),
+      );
+      expect(calls, 2);
+    },
+  );
+
   for (final provider in [
     'mimo',
     'minimax',
@@ -106,6 +184,8 @@ void main() {
         final settings = RoomSettings(
           ttsUrl: provider == 'elevenlabs'
               ? 'https://provider.example/v1/text-to-speech'
+              : provider == 'gpt-sovits'
+              ? 'http://127.0.0.1:9880/tts'
               : 'https://provider.example/tts',
           ttsKey: 'test-tts',
           ttsModel: 'test-model',

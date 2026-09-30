@@ -58,6 +58,80 @@ void main() {
   setUp(() => HttpOverrides.global = null);
   tearDown(() => HttpOverrides.global = originalOverrides);
   group('real original backend native full-site contracts', () {
+    test('current nickname API preserves login identity and enforces super-admin edits', () async {
+      final user = await signedRoom('e2e-user', 'e2e-password');
+      final api = user.site as SiteClient;
+      final original = data(
+        await api.request(_site, 'GET', '/api/user/profile'),
+      );
+      final root = SiteClient();
+      addTearDown(root.dispose);
+      try {
+        final changed = data(
+          await api.request(_site, 'PUT', '/api/user/profile', {
+            'nickname': '🌙 原生昵称',
+            'bio': '昵称契约',
+          }),
+        );
+        expect(changed['id'], original['id']);
+        expect(changed['username'], original['username']);
+        final fresh = await api.me(_site);
+        expect(fresh.displayName, '🌙 原生昵称');
+        expect(fresh.username, 'e2e-user');
+        final profile = data(
+          await api.request(_site, 'GET', '/api/user/public/e2e-user'),
+        );
+        expect((profile['user'] as Map)['nickname'], '🌙 原生昵称');
+        await expectLater(
+          api.request(_site, 'PUT', '/api/user/profile', {
+            'username': 'changed-login',
+            'nickname': '合法昵称',
+          }),
+          throwsA(status(400)),
+        );
+        await expectLater(
+          api.request(_site, 'PUT', '/api/user/profile', {
+            'id': 'changed-id',
+            'nickname': '合法昵称',
+          }),
+          throwsA(status(400)),
+        );
+        await expectLater(
+          api.request(_site, 'PUT', '/api/user/profile', {
+            'nickname': 'a\u202eb',
+          }),
+          throwsA(status(400)),
+        );
+        await root.request(_site, 'POST', '/api/admin/login', {
+          'username': 'admin',
+          'password': 'admin-test-password',
+        });
+        final changedByRoot = data(
+          await root.request(
+            _site,
+            'POST',
+            '/api/admin/users/${original['id']}/nickname',
+            {'nickname': '管理员设置的昵称'},
+          ),
+        );
+        expect(changedByRoot['username'], 'e2e-user');
+        expect((await api.me(_site)).displayName, '管理员设置的昵称');
+        await expectLater(
+          root.request(
+            _site,
+            'PATCH',
+            '/api/admin/users/${original['id']}/username',
+            {'username': 'cannot-rename'},
+          ),
+          throwsA(status(403)),
+        );
+      } finally {
+        await api.request(_site, 'PUT', '/api/user/profile', {
+          'nickname': original['nickname'] ?? original['username'],
+          'bio': original['bio'] ?? '',
+        });
+      }
+    });
     test('NativeAssetService uploads actual checksum chunks; NativeArticleEditor creates, updates and deletes a covered article', () async {
       final room = await signedRoom('e2e-user', 'e2e-password');
       final assets = NativeAssetService(room);

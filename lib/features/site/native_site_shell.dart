@@ -91,7 +91,7 @@ class NativeSiteShell extends StatelessWidget {
                         title: title,
                         onGo: onGo,
                         onTheme: onTheme,
-                        username: controller.account?.username,
+                        username: controller.account?.displayName,
                         role: controller.sessionExpired
                             ? null
                             : controller.account?.role,

@@ -746,9 +746,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
   Widget _articleCard(Map a) => LayoutBuilder(
     builder: (context, box) {
       final desktop = box.maxWidth >= 650;
-      final author = textOf(a, 'author_username').isNotEmpty
-          ? textOf(a, 'author_username')
-          : textOf(a, 'author', 'admin');
+      final author = userDisplayName(a, prefix: 'author', fallback: 'admin');
       final cover = textOf(a, 'cover_image');
       final metadata = Wrap(
         spacing: 10,
@@ -1085,14 +1083,14 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
             children: [
               SiteAvatar(
                 value: textOf(m, 'avatar', textOf(m, 'author_avatar')),
-                name: textOf(m, 'author', '访客'),
+                name: userDisplayName(m, prefix: 'author'),
                 site: c.settings.siteUrl,
                 size: 32,
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  textOf(m, 'author', '访客'),
+                  userDisplayName(m, prefix: 'author'),
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
@@ -1105,7 +1103,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
           const SizedBox(height: 14),
           if (reply && textOf(m, 'reply_to_author').isNotEmpty)
             Text(
-              '回复 ${m['reply_to_author']}',
+              '回复 ${m['reply_to_nickname'] ?? m['reply_to_author']}',
               style: TextStyle(fontSize: 12, color: RoomStyle(context).accent),
             ),
           SelectableText(
@@ -1136,7 +1134,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
               ),
               TextButton.icon(
                 onPressed: () => _editText(
-                  heading: '回复 ${textOf(m, 'author')}',
+                  heading: '回复 ${userDisplayName(m, prefix: 'author')}',
                   initial: '',
                   draftId: 'reply:${m['id']}',
                   save: (text) async =>
@@ -1193,8 +1191,9 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
     if (query.isNotEmpty) {
       rows = rows
           .where(
-            (m) =>
-                '${m['content']} ${m['author']}'.toLowerCase().contains(query),
+            (m) => '${m['content']} ${userDisplayName(m, prefix: 'author')}'
+                .toLowerCase()
+                .contains(query),
           )
           .toList();
     }
@@ -1344,7 +1343,9 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                     ),
                     const SizedBox(height: 22),
                     Text(
-                      c.account == null ? '访客模式' : '欢迎，${c.account!.username}',
+                      c.account == null
+                          ? '访客模式'
+                          : '欢迎，${c.account!.displayName}',
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w600,
@@ -1571,7 +1572,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
               ),
               _heading(
                 textOf(a, 'title'),
-                '${textOf(a, 'author_username', textOf(a, 'author'))} · ${dateText(a['created_at'])} · ${a['view_count'] ?? 0} 阅读',
+                '${userDisplayName(a, prefix: 'author')} · ${dateText(a['created_at'])} · ${a['view_count'] ?? 0} 阅读',
               ),
               const Divider(height: 36),
               ArticleBody(
@@ -2058,7 +2059,9 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    m['role'] == 'user' ? c.account?.username ?? '你' : '月见八千代',
+                    m['role'] == 'user'
+                        ? c.account?.displayName ?? '你'
+                        : '月见八千代',
                     style: TextStyle(color: RoomStyle(context).accent),
                   ),
                   const SizedBox(height: 10),
@@ -2203,13 +2206,16 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
             children: [
               SiteAvatar(
                 value: textOf(profile, 'avatar'),
-                name: textOf(profile, 'username'),
+                name: userDisplayName(profile),
                 site: c.settings.siteUrl,
                 size: 88,
               ),
               const SizedBox(height: 18),
               Text(
-                textOf(profile, 'username', c.account?.username ?? ''),
+                userDisplayName(
+                  profile,
+                  fallback: c.account?.displayName ?? '',
+                ),
                 style: const TextStyle(fontSize: 28),
               ),
               const SizedBox(height: 8),
@@ -2579,7 +2585,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                   ),
                   child: SiteHeader(
                     title: title,
-                    username: c.account?.username,
+                    username: c.account?.displayName,
                     role: c.sessionExpired ? null : c.account?.role,
                     onGo: _go,
                     onTheme: widget.onTheme,

@@ -486,7 +486,7 @@ class _ManagementPageState extends State<ManagementPage> {
   Future<void> _editUser(Map<String, dynamic> row, String action) async {
     final label = action == 'password' ? '新密码' : '昵称';
     final result = await _form(action == 'password' ? '重置用户密码' : '修改用户昵称', {
-      label: action == 'password' ? '' : textOf(row, 'username'),
+      label: action == 'password' ? '' : userDisplayName(row),
     }, secrets: action == 'password' ? {label} : {});
     if (result == null) return;
     final value = result[label] ?? '';
@@ -494,14 +494,13 @@ class _ManagementPageState extends State<ManagementPage> {
       if (action == 'password' && value.length < 8) {
         throw const ApiFailure('新密码至少 8 位');
       }
-      if (action == 'username' &&
-          (value.trim().isEmpty || value.trim().length > 32)) {
-        throw const ApiFailure('昵称应为 1 至 32 个字符');
+      if (action == 'nickname' && nicknameError(value) != null) {
+        throw ApiFailure(nicknameError(value)!);
       }
       await api.data(
-        action == 'password' ? 'POST' : 'PATCH',
+        'POST',
         '/users/${Uri.encodeComponent('${row['id']}')}/$action',
-        {action: value},
+        {action: action == 'nickname' ? value.trim() : value},
       );
     }, '用户资料已更新');
   }
@@ -661,11 +660,11 @@ class _ManagementPageState extends State<ManagementPage> {
   Widget _row(Map<String, dynamic> row) {
     final id = '${row['id']}';
     final title = _panel == 'messages'
-        ? textOf(row, 'username', textOf(row, 'author'))
+        ? userDisplayName(row, fallback: userDisplayName(row, prefix: 'author'))
         : textOf(
             row,
             'title',
-            textOf(row, 'username', textOf(row, 'name', '附件 $id')),
+            userDisplayName(row, fallback: textOf(row, 'name', '附件 $id')),
           );
     final actions = <Widget>[];
     if (_panel == 'articles') {
@@ -699,11 +698,7 @@ class _ManagementPageState extends State<ManagementPage> {
     }
     if (_panel == 'users') {
       actions.addAll([
-        _button(
-          '修改昵称',
-          () => _editUser(row, 'username'),
-          enabled: superAdmin && row['username'] != 'admin',
-        ),
+        _button('修改昵称', () => _editUser(row, 'nickname'), enabled: superAdmin),
         _button('重置密码', () => _editUser(row, 'password'), enabled: superAdmin),
         for (final role in const {
           'user': '设为用户',
@@ -1000,7 +995,7 @@ class _ManagementPageState extends State<ManagementPage> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('当前账号：${_admin['username']}'),
+        Text('当前账号：${userDisplayName(_admin)}'),
         for (final label in ['当前密码', '新密码', '确认新密码'])
           Padding(
             padding: const EdgeInsets.only(top: 12),

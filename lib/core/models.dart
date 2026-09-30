@@ -213,8 +213,10 @@ class Account {
     this.username, {
     this.role = 'user',
     this.scope = 'user',
+    this.nickname = '',
   });
-  final String id, username, role, scope;
+  final String id, username, role, scope, nickname;
+  String get displayName => nickname.trim().isEmpty ? username : nickname;
   bool get isAdministrator => role == 'admin' || role == 'super_admin';
 }
 
@@ -224,4 +226,32 @@ class ApiFailure implements Exception {
   final int? status;
   @override
   String toString() => message;
+}
+
+String userDisplayName(
+  Map value, {
+  String prefix = '',
+  String fallback = '访客',
+}) {
+  for (final key
+      in prefix.isEmpty
+          ? ['nickname', 'username']
+          : ['${prefix}_nickname', '${prefix}_username', prefix]) {
+    final name = '${value[key] ?? ''}'.trim();
+    if (name.isNotEmpty) return name;
+  }
+  return fallback;
+}
+
+String? nicknameError(String value) {
+  final name = value.trim();
+  if (name.isEmpty || name.runes.length > 32) return '昵称应为 1 至 32 个字符';
+  if (name.runes.any((rune) => rune >= 0xd800 && rune <= 0xdfff)) {
+    return '昵称包含无效字符';
+  }
+  if (RegExp(r'[\x00-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]')
+      .hasMatch(name)) {
+    return '昵称不能包含控制字符';
+  }
+  return null;
 }

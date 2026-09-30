@@ -251,7 +251,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
                           title: '中枢',
                           onGo: widget.onGo,
                           onLogin: _login,
-                          username: c.account?.username,
+                          username: c.account?.displayName,
                           role: c.sessionExpired ? null : c.account?.role,
                           onTheme: widget.onTheme,
                         ),
@@ -506,7 +506,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
               title: textOf(pixel, 'title', '月光像素工坊'),
               description: pixel.isEmpty
                   ? '绘制、发布、点赞月光像素画'
-                  : '${textOf(pixel, 'author', '访客')} 发布于 ${dateText(pixel['created_at'] ?? pixel['updated_at'])}',
+                  : '${userDisplayName(pixel, prefix: 'author')} 发布于 ${dateText(pixel['created_at'] ?? pixel['updated_at'])}',
               label: pixel.isEmpty ? '月光像素工坊' : '最新像素画',
               code: pixel.isEmpty
                   ? 'Arena'
@@ -688,14 +688,17 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
                               children: [
                                 SiteAvatar(
                                   value: textOf(message, 'avatar'),
-                                  name: textOf(message, 'author', '访客'),
+                                  name: userDisplayName(
+                                    message,
+                                    prefix: 'author',
+                                  ),
                                   site: c.settings.siteUrl,
                                   size: 28,
                                 ),
                                 const SizedBox(width: 9),
                                 Expanded(
                                   child: Text(
-                                    textOf(message, 'author', '访客'),
+                                    userDisplayName(message, prefix: 'author'),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(

@@ -422,7 +422,7 @@ class _PixelPageState extends State<PixelPage> {
           children: [
             SiteHeader(
               title: '月光像素工坊',
-              username: widget.controller.account?.username,
+              username: widget.controller.account?.displayName,
               role: widget.controller.sessionExpired
                   ? null
                   : widget.controller.account?.role,
@@ -955,7 +955,7 @@ class _PixelPageState extends State<PixelPage> {
                                     ),
                                   ),
                                   Text(
-                                    'by ${artwork['author'] ?? '月读访客'} · ${dateText(artwork['created_at'])}',
+                                    'by ${userDisplayName(artwork, prefix: 'author', fallback: '月读访客')} · ${dateText(artwork['created_at'])}',
                                   ),
                                   Wrap(
                                     spacing: 5,

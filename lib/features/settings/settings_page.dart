@@ -779,6 +779,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           'ko': '韩语',
         }, fallback: 'auto'),
         if (provider == 'gpt-sovits') ...[
+          const SiteText('本机 GPT-SoVITS 直接连接；公网地址通过网站代理，需要登录。'),
+          const SizedBox(height: 10),
           _field('refAudioPath', '参考音频在服务端的路径'),
           _field('promptText', '参考音频文本', lines: 3),
           _selectOption('promptLang', '参考语言', {
@@ -1339,7 +1341,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                   width: box.maxWidth,
                                   accountLabel: c.sessionExpired
                                       ? '重新登录'
-                                      : c.account?.username ?? '登录',
+                                      : c.account?.displayName ?? '登录',
                                   onAccount: () => showSiteLogin(context, c),
                                   onSearch: () =>
                                       showRoomSearch(context, c, _go),

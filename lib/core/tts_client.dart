@@ -31,7 +31,19 @@ class TtsClient {
     final provider = settings.option('ttsProvider', 'openai-compatible');
     var uri = ['openai', 'openai-compatible', 'custom'].contains(provider)
         ? compatibleEndpoint(settings.ttsUrl, speech: true)
-        : endpointUri(settings.ttsUrl);
+        : endpointUri(
+            settings.ttsUrl.trim().isEmpty && provider == 'gpt-sovits'
+                ? 'http://localhost:9880/tts'
+                : settings.ttsUrl,
+          );
+    final useProxy = ttsUsesProxy(settings);
+    if (provider == 'gpt-sovits' &&
+        (uri.path.replaceFirst(RegExp(r'/+$'), '') != '/tts' ||
+            uri.userInfo.isNotEmpty ||
+            uri.hasQuery ||
+            uri.hasFragment)) {
+      throw const ApiFailure('GPT-SoVITS 请填写本机或公网 /tts 地址');
+    }
     if (settings.ttsModel.isEmpty && provider != 'gpt-sovits') {
       throw const ApiFailure('请填写语音模型');
     }
@@ -101,7 +113,7 @@ class TtsClient {
           );
         }
         body = {'text': text, 'model_id': settings.ttsModel};
-      } else if (provider == 'gpt-sovits') {
+      } else if (provider == 'gpt-sovits' && !useProxy) {
         for (final pair in {
           'gptWeightPath': 'set_gpt_weights',
           'sovitsWeightPath': 'set_sovits_weights',
@@ -148,7 +160,7 @@ class TtsClient {
           },
         );
       }
-      if (settings.flag('ttsProxy') && provider != 'gpt-sovits') {
+      if (useProxy) {
         uri = endpointUri(settings.siteUrl).resolve('/api/tts');
         headers.remove('Authorization');
         headers.remove('xi-api-key');
@@ -167,6 +179,13 @@ class TtsClient {
           'voice': settings.voice,
           'textLang': lang,
           'text': text,
+          if (provider == 'gpt-sovits') ...{
+            'refAudioPath': settings.option('refAudioPath', settings.voice),
+            'promptText': settings.option('promptText'),
+            'promptLang': settings.option('promptLang', 'ja'),
+            'gptWeightPath': settings.option('gptWeightPath'),
+            'sovitsWeightPath': settings.option('sovitsWeightPath'),
+          },
         };
       }
       final request = http.Request(method, uri)
@@ -175,9 +194,16 @@ class TtsClient {
       if (method == 'POST') request.body = jsonEncode(body);
       final response = await client
           .send(request)
-          .timeout(const Duration(seconds: 30));
+          .timeout(Duration(seconds: provider == 'gpt-sovits' ? 70 : 30));
       if (response.statusCode != 200) {
         throw providerFailure('语音生成', response.statusCode);
+      }
+      if (provider == 'gpt-sovits' &&
+          useProxy &&
+          !(response.headers['content-type'] ?? '').toLowerCase().startsWith(
+            'audio/',
+          )) {
+        throw const ApiFailure('公网 GPT-SoVITS 未返回音频，请检查 /tts 地址');
       }
       final builder = BytesBuilder(copy: false);
       await for (final chunk in response.stream.timeout(
@@ -234,4 +260,22 @@ class TtsClient {
       if (identical(client, _active)) _active = null;
     }
   }
+}
+
+bool ttsUsesProxy(RoomSettings settings) {
+  if (settings.option('ttsProvider') != 'gpt-sovits') {
+    return settings.flag('ttsProxy');
+  }
+  final uri = Uri.tryParse(
+    settings.ttsUrl.trim().isEmpty
+        ? 'http://localhost:9880/tts'
+        : settings.ttsUrl.trim(),
+  );
+  return uri == null ||
+      ![
+        'localhost',
+        '127.0.0.1',
+        '::1',
+        '[::1]',
+      ].contains(uri.host.toLowerCase());
 }

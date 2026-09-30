@@ -548,7 +548,11 @@ class _AssetLibraryPageState extends State<AssetLibraryPage>
           Flexible(
             child: name.isEmpty
                 ? const SiteText('站点归档')
-                : Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                : Text(
+                    galleryUploaderName(asset),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
           ),
           if ('${asset['owner_id'] ?? ''}'.isNotEmpty) ...[
             const SizedBox(width: 8),

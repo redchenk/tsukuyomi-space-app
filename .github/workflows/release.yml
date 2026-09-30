@@ -98,7 +98,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: redchenk/tsukuyomi-space
-          ref: 06a04d7043336f3494f80451bb22e8becab5c219
+          ref: 6f784dd80093ab43c7d1140485411a77e82df366
           path: build/site-fixture-source
       - uses: actions/setup-node@v4
         with:
