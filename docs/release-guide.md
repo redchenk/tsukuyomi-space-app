@@ -60,4 +60,6 @@ Agent OS 保留原站独立部署的外部入口，其运行环境不随 Flutter
 
 ## 开发者复现原生服务验收
 
+Android 使用 Java 17、AGP 8.13.2、Gradle 8.13 与 Kotlin 2.3.21。此组合满足 `share_plus` 的构建要求，并兼容当前 QQ 授权容器仍使用的 AGP 8 ProGuard API。AGP 8.13.2 的 R8 支持 Kotlin 2.3，Gradle／JDK 要求见 [Android 官方说明](https://developer.android.com/build/releases/agp-8-13-0-release-notes)；Kotlin Gradle 插件的兼容区间见 [Kotlin 官方说明](https://kotlinlang.org/docs/gradle-configure-project.html)。升级 AGP 9 前须先更新全部原生插件并复验 Debug、发行 APK 及真模型探针，不能只修改 CI 中的缓存依赖。
+
 终端 1 启动 `python3 tool/release/smoke_server.py`；终端 2 执行 `flutter run -d macos --release -t tool/verify_native_services.dart`。此检查只使用回环接口和独立临时测试键，验证 Release 安全存储、HTTP 中文 SSE、WAV 播放完成及口型包络。服务端返回测试文本与短音调，不代表外部模型质量测试。完成后重新用 `lib/main.dart` 构建正式房间。
