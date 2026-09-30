@@ -183,6 +183,7 @@ class SiteClient implements SiteService, SiteDataService {
         'id': id,
         'createdAt': row['createdAt'],
       })['${row['role']}'] = row['content'];
+      if (row['image'] is Map) grouped[id]!['image'] = row['image'];
     }
     return grouped.values
         .where((r) => r['assistant'] is String)
@@ -191,6 +192,9 @@ class SiteClient implements SiteService, SiteDataService {
             id: r['id'],
             user: r['user'] as String? ?? '',
             assistant: r['assistant'],
+            image: r['image'] is Map
+                ? Map<String, dynamic>.from(r['image'])
+                : null,
             createdAt:
                 DateTime.tryParse('${r['createdAt'] ?? ''}') ??
                 DateTime.fromMillisecondsSinceEpoch(0),
@@ -205,7 +209,8 @@ class SiteClient implements SiteService, SiteDataService {
       'turnId': turn.id,
       'userMessage': turn.user,
       'assistantMessage': turn.assistant,
-      'memoryEnabled': true,
+      'memoryEnabled': turn.memoryEnabled,
+      if (turn.image?['id'] != null) 'imageId': turn.image!['id'],
       if (turn.user.isEmpty) 'opener': true,
     });
   }

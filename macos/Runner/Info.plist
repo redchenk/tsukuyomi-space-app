@@ -35,5 +35,9 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>仅在你选择使用当前位置时，获取房间所在地的天气与时间。</string>
+	<key>NSLocationUsageDescription</key>
+	<string>仅在你选择使用当前位置时，获取房间所在地的天气与时间。</string>
 </dict>
 </plist>

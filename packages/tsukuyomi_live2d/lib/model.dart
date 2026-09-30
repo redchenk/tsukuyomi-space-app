@@ -27,6 +27,7 @@ class LiveMesh {
 }
 
 abstract class Live2DModel extends ChangeNotifier {
+  Map<String, double> parameterOverrides = {};
   List<LiveMesh> get meshes;
   List<ui.Image> get textures;
   ui.Rect get bounds;

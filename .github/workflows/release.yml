@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 env:
   FLUTTER_VERSION: '3.47.5'
-  APP_VERSION: '0.3.0'
+  APP_VERSION: '0.4.0'
 jobs:
   build:
     strategy:

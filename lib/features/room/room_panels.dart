@@ -1,8 +1,8 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import 'room_controller.dart';
 import 'room_style.dart';
+import 'room_diary_panel.dart';
 
 class RoomUtilityPanel extends StatefulWidget {
   const RoomUtilityPanel({
@@ -20,19 +20,27 @@ class RoomUtilityPanel extends StatefulWidget {
 }
 
 class _RoomUtilityPanelState extends State<RoomUtilityPanel> {
-  final _note = TextEditingController();
+  final _note = TextEditingController(),
+      _nickname = TextEditingController(),
+      _signature = TextEditingController();
   String _status = '', _noteScope = '';
   bool _loading = true, _saving = false;
   @override
   void initState() {
     super.initState();
+    _nickname.text = '${widget.controller.workspace.profile['nickname'] ?? ''}';
+    _signature.text =
+        '${widget.controller.workspace.profile['signature'] ?? ''}';
     _loadNote();
   }
 
   Future<void> _loadNote() async {
     _noteScope = '${widget.controller.scope}.room-note';
     try {
-      final text = await widget.controller.storage.draft(_noteScope);
+      final legacy = await widget.controller.storage.draft(_noteScope);
+      final text = widget.controller.workspace.note.isEmpty
+          ? legacy
+          : widget.controller.workspace.note;
       if (mounted) {
         setState(() {
           _note.text = text;
@@ -52,6 +60,7 @@ class _RoomUtilityPanelState extends State<RoomUtilityPanel> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
+      await widget.controller.workspace.saveNote(_note.text);
       await widget.controller.storage.saveDraft(_noteScope, _note.text);
       if (mounted) setState(() => _status = '已保存在此设备');
     } catch (_) {
@@ -64,6 +73,8 @@ class _RoomUtilityPanelState extends State<RoomUtilityPanel> {
   @override
   void dispose() {
     _note.dispose();
+    _nickname.dispose();
+    _signature.dispose();
     super.dispose();
   }
 
@@ -130,24 +141,44 @@ class _RoomUtilityPanelState extends State<RoomUtilityPanel> {
             style: TextStyle(color: p.muted),
           ),
           const SizedBox(height: 32),
-          ListTile(
-            title: const Text('角色'),
-            subtitle: const Text('八千代 · 默认角色'),
-            leading: const Icon(CupertinoIcons.person),
-          ),
-          ListTile(
-            title: const Text('对话模式'),
-            subtitle: Text(
-              widget.controller.settings.demo
-                  ? '离线演示'
-                  : widget.controller.settings.model,
+          TextField(
+            controller: _nickname,
+            maxLength: 60,
+            decoration: const InputDecoration(
+              labelText: '昵称',
+              hintText: '你希望八千代怎么称呼你',
             ),
-            leading: const Icon(CupertinoIcons.chat_bubble_2),
           ),
-          ListTile(
-            title: const Text('账号'),
-            subtitle: Text(widget.controller.account?.username ?? '尚未登录'),
-            leading: const Icon(CupertinoIcons.person_crop_circle),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _signature,
+            maxLength: 300,
+            maxLines: 3,
+            decoration: const InputDecoration(labelText: '个性签名'),
+          ),
+          const SizedBox(height: 12),
+          Text(_status.isEmpty ? '资料保存在此设备' : _status),
+          FilledButton(
+            onPressed: _saving
+                ? null
+                : () async {
+                    final scope = widget.controller.scope;
+                    setState(() => _saving = true);
+                    try {
+                      await widget.controller.workspace.saveProfile(
+                        _nickname.text,
+                        _signature.text,
+                      );
+                      if (mounted && scope == widget.controller.scope) {
+                        setState(() => _status = '资料已保存');
+                      }
+                    } catch (_) {
+                      if (mounted) setState(() => _status = '保存失败，请重试');
+                    } finally {
+                      if (mounted) setState(() => _saving = false);
+                    }
+                  },
+            child: const Text('保存资料'),
           ),
           const SizedBox(height: 16),
           OutlinedButton(
@@ -157,36 +188,9 @@ class _RoomUtilityPanelState extends State<RoomUtilityPanel> {
         ],
       );
     }
-    return Center(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(CupertinoIcons.book, size: 36, color: p.accent),
-              const SizedBox(height: 22),
-              const Text(
-                '把相处的片刻，留成日记',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontFamily: RoomStyle.serif, fontSize: 22),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '网站里的日记还没有接入此应用。\n你可以前往网站继续查看和书写。',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: p.muted, fontSize: 13, height: 1.8),
-              ),
-              const SizedBox(height: 22),
-              OutlinedButton.icon(
-                onPressed: widget.onOpenWebsite,
-                icon: const Icon(CupertinoIcons.arrow_up_right, size: 16),
-                label: const Text('在网站打开日记'),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return ListView(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      children: [RoomDiaryPanel(controller: widget.controller)],
     );
   }
 }

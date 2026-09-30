@@ -177,15 +177,16 @@ void main() {
       lessThanOrEqualTo(170),
     );
   });
-  testWidgets('desktop search shortcut opens local conversation search', (
-    tester,
-  ) async {
-    await mount(tester, const Size(1440, 960));
-    await tester.tap(find.byKey(const Key('message-input')));
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
-    await tester.pumpAndSettle();
-    expect(find.text('搜索本机对话'), findsOneWidget);
-  });
+  testWidgets(
+    'desktop search shortcut opens website navigation and article search',
+    (tester) async {
+      await mount(tester, const Size(1440, 960));
+      await tester.tap(find.byKey(const Key('message-input')));
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+      await tester.pumpAndSettle();
+      expect(find.text('搜索页面、文章与内容'), findsOneWidget);
+    },
+  );
 }

@@ -10,6 +10,7 @@ import 'features/room/room_controller.dart';
 import 'features/room/room_page.dart';
 import 'features/room/room_style.dart';
 import 'features/site/site_page.dart';
+import 'features/settings/settings_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,11 +76,16 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
     ),
     onGenerateRoute: (settings) => MaterialPageRoute<void>(
       settings: settings,
-      builder: (_) => SitePage(
-        controller: widget.controller,
-        path: settings.name ?? '/stage',
-        onTheme: () => setState(() => _dark = !_dark),
-      ),
+      builder: (_) => settings.name == '/room/settings'
+          ? RoomSettingsPage(
+              controller: widget.controller,
+              onTheme: () => setState(() => _dark = !_dark),
+            )
+          : SitePage(
+              controller: widget.controller,
+              path: settings.name ?? '/stage',
+              onTheme: () => setState(() => _dark = !_dark),
+            ),
     ),
     home: Builder(
       builder: (context) => DefaultTextStyle.merge(

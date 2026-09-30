@@ -156,6 +156,9 @@ class _NativeModel extends Live2DModel {
         },
       );
     }
+    for (final p in parameterOverrides.entries) {
+      parameter(p.key, p.value);
+    }
     parameter('ParamMouthOpenY', mouth.clamp(0, 1));
     nativeUpdate(_ptr, delta);
     meshes = List.generate(nativeMeshCount(_ptr), (index) {

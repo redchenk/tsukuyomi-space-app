@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
@@ -8,6 +9,13 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
 
 import '../../core/models.dart';
+import '../../core/room_files.dart';
+import '../../core/room_reply.dart';
+import '../settings/room_memory_manager.dart';
+import 'room_actions.dart';
+import 'room_music.dart';
+import 'room_navigation.dart';
+import 'room_search.dart';
 import '../../live2d/character_stage.dart';
 import '../settings/settings_dialog.dart';
 import '../site/login_dialog.dart';
@@ -41,6 +49,8 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
   final _input = TextEditingController(), _scroll = ScrollController();
   final _focus = FocusNode();
   final _stageKey = GlobalKey();
+  late final RoomMusic _roomMusic;
+  String _musicState = '';
   String _lastScope = '', _lastDraft = '', _panel = '聊天';
   bool _ready = false, _quiet = false;
   RoomController get c => widget.controller;
@@ -59,6 +69,16 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     _input.text = c.draft;
     c.addListener(_update);
     _input.addListener(_inputChanged);
+    _roomMusic = RoomMusic(c)..addListener(_musicChanged);
+    unawaited(_roomMusic.load());
+  }
+
+  void _musicChanged() {
+    final state =
+        '${_roomMusic.index}/${_roomMusic.playing}/${_roomMusic.loading}/${_roomMusic.error}';
+    if (mounted && state != _musicState) {
+      setState(() => _musicState = state);
+    }
   }
 
   void _inputChanged() {
@@ -73,6 +93,8 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     _input.dispose();
     _scroll.dispose();
     _focus.dispose();
+    _roomMusic.removeListener(_musicChanged);
+    _roomMusic.dispose();
     super.dispose();
   }
 
@@ -108,7 +130,9 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
   }
 
   void _send() {
-    if (_input.text.trim().isEmpty || !c.canSend) return;
+    if ((_input.text.trim().isEmpty && c.attachment == null) || !c.canSend) {
+      return;
+    }
     final value = _input.text;
     // Keep rejected oversized input visible, matching controller validation.
     if (value.trim().length > 12000) {
@@ -119,7 +143,8 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     unawaited(c.send(value));
   }
 
-  void _settings() => unawaited(showRoomSettings(context, c));
+  void _settings() =>
+      unawaited(showRoomSettings(context, c, onTheme: widget.onToggleTheme));
   void _account() {
     if (c.account != null && !c.sessionExpired && widget.onNavigate != null) {
       widget.onNavigate!('/user');
@@ -133,15 +158,17 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
           .showSnackBar(SnackBar(content: Text(message)));
   Future<void> _website(String path) async {
     if (widget.onNavigate != null &&
-        [
-          '/stage',
-          '/plaza',
-          '/growth',
-          '/user',
-          '/conversations',
-          '/notifications',
-          '/hub',
-        ].contains(path)) {
+        ([
+              '/stage',
+              '/plaza',
+              '/growth',
+              '/user',
+              '/conversations',
+              '/notifications',
+              '/hub',
+            ].contains(path) ||
+            path.startsWith('/articles/') ||
+            path.startsWith('/stage?'))) {
       widget.onNavigate!(path == '/hub' ? '/stage' : path);
       return;
     }
@@ -158,7 +185,15 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
 
   Future<void> _newConversation() async {
     try {
-      await c.startConversation();
+      if (!c.canSend) return;
+      if (!await roomConfirm(
+        context,
+        '开启新的对话？',
+        '这会清空当前聊天和未生成日记的录制，已保存的日记与长期记忆会保留。',
+      )) {
+        return;
+      }
+      await c.startConversation(clearHistory: true);
       if (mounted && c.canSend) {
         setState(() {
           _panel = '聊天';
@@ -171,40 +206,59 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     }
   }
 
-  void _endConversation() {
-    c.stop();
-    _notice('对话已保存在本机，可从历史记录中查看。');
+  void _endConversation() =>
+      unawaited(endRoomConversation(context, c, () => _selectPanel('日记')));
+  void _music() {
+    unawaited(showRoomMusic(context, _roomMusic));
   }
 
-  void _music() => showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('房间音乐'),
-      content: const Text('此版本尚未接入音乐库，可以前往网站播放。'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('关闭'),
-        ),
-        FilledButton(
-          onPressed: () {
-            Navigator.pop(context);
-            _website('/room');
-          },
-          child: const Text('打开网站'),
-        ),
-      ],
-    ),
-  );
-  void _selectPanel(String panel) {
-    if (panel == '日记' && widget.onNavigate != null) {
-      widget.onNavigate!('/conversations?tab=diary');
-      return;
+  void _selectPanel(String panel) => setState(() {
+    _panel = panel;
+    _quiet = false;
+  });
+  Future<void> _attach() async {
+    final scope = c.scope;
+    try {
+      final image = await pickRoomImage();
+      if (image != null && scope == c.scope) await c.attach(image);
+    } catch (e) {
+      if (mounted) _notice(e is ApiFailure ? e.message : '图片读取失败，请重新选择');
     }
-    setState(() {
-      _panel = panel;
-      _quiet = false;
-    });
+  }
+
+  Widget _image(Map<String, dynamic> image, {double height = 160}) {
+    final data = '${image['dataUrl'] ?? ''}', url = '${image['url'] ?? ''}';
+    Widget error(BuildContext context, Object error, StackTrace? stack) =>
+        const Text('图片暂不可用');
+    try {
+      final origin = endpointUri(c.settings.siteUrl);
+      final remote = origin.resolve(url);
+      if (!data.startsWith('data:image/') &&
+          !['https', 'http'].contains(remote.scheme)) {
+        return const Text('图片地址不可用');
+      }
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: data.startsWith('data:image/')
+            ? Image.memory(
+                base64Decode(data.split(',').last),
+                height: height,
+                fit: BoxFit.contain,
+                errorBuilder: error,
+              )
+            : Image.network(
+                remote.toString(),
+                headers: c.site.cookie == null || remote.origin != origin.origin
+                    ? null
+                    : {'Cookie': c.site.cookie!},
+                height: height,
+                fit: BoxFit.contain,
+                errorBuilder: error,
+              ),
+      );
+    } catch (_) {
+      return const Text('图片暂不可用');
+    }
   }
 
   @override
@@ -226,12 +280,59 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
               final stage = CharacterStage(
                 key: _stageKey,
                 voice: c.voice,
+                settings: c.settings,
+                animation: c.animation,
+                world: c.workspace.world,
+                onWorld: () => unawaited(
+                  showDialog<void>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('房间环境'),
+                      content: AnimatedBuilder(
+                        animation: c.workspace,
+                        builder: (context, _) => Text(
+                          '${c.workspace.world["city"] ?? "月读空间"}  ${c.workspace.world["temperature"] ?? ""}°\n${c.workspace.worldStatus}',
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => c.workspace.refreshWorld(),
+                          child: const Text('刷新'),
+                        ),
+                        TextButton(
+                          onPressed: () =>
+                              c.workspace.refreshWorld(locate: true),
+                          child: const Text('使用当前位置'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('关闭'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 loadNative: widget.loadNative,
                 modelLoader: widget.modelLoader,
                 mobile: mobile,
                 keyboardOpen: keyboard > 0,
                 onSettings: _settings,
+                onVoiceSettings: () => showRoomSettings(
+                  context,
+                  c,
+                  section: 'tts',
+                  onTheme: widget.onToggleTheme,
+                ),
                 onMusic: _music,
+                musicTitle: '${_roomMusic.tracks[_roomMusic.index]['title']}',
+                musicPlaying: _roomMusic.playing,
+                musicLoading: _roomMusic.loading,
+                onMusicToggle: () async {
+                  await _roomMusic.toggle();
+                  if (mounted && _roomMusic.error.isNotEmpty) {
+                    _notice(_roomMusic.error);
+                  }
+                },
                 onReady: (value) {
                   if (mounted) setState(() => _ready = value);
                 },
@@ -301,7 +402,21 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                         ? 12
                         : math.max(24, (box.maxWidth - 1320) / 2),
                     height: mobile ? 60 : 68,
-                    child: _siteHeader(mobile: mobile, width: box.maxWidth),
+                    child: RoomNavigation(
+                      mobile: mobile,
+                      width: box.maxWidth,
+                      onGo: (path) =>
+                          path == '/room' ? _selectPanel('聊天') : _website(path),
+                      onSearch: _search,
+                      onSettings: _settings,
+                      onTheme: widget.onToggleTheme,
+                      onAccount: c.loading || c.busy || c.generating
+                          ? null
+                          : _account,
+                      accountLabel: c.sessionExpired
+                          ? '重新登录'
+                          : c.account?.username ?? '登录',
+                    ),
                   ),
                 ],
               );
@@ -311,206 +426,6 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
       ),
     );
   }
-
-  Widget _siteHeader({required bool mobile, required double width}) {
-    final p = RoomStyle(context);
-    return Container(
-      key: const Key('site-header'),
-      padding: EdgeInsets.symmetric(horizontal: mobile ? 14 : 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: p.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: p.line),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: .035),
-            blurRadius: 20,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          if (!mobile) ...[
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(color: p.soft, shape: BoxShape.circle),
-              child: Icon(CupertinoIcons.moon_stars, color: p.accent, size: 23),
-            ),
-            const SizedBox(width: 12),
-          ],
-          Semantics(
-            header: true,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '月读空间',
-                  style: TextStyle(
-                    fontFamily: RoomStyle.serif,
-                    fontSize: mobile ? 20 : 23,
-                    height: 1.15,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: mobile ? 0 : 2,
-                    color: p.ink,
-                  ),
-                ),
-                Text(
-                  '私人居所',
-                  style: TextStyle(fontSize: 9, height: 1.15, color: p.muted),
-                ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          if (!mobile && width >= 1180)
-            for (final entry in const {
-              '中枢': '/hub',
-              '舞台': '/stage',
-              '广场': '/plaza',
-              '成长': '/growth',
-              '记忆': '/conversations',
-            }.entries)
-              TextButton(
-                onPressed: () => _website(entry.value),
-                style: TextButton.styleFrom(
-                  foregroundColor: p.muted,
-                  minimumSize: const Size(50, 36),
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                ),
-                child: Text(entry.key, style: const TextStyle(fontSize: 12)),
-              ),
-          if (!mobile) _explore(mobile: false),
-          if (!mobile) const SizedBox(width: 16),
-          if (!mobile && width >= 1080)
-            InkWell(
-              onTap: _search,
-              borderRadius: BorderRadius.circular(30),
-              child: Container(
-                width: width >= 1300 ? 166 : 132,
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: p.soft,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Row(
-                  children: [
-                    Icon(CupertinoIcons.search, size: 16, color: p.muted),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '搜索月读空间',
-                        style: TextStyle(fontSize: 11, color: p.muted),
-                      ),
-                    ),
-                    if (width >= 1300)
-                      Text(
-                        '⌘ K',
-                        style: TextStyle(
-                          fontSize: 9,
-                          height: 1.15,
-                          color: p.muted,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            )
-          else
-            _headerIcon('搜索月读空间', CupertinoIcons.search, _search),
-          if (!mobile)
-            _headerIcon(
-              p.dark ? '切换浅色主题' : '切换深色主题',
-              p.dark ? CupertinoIcons.sun_max : CupertinoIcons.moon,
-              widget.onToggleTheme,
-            ),
-          _headerIcon(
-            '账号菜单',
-            CupertinoIcons.person_crop_circle,
-            c.loading || c.busy || c.generating ? null : _account,
-          ),
-          if (!mobile) ...[
-            TextButton(
-              onPressed: c.loading || c.generating || c.busy ? null : _account,
-              child: Text(
-                c.sessionExpired ? '重新登录' : c.account?.username ?? '登录',
-                style: TextStyle(fontSize: 11, color: p.muted),
-              ),
-            ),
-            const SizedBox(width: 12),
-            OutlinedButton.icon(
-              onPressed: () => _selectPanel('聊天'),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: p.selected,
-                foregroundColor: p.accent,
-                side: BorderSide(color: p.accent.withValues(alpha: .35)),
-                minimumSize: const Size(0, 40),
-              ),
-              icon: const Icon(CupertinoIcons.moon, size: 16),
-              label: const Text('进入房间', style: TextStyle(fontSize: 11)),
-            ),
-          ] else
-            _explore(mobile: true),
-        ],
-      ),
-    );
-  }
-
-  Widget _headerIcon(String label, IconData icon, VoidCallback? tap) =>
-      IconButton(
-        tooltip: label,
-        onPressed: tap,
-        icon: Icon(icon, size: 19),
-        style: IconButton.styleFrom(
-          minimumSize: const Size(40, 40),
-          padding: const EdgeInsets.all(8),
-        ),
-      );
-  Widget _explore({required bool mobile}) => PopupMenuButton<String>(
-    tooltip: '探索',
-    onSelected: (v) {
-      if (v == 'theme') {
-        widget.onToggleTheme?.call();
-      } else if (v == 'settings') {
-        _settings();
-      } else {
-        _website(v);
-      }
-    },
-    itemBuilder: (_) => [
-      for (final e in const {
-        '中枢': '/hub',
-        '主舞台': '/stage',
-        '月读广场': '/plaza',
-        '成长': '/growth',
-        '记忆': '/conversations',
-      }.entries)
-        PopupMenuItem(value: e.value, child: Text(e.key)),
-      const PopupMenuDivider(),
-      const PopupMenuItem(value: 'theme', child: Text('切换浅色 / 深色')),
-      const PopupMenuItem(value: 'settings', child: Text('房间设置')),
-    ],
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 9),
-      child: mobile
-          ? const Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(CupertinoIcons.line_horizontal_3, size: 21),
-                Text('探索', style: TextStyle(fontSize: 9)),
-              ],
-            )
-          : const Row(
-              children: [
-                Text('探索', style: TextStyle(fontSize: 12)),
-                SizedBox(width: 4),
-                Icon(CupertinoIcons.chevron_down, size: 10),
-              ],
-            ),
-    ),
-  );
 
   Widget _roundButton(String label, IconData icon, VoidCallback action) {
     final p = RoomStyle(context);
@@ -781,16 +696,55 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                   ),
                   children: [
                     for (final turn in turns) ...[
-                      _bubble(
-                        turn.user,
-                        user: true,
-                        mobile: mobile,
-                        time: turn.createdAt,
-                      ),
-                      _bubble(
+                      if (turn.image != null)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: _image(turn.image!),
+                        ),
+                      if (turn.user.isNotEmpty)
+                        _bubble(
+                          turn.user,
+                          user: true,
+                          mobile: mobile,
+                          time: turn.createdAt,
+                        ),
+                      _replyBubbles(
                         turn.assistant,
                         mobile: mobile,
                         time: turn.createdAt,
+                      ),
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        children: [
+                          if (!turn.pending &&
+                              turn.image == null &&
+                              turn.id == turns.last.id) ...[
+                            if (turn.user.isNotEmpty)
+                              TextButton(
+                                onPressed: c.canSend
+                                    ? () => editRoomTurn(context, c, turn)
+                                    : null,
+                                child: const Text('编辑'),
+                              ),
+                            TextButton(
+                              onPressed: c.canSend
+                                  ? () => c.send(
+                                      turn.user,
+                                      opener: turn.user.isEmpty,
+                                      replacement: turn,
+                                    )
+                                  : null,
+                              child: const Text('重新生成'),
+                            ),
+                          ],
+                          if (turn.user.isNotEmpty && turn.image == null)
+                            TextButton(
+                              onPressed: c.canSend
+                                  ? () => shareRoomTurn(context, c, turn)
+                                  : null,
+                              child: const Text('分享'),
+                            ),
+                        ],
                       ),
                       if (turn.pending)
                         Padding(
@@ -806,8 +760,10 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                     ],
                     if (c.generating) ...[
                       _bubble(c.sendingText, user: true, mobile: mobile),
-                      _bubble(
-                        c.partial.isEmpty ? '正在想怎么回答你…' : c.partial,
+                      _replyBubbles(
+                        cleanRoomReply(c.partial).isEmpty
+                            ? '正在想怎么回答你…'
+                            : cleanRoomReply(c.partial),
                         mobile: mobile,
                         streaming: true,
                       ),
@@ -839,7 +795,8 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                       style: TextStyle(fontSize: 11, color: p.ink),
                     ),
                   ),
-                  if (c.draft.isNotEmpty && !c.generating)
+                  if ((c.draft.isNotEmpty || c.attachment != null) &&
+                      !c.generating)
                     TextButton(
                       onPressed: () => c.send(c.draft),
                       child: const Text('重试'),
@@ -849,6 +806,28 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
             ),
           ),
         if (!keyboard && turns.isEmpty && !c.generating) _suggestions(mobile),
+        if (c.attachment != null)
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: [
+                _image(c.attachment!, height: 64),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${c.attachment!['name']}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  tooltip: '移除图片',
+                  onPressed: c.canSend ? () => c.attach(null) : null,
+                  icon: const Icon(CupertinoIcons.xmark),
+                ),
+              ],
+            ),
+          ),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: mobile ? 12 : 0),
           child: _composer(mobile),
@@ -947,10 +926,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                 ],
                 const SizedBox(height: 18),
                 OutlinedButton.icon(
-                  onPressed: () {
-                    _input.text = '先和我打个招呼吧';
-                    _send();
-                  },
+                  onPressed: c.canSend ? () => c.send('', opener: true) : null,
                   style: OutlinedButton.styleFrom(
                     backgroundColor: mobile ? p.glass : p.surface,
                     side: BorderSide(color: p.line),
@@ -1088,9 +1064,9 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
       ),
     );
     final attach = Tooltip(
-      message: '图片聊天尚未接入',
+      message: '添加图片',
       child: IconButton(
-        onPressed: null,
+        onPressed: c.canSend ? _attach : null,
         icon: Icon(CupertinoIcons.photo, size: mobile ? 22 : 18),
         style: IconButton.styleFrom(
           disabledForegroundColor: p.muted,
@@ -1104,7 +1080,10 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
       child: FilledButton(
         onPressed: c.generating
             ? c.stop
-            : (!c.canSend || _input.text.trim().isEmpty ? null : _send),
+            : (!c.canSend ||
+                      (_input.text.trim().isEmpty && c.attachment == null)
+                  ? null
+                  : _send),
         style: FilledButton.styleFrom(
           backgroundColor: p.primary,
           foregroundColor: p.onPrimary,
@@ -1182,11 +1161,37 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     );
   }
 
+  Widget _replyBubbles(
+    String text, {
+    required bool mobile,
+    DateTime? time,
+    bool streaming = false,
+  }) {
+    final parts = splitRoomReply(text);
+    return Column(
+      children: [
+        for (var i = 0; i < parts.length; i++)
+          _bubble(
+            parts[i],
+            mobile: mobile,
+            time: time,
+            streaming: streaming,
+            continuation: i > 0,
+            controls: i == parts.length - 1,
+            fullReply: text,
+          ),
+      ],
+    );
+  }
+
   Widget _bubble(
     String text, {
     bool user = false,
     bool mobile = false,
     bool streaming = false,
+    bool continuation = false,
+    bool controls = true,
+    String? fullReply,
     DateTime? time,
   }) {
     final p = RoomStyle(context);
@@ -1200,7 +1205,9 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (!user && !mobile) ...[
-                const CharacterAvatar(size: 20, radius: 10),
+                continuation
+                    ? const SizedBox.square(dimension: 20)
+                    : const CharacterAvatar(size: 20, radius: 10),
                 const SizedBox(width: 8),
               ],
               Expanded(
@@ -1209,7 +1216,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                       ? CrossAxisAlignment.end
                       : CrossAxisAlignment.start,
                   children: [
-                    if (!user)
+                    if (!user && !continuation)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 7),
                         child: Row(
@@ -1275,7 +1282,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                         ),
                       ),
                     ),
-                    if (!streaming)
+                    if (!streaming && controls)
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -1291,7 +1298,9 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                             IconButton(
                               tooltip: '复制回复',
                               onPressed: () {
-                                Clipboard.setData(ClipboardData(text: text));
+                                Clipboard.setData(
+                                  ClipboardData(text: fullReply ?? text),
+                                );
                                 _notice('已复制回复');
                               },
                               style: IconButton.styleFrom(
@@ -1308,7 +1317,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                               tooltip: c.voice.playing ? '停止语音' : '朗读回复',
                               onPressed: () => c.voice.playing
                                   ? c.voice.stop()
-                                  : c.replay(text),
+                                  : c.replay(fullReply ?? text),
                               style: IconButton.styleFrom(
                                 minimumSize: Size(32, mobile ? 36 : 26),
                                 padding: const EdgeInsets.all(4),
@@ -1382,80 +1391,5 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
       ),
     ),
   );
-  void _search() {
-    var query = '';
-    showDialog<void>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, update) => Dialog(
-          child: SizedBox(
-            width: 580,
-            height: math.min(520, MediaQuery.sizeOf(context).height * .7),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  TextField(
-                    autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: '搜索月读空间',
-                      hintText: '搜索本机对话',
-                      prefixIcon: Icon(CupertinoIcons.search),
-                    ),
-                    onChanged: (v) => update(() => query = v.trim()),
-                  ),
-                  const SizedBox(height: 16),
-                  Expanded(
-                    child: ListView(
-                      children: [
-                        if (query.isEmpty)
-                          const ListTile(title: Text('输入关键词，查找已保存的对话。')),
-                        for (final turn in c.turns.where(
-                          (t) =>
-                              query.isNotEmpty &&
-                              '${t.user}\n${t.assistant}'
-                                  .toLowerCase()
-                                  .contains(query.toLowerCase()),
-                        ))
-                          ListTile(
-                            title: Text(
-                              turn.user,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: Text(
-                              turn.assistant,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            onTap: () {
-                              Navigator.pop(context);
-                              _history();
-                            },
-                          ),
-                        if (query.isNotEmpty &&
-                            !c.turns.any(
-                              (t) => '${t.user}\n${t.assistant}'
-                                  .toLowerCase()
-                                  .contains(query.toLowerCase()),
-                            ))
-                          const ListTile(title: Text('没有找到相关对话')),
-                      ],
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('关闭'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  void _search() => unawaited(showRoomSearch(context, c, _website));
 }
