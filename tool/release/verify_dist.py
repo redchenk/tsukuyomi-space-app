@@ -33,19 +33,19 @@ def verify(dist, version):
                 hasher.update(chunk)
             digest = hasher.hexdigest()
         checksums.append(f"{digest}  {name}\n")
-    (dist / "SHA256SUMS.txt").write_text("".join(checksums))
+    (dist / "SHA256SUMS.txt").write_text("".join(checksums), encoding='utf-8')
     print(f"PASS release {version}: 8 installers/archives, installation guide, notices and SHA-256 checksums")
 
 
 def verify_uploaded(dist, version, manifest):
     expected = {f"tsukuyomi-space-{version}-{suffix}" for suffix in SUFFIXES}
     expected.update(("INSTALL.md", "THIRD_PARTY_NOTICES.md", "SHA256SUMS.txt"))
-    assets = json.loads(manifest.read_text())
+    assets = json.loads(manifest.read_text(encoding='utf-8'))
     remote = {item["name"]: item for item in assets}
     if len(assets) != len(remote) or set(remote) != expected:
         raise ValueError("Draft release download names do not match the verified complete set")
     hashes = {}
-    for line in (dist / "SHA256SUMS.txt").read_text().splitlines():
+    for line in (dist / "SHA256SUMS.txt").read_text(encoding='utf-8').splitlines():
         digest, name = line.split("  ", 1)
         hashes[name] = digest
     hashes["SHA256SUMS.txt"] = hashlib.sha256((dist / "SHA256SUMS.txt").read_bytes()).hexdigest()

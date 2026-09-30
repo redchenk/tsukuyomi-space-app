@@ -48,12 +48,12 @@ def main():
                 raise ValueError('Unsafe archive path')
         z.extractall(CACHE)
     model = CACHE / 'model'
-    for name, checksum in json.loads((ROOT / 'tool/release/model-inputs.json').read_text()).items():
+    for name, checksum in json.loads((ROOT / 'tool/release/model-inputs.json').read_text(encoding='utf-8')).items():
         fetch(MODEL_BASE + name, model / name, checksum)
     subprocess.run([sys.executable, str(ROOT / 'tool/setup_live2d.py'),
                     '--sdk', str(CACHE / SDK_NAME),
                     '--model', str(model / 'tsukimi-yachiyo.model3.json')], check=True)
-    (ROOT / 'packages/tsukuyomi_live2d/vendor/cubism/REQUIRE_CORE').write_text('Release builds must include Cubism Core.\n')
+    (ROOT / 'packages/tsukuyomi_live2d/vendor/cubism/REQUIRE_CORE').write_text('Release builds must include Cubism Core.\n', encoding='utf-8')
     print('Verified Cubism SDK and character assets are ready for release.')
 
 if __name__ == '__main__':

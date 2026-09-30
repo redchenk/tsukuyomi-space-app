@@ -12,7 +12,7 @@ p.add_argument('--model', required=True, type=Path, help='Existing .model3.json 
 a = p.parse_args()
 if not (a.sdk / 'Core/include/Live2DCubismCore.h').is_file():
     p.error('The selected directory is not a Cubism Native SDK.')
-manifest = json.loads(a.model.read_text())
+manifest = json.loads(a.model.read_text(encoding='utf-8'))
 refs = manifest['FileReferences']
 source = a.model.resolve().parent
 out = root / 'assets/live2d'
@@ -36,7 +36,7 @@ for i, expression in enumerate(refs.get('Expressions', [])):
 # Motion playback is not part of this prototype; do not leave dangling references.
 for key in ['Motions', 'Pose', 'UserData', 'DisplayInfo']:
     refs.pop(key, None)
-(out / 'character.model3.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2))
+(out / 'character.model3.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
 vendor = root / 'packages/tsukuyomi_live2d/vendor/cubism'
 for component in ['Core', 'Framework']:
     shutil.copytree(a.sdk / component, vendor / component, dirs_exist_ok=True, copy_function=shutil.copyfile)

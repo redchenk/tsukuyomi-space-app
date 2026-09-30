@@ -11,7 +11,7 @@ VERSION = re.compile(r"^version:\s*([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)\
 
 
 def read_version(root=ROOT):
-    match = VERSION.search((root / "pubspec.yaml").read_text())
+    match = VERSION.search((root / "pubspec.yaml").read_text(encoding='utf-8'))
     if not match:
         raise ValueError("pubspec.yaml needs a semantic version and positive build number")
     return match.group(1), int(match.group(2))
@@ -39,14 +39,14 @@ def main():
     parser.add_argument("--stable", action="store_true")
     args = parser.parse_args()
     values = release_metadata(tag=args.tag, publish=args.publish, prerelease=not args.stable)
-    values["ref"] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    values["ref"] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, encoding='utf-8').strip()
     if values["publish"] == "true":
         existing_tag = subprocess.run(["git", "rev-parse", "--verify", f"refs/tags/{args.tag}^{{commit}}"],
-                                      cwd=ROOT, capture_output=True, text=True)
+                                      cwd=ROOT, capture_output=True, text=True, encoding='utf-8')
         if existing_tag.returncode == 0 and existing_tag.stdout.strip() != values["ref"]:
             raise ValueError("Existing release tag points at a different commit; it cannot be rewritten")
     if output := os.environ.get("GITHUB_OUTPUT"):
-        with open(output, "a") as handle:
+        with open(output, "a", encoding='utf-8') as handle:
             for key, value in values.items():
                 handle.write(f"{key}={value}\n")
     print(f"Release {values['version']}+{values['build_number']}, commit {values['ref']}, publish={values['publish']}")

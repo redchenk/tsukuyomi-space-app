@@ -19,7 +19,7 @@ for binary in [app / info['CFBundleExecutable'], *app.glob('Frameworks/*.framewo
         continue
     if binary.read_bytes()[:4] not in [b'\xcf\xfa\xed\xfe', b'\xca\xfe\xba\xbe']:
         continue
-    arches = subprocess.check_output(['lipo', '-archs', str(binary)], text=True).strip()
+    arches = subprocess.check_output(['lipo', '-archs', str(binary)], text=True, encoding='utf-8').strip()
     assert 'arm64' in arches, f'{binary}: {arches}'
 version = os.environ.get('APP_VERSION', info['CFBundleShortVersionString'])
 assert version == info['CFBundleShortVersionString'] == read_version()[0], 'IPA version must match pubspec.yaml'

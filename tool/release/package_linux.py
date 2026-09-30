@@ -19,7 +19,7 @@ dependency_env = os.environ.copy()
 dependency_env['LD_LIBRARY_PATH'] = str(bundle / 'lib')
 for binary in libraries:
     result = subprocess.run(['ldd', str(binary)], check=True, capture_output=True, text=True,
-                            env=dependency_env)
+                            env=dependency_env, encoding='utf-8')
     assert 'not found' not in result.stdout, f'Native dependency missing for {binary}:\n{result.stdout}'
 metadata = root / 'build/deb-metadata'
 (metadata / 'debian').mkdir(parents=True, exist_ok=True)
@@ -32,11 +32,11 @@ Package: tsukuyomi-space
 Architecture: amd64
 Depends: ${shlibs:Depends}
 Description: Tsukuyomi Space native client
-''')
+''', encoding='utf-8')
 dependency_result = subprocess.check_output(
     ['dpkg-shlibdeps', '--ignore-missing-info', '--warnings=0', '-O',
      f'-l{bundle / "lib"}', *[f'-e{binary}' for binary in libraries]],
-    cwd=metadata, text=True)
+    cwd=metadata, text=True, encoding='utf-8')
 linked_dependencies = dependency_result.strip().removeprefix('shlibs:Depends=')
 assert linked_dependencies and linked_dependencies != dependency_result.strip(), 'Cannot determine native runtime dependencies'
 # GStreamer loads codec plugins dynamically, so ELF inspection cannot infer these.
@@ -56,7 +56,7 @@ Depends: {dependencies}
 Recommends: gnome-keyring, fonts-noto-cjk
 Description: Tsukuyomi Space native site and Live2D client
  Native articles, wiki, gallery, game, account and Live2D room.
-''')
+''', encoding='utf-8')
 applications = pkg / 'usr/share/applications'
 applications.mkdir(parents=True, exist_ok=True)
 (applications / 'tsukuyomi-space.desktop').write_text('''[Desktop Entry]
@@ -69,7 +69,7 @@ Terminal=false
 Type=Application
 Categories=Utility;Network;
 StartupWMClass=space.tsukuyomi.tsukuyomi_space_app
-''')
+''', encoding='utf-8')
 icons = pkg / 'usr/share/icons/hicolor/256x256/apps'
 icons.mkdir(parents=True, exist_ok=True)
 shutil.copyfile(root / 'macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_256.png', icons / 'tsukuyomi-space.png')

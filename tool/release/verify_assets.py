@@ -18,7 +18,7 @@ def expected_assets(root=ROOT):
         for path in source.rglob("*"):
             if path.is_file() and not any(part.startswith(".") for part in path.relative_to(source).parts):
                 result[path.relative_to(root).as_posix()] = path
-    project = json.loads((root / "assets/game/project.json").read_text())
+    project = json.loads((root / "assets/game/project.json").read_text(encoding='utf-8'))
     game_refs = {item.get("file", item.get("md5ext"))
                  for target in project["targets"]
                  for category in ("costumes", "sounds")
@@ -28,7 +28,7 @@ def expected_assets(root=ROOT):
         if not name or f"assets/game/{name}" not in result:
             raise ValueError(f"Game references missing asset: {name}")
     manifest_path = root / "assets/live2d/character.model3.json"
-    refs = json.loads(manifest_path.read_text())["FileReferences"]
+    refs = json.loads(manifest_path.read_text(encoding='utf-8'))["FileReferences"]
     models = ["character.model3.json", refs["Moc"], *refs["Textures"]]
     models += [refs[key] for key in ("Physics", "Pose") if key in refs]
     models += [item["File"] for item in refs.get("Expressions", [])]
