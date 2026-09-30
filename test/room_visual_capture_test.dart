@@ -52,6 +52,9 @@ void main() {
         'MaterialIcons',
       )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
     });
+    final shadows = debugDisableShadows;
+    debugDisableShadows = false;
+    addTearDown(() => debugDisableShadows = shadows);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
@@ -106,6 +109,7 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       c.dispose();
     }
+    debugDisableShadows = shadows;
   }, skip: !const bool.fromEnvironment('CAPTURE_UI'));
 }
 

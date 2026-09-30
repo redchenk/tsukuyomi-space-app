@@ -72,7 +72,10 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
       '账户与设置': [
         ..._groups['账户与设置']!,
         for (final action in widget.actions.keys)
-          (action, Icons.settings_outlined),
+          (
+            action,
+            action == 'theme' ? Icons.dark_mode_outlined : Icons.language,
+          ),
         if (widget.administrator) ...[
           ('/admin', Icons.admin_panel_settings_outlined),
           ('/terminal', Icons.terminal),
@@ -117,9 +120,9 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
               ),
               right: (size.width - position.dx - box.size.width).clamp(
                 16,
-                size.width - 776,
+                size.width - 896,
               ),
-              width: 760,
+              width: 880,
               child: Material(
                 elevation: 12,
                 borderRadius: BorderRadius.circular(24),
@@ -182,7 +185,9 @@ class _MenuContents extends StatelessWidget {
         padding: const EdgeInsets.all(18),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final columns = constraints.maxWidth >= 680
+            final columns = constraints.maxWidth >= 800
+                ? 4
+                : constraints.maxWidth >= 680
                 ? 3
                 : constraints.maxWidth >= 480
                 ? 2

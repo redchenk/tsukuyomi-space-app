@@ -41,6 +41,7 @@ class _EditorPageState extends State<EditorPage> {
       key: TextEditingController(),
   };
   final bodyFocus = FocusNode();
+  final _formatScroll = ScrollController();
   String view = 'write';
   bool leaving = false;
   @override
@@ -93,6 +94,7 @@ class _EditorPageState extends State<EditorPage> {
       input.dispose();
     }
     bodyFocus.dispose();
+    _formatScroll.dispose();
     super.dispose();
   }
 
@@ -408,54 +410,63 @@ class _EditorPageState extends State<EditorPage> {
                 ),
             ],
           ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final action in [
-                  'H2',
-                  'H3',
-                  '加粗',
-                  '斜体',
-                  '删除线',
-                  '高亮',
-                  '防剧透',
-                  '引用',
-                  '列表',
-                  '有序列表',
-                  '代码',
-                  '链接',
-                  '分隔线',
-                ])
+          Scrollbar(
+            controller: _formatScroll,
+            thumbVisibility: true,
+            trackVisibility: true,
+            child: SingleChildScrollView(
+              controller: _formatScroll,
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  for (final action in [
+                    'H2',
+                    'H3',
+                    '加粗',
+                    '斜体',
+                    '删除线',
+                    '高亮',
+                    '防剧透',
+                    '引用',
+                    '列表',
+                    '有序列表',
+                    '代码',
+                    '链接',
+                    '分隔线',
+                  ])
+                    TextButton(
+                      onPressed: editor.submitting
+                          ? null
+                          : () => format(action),
+                      child: SiteText(action),
+                    ),
+                  PopupMenuButton<String>(
+                    tooltip: siteTranslate(context, '插入内容块'),
+                    onSelected: insertSnippet,
+                    itemBuilder: (_) => [
+                      for (final name in nativeMarkdownTemplates.keys)
+                        PopupMenuItem(value: name, child: SiteText(name)),
+                    ],
+                    child: const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SiteText('内容块'),
+                    ),
+                  ),
                   TextButton(
-                    onPressed: editor.submitting ? null : () => format(action),
-                    child: SiteText(action),
+                    onPressed: () => embed(false),
+                    child: const SiteText('媒体卡片'),
                   ),
-                PopupMenuButton<String>(
-                  tooltip: siteTranslate(context, '插入内容块'),
-                  onSelected: insertSnippet,
-                  itemBuilder: (_) => [
-                    for (final name in nativeMarkdownTemplates.keys)
-                      PopupMenuItem(value: name, child: SiteText(name)),
-                  ],
-                  child: const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: SiteText('内容块'),
+                  TextButton(
+                    onPressed: () => embed(true),
+                    child: const Text('iframe'),
                   ),
-                ),
-                TextButton(
-                  onPressed: () => embed(false),
-                  child: const SiteText('媒体卡片'),
-                ),
-                TextButton(
-                  onPressed: () => embed(true),
-                  child: const Text('iframe'),
-                ),
-                FilledButton.tonal(
-                  onPressed: () => assetPicker(),
-                  child: const SiteText('上传 / 选择附件'),
-                ),
-              ],
+                  FilledButton.tonal(
+                    onPressed: () => assetPicker(),
+                    child: const SiteText('上传 / 选择附件'),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
