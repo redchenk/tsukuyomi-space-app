@@ -55,17 +55,25 @@ class OpenCodeAgentRuntime implements AgentRuntime {
   };
 
   Future<dynamic> _request(String method, String path, [dynamic body]) async {
+    return _requestWith(_client!, method, path, body: body);
+  }
+
+  Future<dynamic> _requestWith(
+    http.Client client,
+    String method,
+    String path, {
+    dynamic body,
+    Duration timeout = const Duration(seconds: 30),
+    bool persistent = true,
+  }) async {
     final req = http.Request(method, _uri!.resolve(path))
       ..followRedirects = false
+      ..persistentConnection = persistent
       ..headers.addAll(_headers);
     if (body != null) req.body = jsonEncode(body);
-    final response = await _client!
-        .send(req)
-        .timeout(const Duration(seconds: 30));
+    final response = await client.send(req).timeout(timeout);
     final bytes = <int>[];
-    await for (final chunk in response.stream.timeout(
-      const Duration(seconds: 30),
-    )) {
+    await for (final chunk in response.stream.timeout(timeout)) {
       bytes.addAll(chunk);
       if (bytes.length > 2 * 1024 * 1024) {
         throw const ApiFailure('Agent 服务返回内容过大');
@@ -215,11 +223,16 @@ class OpenCodeAgentRuntime implements AgentRuntime {
       'XDG_CONFIG_HOME': '${_private!.path}/config',
       'XDG_CACHE_HOME': '${_private!.path}/cache',
       'XDG_DATA_HOME': scopedData,
+      'XDG_STATE_HOME': '$scopedData/state',
+      'TMPDIR': _private!.path,
+      'TMP': _private!.path,
+      'TEMP': _private!.path,
       'OPENCODE_CONFIG_CONTENT': jsonEncode(config),
       'OPENCODE_SERVER_PASSWORD': _password,
       'OPENCODE_DISABLE_PROJECT_CONFIG': 'true',
       'OPENCODE_DISABLE_MODELS_FETCH': 'true',
       'OPENCODE_DISABLE_DEFAULT_PLUGINS': 'true',
+      'OPENCODE_PURE': 'true',
       'OPENCODE_DISABLE_AUTOUPDATE': 'true',
       'OPENCODE_DISABLE_LSP_DOWNLOAD': 'true',
       'OPENCODE_DISABLE_CLAUDE_CODE': 'true',
@@ -238,8 +251,9 @@ class OpenCodeAgentRuntime implements AgentRuntime {
     _stdout = '';
     _process!.stdout.transform(utf8.decoder).listen((chunk) {
       _stdout += chunk;
-      if (_stdout.length > 8192)
+      if (_stdout.length > 8192) {
         _stdout = _stdout.substring(_stdout.length - 8192);
+      }
     });
     _process!.stderr.transform(utf8.decoder).listen((chunk) {
       _stderr += chunk;
@@ -254,8 +268,15 @@ class OpenCodeAgentRuntime implements AgentRuntime {
       if (_exitCode != null) {
         throw ApiFailure('Agent 启动失败（$_exitCode）：${_sanitize(_stderr)}');
       }
+      final probe = _factory();
       try {
-        final health = await _request('GET', '/global/health');
+        final health = await _requestWith(
+          probe,
+          'GET',
+          '/global/health',
+          timeout: const Duration(seconds: 2),
+          persistent: false,
+        );
         if (health['version'] != '1.18.33') {
           throw const ApiFailure('Agent 运行时版本不匹配');
         }
@@ -264,6 +285,8 @@ class OpenCodeAgentRuntime implements AgentRuntime {
         rethrow;
       } catch (error) {
         _lastBootError = error.toString();
+      } finally {
+        probe.close();
       }
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }

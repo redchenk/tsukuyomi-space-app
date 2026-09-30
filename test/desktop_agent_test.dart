@@ -33,6 +33,31 @@ class ScriptedAgentChat implements ChatService {
   void cancel() {}
 }
 
+class StallingHealthClient extends http.BaseClient {
+  StallingHealthClient(this.stall, this.closed);
+  final bool Function() stall;
+  final void Function() closed;
+  final http.Client delegate = http.Client();
+  Completer<http.StreamedResponse>? pending;
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    if (request.url.path == '/global/health' && stall()) {
+      pending = Completer<http.StreamedResponse>();
+      return pending!.future;
+    }
+    return delegate.send(request);
+  }
+
+  @override
+  void close() {
+    delegate.close();
+    if (pending != null && !pending!.isCompleted) {
+      pending!.complete(http.StreamedResponse(const Stream.empty(), 503));
+      closed();
+    }
+  }
+}
+
 void main() {
   late Directory temporary, workspace;
   late List<AgentEvent> events;
@@ -440,24 +465,35 @@ void main() {
     () async {
       final binaries = await AgentBinaries.locate();
       final runner = SandboxCommandRunner(binaries.codex);
+      addTearDown(runner.dispose);
+      var setupApprovals = 0;
       final result = await runner.run(
         workspace.path,
         Platform.isWindows
             ? 'echo hello>inside.txt'
             : 'printf hello > inside.txt',
+        approveSetup: (request) async {
+          expect(request.tool, 'sandbox_setup');
+          expect(request.arguments['command'], 'echo hello>inside.txt');
+          setupApprovals++;
+          return true;
+        },
       );
       expect(result['exitCode'], 0, reason: result['stderr'].toString());
       expect(await File('${workspace.path}/inside.txt').exists(), true);
+      expect(setupApprovals, Platform.isWindows ? 1 : 0);
       final outside = File('${temporary.path}/outside.txt');
+      await outside.writeAsString('outside-private');
       final escaped = await runner.run(
         workspace.path,
         Platform.isWindows
             ? 'echo bad>"${outside.path}"'
             : "printf bad > '${outside.path}'",
       );
-      expect(escaped['exitCode'], isNot(0));
-      expect(await outside.exists(), false);
-      await outside.writeAsString('outside-private');
+      // Codex's Linux restricted-read root is a fresh tmpfs. A command can
+      // create a shadow file there, but must never change the actual host file.
+      if (!Platform.isLinux) expect(escaped['exitCode'], isNot(0));
+      expect(await outside.readAsString(), 'outside-private');
       final readCommand = Platform.isWindows
           ? 'type "${outside.path}"'
           : "cat '${outside.path}'";
@@ -631,11 +667,19 @@ void main() {
           owner: 'fixture',
           workspace: workspace.path,
         );
+        var stalledHealth = false, closedHealth = false;
         final runtime = OpenCodeAgentRuntime(
           binaries,
           gateway,
           settings,
           dataDirectory: '${temporary.path}/runtime-data',
+          clientFactory: protocol != 'openai'
+              ? null
+              : () => StallingHealthClient(() {
+                  if (stalledHealth) return false;
+                  stalledHealth = true;
+                  return true;
+                }, () => closedHealth = true),
         );
         try {
           await runtime.send(
@@ -649,6 +693,10 @@ void main() {
             'native gateway',
           );
           expect(events.where((e) => e.type == 'toolResult'), hasLength(1));
+          if (protocol == 'openai') {
+            expect(stalledHealth, true);
+            expect(closedHealth, true);
+          }
           expect(
             events.where((e) => e.type == 'assistant').last.text,
             'Saved fixture file.',

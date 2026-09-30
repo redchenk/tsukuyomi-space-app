@@ -2488,5 +2488,20 @@
     "公网 GPT-SoVITS 未返回音频，请检查 /tts 地址",
     "公開 GPT-SoVITS が音声を返しませんでした。/tts URL を確認してください",
     "Remote GPT-SoVITS did not return audio; check the /tts URL"
+  ],
+  [
+    "创建专用受限账户，配置目录权限、防火墙及沙箱登录策略",
+    "専用の制限付きアカウントを作成し、フォルダー権限、ファイアウォール、サンドボックスのログインポリシーを設定します",
+    "Create restricted accounts and configure folder permissions, firewall rules and sandbox logon policies"
+  ],
+  [
+    "Windows 命令沙箱首次初始化需要系统管理员确认；后续命令以受限账户执行",
+    "Windows コマンドサンドボックスの初期設定には管理者の承認が必要です。コマンドは制限付きアカウントで実行します",
+    "Windows command sandbox setup requires administrator approval; commands then run as restricted accounts"
+  ],
+  [
+    "Windows 沙箱初始化未获批准，命令已停止",
+    "Windows サンドボックスの設定が承認されなかったため、コマンドを停止しました",
+    "Windows sandbox setup was not approved; the command was stopped"
   ]
 ]

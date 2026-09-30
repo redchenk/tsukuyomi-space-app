@@ -378,13 +378,15 @@ class DesktopAgentController extends ChangeNotifier {
 
   Future<void> _closeRuntime() async {
     final runtime = _runtime;
+    final gateway = _gateway;
     _runtime = null;
-    _gateway?.cancel();
+    gateway?.cancel();
     _gateway = null;
     final tools = _nativeTools;
     _nativeTools = null;
     tools?.cancel();
     await runtime?.dispose();
+    await gateway?.commandRunner.dispose();
     tools?.dispose();
   }
 

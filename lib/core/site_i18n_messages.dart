@@ -1536,6 +1536,9 @@ const nativeSiteSupplementalMessages = <String, Map<String, String>>{
     "nativeUi.b38594efbf80": "站内登录用户名",
     "nativeUi.7d8c02daefeb": "GPT-SoVITS 请填写本机或公网 /tts 地址",
     "nativeUi.2f8e77e30735": "公网 GPT-SoVITS 未返回音频，请检查 /tts 地址",
+    "nativeUi.fb7f94485913": "创建专用受限账户，配置目录权限、防火墙及沙箱登录策略",
+    "nativeUi.b691aca294cc": "Windows 命令沙箱首次初始化需要系统管理员确认；后续命令以受限账户执行",
+    "nativeUi.394318b518ba": "Windows 沙箱初始化未获批准，命令已停止",
     "nativeEditorCharacters": "{count} 字符 · 草稿自动保存在当前站点与账号下",
     "nativeAuthResendSeconds": "{count}s 后重发",
     "nativeLive2DAudienceQueue": "{count} 条留言等待回应",
@@ -2112,6 +2115,11 @@ const nativeSiteSupplementalMessages = <String, Map<String, String>>{
     "nativeUi.b38594efbf80": "サイトのログインユーザー名",
     "nativeUi.7d8c02daefeb": "GPT-SoVITS のローカルまたは公開 /tts URL を入力してください",
     "nativeUi.2f8e77e30735": "公開 GPT-SoVITS が音声を返しませんでした。/tts URL を確認してください",
+    "nativeUi.fb7f94485913":
+        "専用の制限付きアカウントを作成し、フォルダー権限、ファイアウォール、サンドボックスのログインポリシーを設定します",
+    "nativeUi.b691aca294cc":
+        "Windows コマンドサンドボックスの初期設定には管理者の承認が必要です。コマンドは制限付きアカウントで実行します",
+    "nativeUi.394318b518ba": "Windows サンドボックスの設定が承認されなかったため、コマンドを停止しました",
     "nativeEditorCharacters": "{count}文字 · 下書きは現在のサイトとアカウントに自動保存されます",
     "nativeAuthResendSeconds": "{count}秒後に再送",
     "nativeLive2DAudienceQueue": "{count}件のメッセージが返答待ち",
@@ -2704,6 +2712,10 @@ const nativeSiteSupplementalMessages = <String, Map<String, String>>{
     "nativeUi.7d8c02daefeb": "Enter a local or remote GPT-SoVITS /tts URL",
     "nativeUi.2f8e77e30735":
         "Remote GPT-SoVITS did not return audio; check the /tts URL",
+    "nativeUi.fb7f94485913": "Create restricted accounts and configure folder permissions, firewall rules and sandbox logon policies",
+    "nativeUi.b691aca294cc": "Windows command sandbox setup requires administrator approval; commands then run as restricted accounts",
+    "nativeUi.394318b518ba":
+        "Windows sandbox setup was not approved; the command was stopped",
     "nativeEditorCharacters": "{count} characters · Drafts save automatically for this site and account",
     "nativeAuthResendSeconds": "Resend in {count}s",
     "nativeLive2DAudienceQueue": "{count} messages waiting for a response",
