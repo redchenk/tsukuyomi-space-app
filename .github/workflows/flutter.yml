@@ -39,7 +39,7 @@ jobs:
           - os: macos-latest
             target: macos
             command: flutter build macos --debug
-          - os: windows-latest
+          - os: windows-2022
             target: windows
             command: flutter build windows --debug
           - os: ubuntu-latest
