@@ -461,27 +461,37 @@ void main() {
 
   const native = bool.fromEnvironment('RUN_AGENT_TESTS');
   test(
-    'bundled Codex enforces directory access and kills shell children',
+    'bundled Codex enforces scoped commands and cancellation, or refuses unavailable Windows PSEC',
     () async {
       final binaries = await AgentBinaries.locate();
       final runner = SandboxCommandRunner(binaries.codex);
       addTearDown(runner.dispose);
-      var setupApprovals = 0;
-      final result = await runner.run(
-        workspace.path,
-        Platform.isWindows
-            ? 'echo hello>inside.txt'
-            : 'printf hello > inside.txt',
-        approveSetup: (request) async {
-          expect(request.tool, 'sandbox_setup');
-          expect(request.arguments['command'], 'echo hello>inside.txt');
-          setupApprovals++;
-          return true;
-        },
-      );
+      final Map<String, dynamic> result;
+      try {
+        result = await runner.run(
+          workspace.path,
+          Platform.isWindows
+              ? 'echo hello>inside.txt'
+              : 'printf hello > inside.txt',
+        );
+      } on ApiFailure catch (error) {
+        // Windows Server 2022 lacks PSEC. Only this explicit capability refusal
+        // is accepted; other failures still fail the integration test.
+        if (!Platform.isWindows ||
+            !error.toString().contains(
+              'native MXC is unavailable on this Windows build',
+            )) {
+          rethrow;
+        }
+        expect(await File('${workspace.path}/inside.txt').exists(), false);
+        expect(events.where((event) => event.type == 'toolResult'), isEmpty);
+        stderr.writeln(
+          'Windows host lacks PSEC: verified fail-closed refusal with no file write.',
+        );
+        return;
+      }
       expect(result['exitCode'], 0, reason: result['stderr'].toString());
       expect(await File('${workspace.path}/inside.txt').exists(), true);
-      expect(setupApprovals, Platform.isWindows ? 1 : 0);
       final outside = File('${temporary.path}/outside.txt');
       await outside.writeAsString('outside-private');
       final escaped = await runner.run(

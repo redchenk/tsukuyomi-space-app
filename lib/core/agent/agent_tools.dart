@@ -290,12 +290,6 @@ class ToolGateway {
       readRoots: read,
       writeRoots: write,
       network: network,
-      approveSetup: (request) async {
-        _check(epoch);
-        final allowed = await approve(request);
-        _check(epoch);
-        return allowed;
-      },
     );
   }
 }
@@ -428,16 +422,8 @@ class SandboxCommandRunner {
   SandboxCommandRunner(this.executable);
   final String executable;
   Process? _process;
-  Directory? _windowsHome;
-  bool _windowsSetupApproved = false;
   bool _cancelled = false;
-  Future<void> dispose() async {
-    await cancel();
-    final home = _windowsHome;
-    _windowsHome = null;
-    _windowsSetupApproved = false;
-    if (home != null && await home.exists()) await home.delete(recursive: true);
-  }
+  Future<void> dispose() => cancel();
 
   Future<void> cancel() async {
     _cancelled = true;
@@ -451,10 +437,10 @@ class SandboxCommandRunner {
         '/F',
       ]);
     } else {
-      await Process.run('/bin/kill', ['-TERM', '-${process.pid}']);
+      await Process.run('/bin/kill', ['-TERM', '--', '-${process.pid}']);
       process.kill();
       await Future<void>.delayed(const Duration(milliseconds: 150));
-      await Process.run('/bin/kill', ['-KILL', '-${process.pid}']);
+      await Process.run('/bin/kill', ['-KILL', '--', '-${process.pid}']);
       process.kill(ProcessSignal.sigkill);
     }
   }
@@ -465,29 +451,10 @@ class SandboxCommandRunner {
     List<String> readRoots = const [],
     List<String> writeRoots = const [],
     bool network = false,
-    AgentApprove? approveSetup,
   }) async {
     _cancelled = false;
     if (!await File(executable).exists()) {
       throw const ApiFailure('命令沙箱未安装，操作已停止');
-    }
-    if (Platform.isWindows && !_windowsSetupApproved) {
-      final allowed =
-          approveSetup != null &&
-          await approveSetup(
-            AgentApproval('sandbox_setup', {
-              'runtime': 'Codex 0.159.0',
-              'workspace': workspace,
-              'command': command,
-              'changes': '创建专用受限账户，配置目录权限、防火墙及沙箱登录策略',
-            }, 'Windows 命令沙箱首次初始化需要系统管理员确认；后续命令以受限账户执行'),
-          );
-      if (_cancelled) throw const ApiFailure('Agent 操作已取消');
-      if (!allowed) throw const ApiFailure('Windows 沙箱初始化未获批准，命令已停止');
-      _windowsSetupApproved = true;
-      _windowsHome ??= await Directory.systemTemp.createTemp(
-        'tsukuyomi-sandbox-home-',
-      );
     }
     final private = await Directory.systemTemp.createTemp('tsukuyomi-sandbox-');
     final profile = <String, String>{
@@ -501,16 +468,15 @@ class SandboxCommandRunner {
       for (final root in writeRoots)
         await Directory(root).resolveSymbolicLinks(): 'write',
     };
-    final sandboxHome = _windowsHome?.path ?? private.path;
-    final config = File('$sandboxHome${Platform.pathSeparator}config.toml');
+    final config = File('${private.path}${Platform.pathSeparator}config.toml');
     final filesystem = profile.entries
         .map((e) => '${jsonEncode(e.key)} = ${jsonEncode(e.value)}')
         .join('\n');
     await config.writeAsString(
-      'default_permissions = "tsukuyomi"\n[permissions.tsukuyomi.filesystem]\n$filesystem\n[permissions.tsukuyomi.network]\nenabled = $network\n[windows]\nsandbox = "elevated"\n',
+      'default_permissions = "tsukuyomi"\n[permissions.tsukuyomi.filesystem]\n$filesystem\n[permissions.tsukuyomi.network]\nenabled = $network\n[windows]\nsandbox = "mxc"\n',
     );
     final env = <String, String>{
-      'CODEX_HOME': sandboxHome,
+      'CODEX_HOME': private.path,
       'TMPDIR': private.path,
       'TMP': private.path,
       'TEMP': private.path,
@@ -590,8 +556,8 @@ class SandboxCommandRunner {
       if (_cancelled) throw const ApiFailure('命令已取消');
       if (Platform.isWindows &&
           code != 0 &&
-          err.toString().contains('windows sandbox failed:')) {
-        _windowsSetupApproved = false;
+          (err.toString().contains('MXC') ||
+              err.toString().contains('windows sandbox failed:'))) {
         throw ApiFailure('Windows 命令沙箱不可用，操作已停止：$err');
       }
       return {

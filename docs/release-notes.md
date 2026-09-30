@@ -25,3 +25,5 @@
 打开即进入 Room，无 Access 动画；默认关闭演示。首次在聊天区连接自己的模型，已有配置直接可聊；旧演示历史独立保留。桌面 Agent 复用模型配置，捆绑 OpenCode 1.18.33 与 Codex 0.159.0，无需预装 CLI。
 
 QQ 实号回调、外部模型／音色以及手机 GPU 与已签名 iPhone 体验仍需对应账号和设备验收。完整 Agent OS 仍是独立应用，本版提供原生 Room Agent。完整核对表、真实性能数据及限制见 `docs/native-room-agent-v0.6.md`。
+
+Windows 命令使用严格 MXC/PSEC 沙箱。系统缺少 PSEC 时停止命令，不回退到宽松的目录读取权限；此时文件工具、MCP 和站内 Agent 仍可用。支持 PSEC 的 Windows 实机命令尚待验证。
