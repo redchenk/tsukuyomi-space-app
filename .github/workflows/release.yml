@@ -81,6 +81,12 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Validate Android toolchain against this Flutter SDK
+        run: python tool/release/verify_android_toolchain.py
       - name: Download and verify licensed build inputs
         run: python tool/release/prepare_assets.py
       - run: python -m unittest discover -s tool/release -p 'test_*.py'

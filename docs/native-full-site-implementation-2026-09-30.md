@@ -41,7 +41,7 @@ Cookie/密钥保存在安全存储；草稿与缓存按站点及账号分区。�
 
 最终完整测试为 **423 项通过、0 项失败、0 项跳过**，耗时约 85 秒。其中包含 10 项原站真实 Express/SQLite 后端联调、真实 Cubism 模型与眨眼测试、原生游戏运行与碰撞、账号切换、后台权限、三语言、上传发布、记忆来源、通知及访问统计。
 
-发布校验工具另有 11 项 Python 测试，覆盖版本与标签匹配、正式版及预览版分类、完整下载集合、资源缺失、上传校验及 Windows 默认 CP1252 环境下的中文资源读取。
+发布校验工具另有 16 项 Python 测试，覆盖版本与标签匹配、正式版及预览版分类、完整下载集合、资源缺失、上传校验及 Windows 默认 CP1252 环境下的中文资源读取，以及按实际 Flutter SDK 最低要求校验 Android 工具链。
 
 最终 `flutter analyze --no-pub` 为 **No issues found**；160 个 Dart 文件格式检查无需修改，`git diff --check` 通过。静态分析日志为 `artifacts/release-final-analyze.log`。
 
