@@ -83,21 +83,42 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
       await tester.pump(const Duration(milliseconds: 50));
       expect(tester.takeException(), isNull);
-      final boundary = tester.firstRenderObject<RenderRepaintBoundary>(
-        find.byKey(const Key('capture')),
-      );
-      await tester.runAsync(() async {
-        final image = await boundary.toImage();
-        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        final path =
-            'artifacts/room-parity/native-room-${size.width > 860 ? 'desktop' : 'mobile'}.png';
-        final file = File(path);
-        await file.parent.create(recursive: true);
-        await file.writeAsBytes(bytes!.buffer.asUint8List());
-        image.dispose();
-      });
+      final form = size.width > 860 ? 'desktop' : 'mobile';
+      await _capture(tester, 'native-room-$form');
+      await tester.tap(find.byIcon(Icons.menu_rounded));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(tester.takeException(), isNull);
+      await _capture(tester, 'native-menu-$form');
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      if (size.width > 860) {
+        await tester.tap(find.text('Agent').first);
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(tester.takeException(), isNull);
+        await _capture(tester, 'native-agent-desktop');
+        expect(
+          await tester.binding.handleRequestAppExit(),
+          ui.AppExitResponse.exit,
+        );
+      }
       await tester.pumpWidget(const SizedBox.shrink());
       c.dispose();
     }
   }, skip: !const bool.fromEnvironment('CAPTURE_UI'));
+}
+
+Future<void> _capture(WidgetTester tester, String name) async {
+  final boundary = tester.firstRenderObject<RenderRepaintBoundary>(
+    find.byKey(const Key('capture')),
+  );
+  await tester.runAsync(() async {
+    final image = await boundary.toImage();
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    final file = File('artifacts/room-parity/$name.png');
+    await file.parent.create(recursive: true);
+    await file.writeAsBytes(bytes!.buffer.asUint8List());
+    image.dispose();
+  });
 }

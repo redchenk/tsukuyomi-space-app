@@ -1,3 +1,5 @@
+import 'dart:ui' show AppExitResponse;
+
 import '../../core/site_localization.dart';
 
 import 'dart:async';
@@ -142,10 +144,23 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       c.resume();
+    } else if (state == AppLifecycleState.detached) {
+      unawaited(_agent?.shutdown().catchError((Object _) {}));
+      c.pause();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       c.pause();
     }
+  }
+
+  @override
+  Future<AppExitResponse> didRequestAppExit() async {
+    try {
+      await _agent?.shutdown();
+    } catch (_) {
+      // Exiting must still proceed if the local history cannot be saved.
+    }
+    return AppExitResponse.exit;
   }
 
   void _update() {

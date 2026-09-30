@@ -84,7 +84,7 @@ flutter drive --profile -d macos --driver=test_driver/performance_driver.dart \
 
 完整后端、模型和截图复验使用新的临时 Express/SQLite fixture，方法同 [整站迁移记录](native-full-site-implementation-2026-09-30.md)，并加 `--dart-define=RUN_AGENT_TESTS=true`。发布流水线在 macOS、Windows、Linux 分别执行真实 OpenCode 与系统沙箱测试，再打包两个 Mac 架构及 Windows/Linux x64 的运行时。每个 bundle 含 `runtime-manifest.json` 和许可证；Release 整包另附 `SHA256SUMS.txt`。
 
-首轮完整回归通过 452 项，无失败、无跳过；新增上传/MCP确认、四协议兼容及自动回退测试已通过定向回归。Python 发布校验 35 项与运行时校验 3 项通过。最终完整回归、构建与发布结果见下方交付记录。
+最终本地完整回归通过 459 项，无失败、无跳过；包含真实原站临时后端、原生 Cubism、界面截图以及安装包内签名后的 OpenCode / Codex。Python 发布校验 35 项与运行时校验 3 项通过，静态分析无问题。退出请求等待 Agent 保存及关闭，启动失败释放运行时后可重新尝试；捆绑运行时路径在启动前解析为绝对真实路径。五平台构建与发布结果以流水线完成后的交付记录为准。
 
 ## 已知限制
 

@@ -36,9 +36,10 @@ class AgentBinaries {
           ];
     for (final path in paths) {
       if (await File('$path/runtime-manifest.json').exists()) {
-        final verified = await Isolate.run(() => _verifyBundle(path));
+        final directory = await Directory(path).resolveSymbolicLinks();
+        final verified = await Isolate.run(() => _verifyBundle(directory));
         if (!verified) throw const ApiFailure('Agent 运行时校验失败，请重新安装完整应用');
-        return AgentBinaries(path);
+        return AgentBinaries(directory);
       }
     }
     throw const ApiFailure('当前安装包缺少桌面 Agent 运行时');

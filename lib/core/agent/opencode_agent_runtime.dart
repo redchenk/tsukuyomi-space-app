@@ -407,7 +407,9 @@ class OpenCodeAgentRuntime implements AgentRuntime {
   @override
   Future<void> dispose() async {
     _disposed = true;
-    await cancel();
+    try {
+      await cancel().timeout(const Duration(seconds: 3));
+    } catch (_) {}
     _client?.close();
     final process = _process;
     _process = null;

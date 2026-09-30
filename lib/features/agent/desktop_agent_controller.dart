@@ -36,6 +36,7 @@ class DesktopAgentController extends ChangeNotifier {
   String _owner = '', _configuration = '';
   final _pending = <({AgentApproval request, Completer<bool> answer})>[];
   Future<void> _saving = Future.value();
+  Future<void>? _shutdown;
   AgentApproval? get approval => _pending.firstOrNull?.request;
   String get owner =>
       '${endpointUri(room.settings.siteUrl).origin}:${room.account?.id ?? 'guest'}:${room.sessionExpired}';
@@ -190,7 +191,7 @@ class DesktopAgentController extends ChangeNotifier {
   }
 
   Future<void> undoArticle(AgentEvent event) async {
-    if (busy || !event.data.containsKey('articleId')) return;
+    if (_disposed || busy || !event.data.containsKey('articleId')) return;
     final epoch = ++_epoch;
     busy = true;
     error = '';
@@ -262,7 +263,12 @@ class DesktopAgentController extends ChangeNotifier {
   }
 
   Future<void> warmup() async {
-    if (busy || session == null || room.settings.model.trim().isEmpty) return;
+    if (_disposed ||
+        busy ||
+        session == null ||
+        room.settings.model.trim().isEmpty) {
+      return;
+    }
     final epoch = ++_epoch;
     busy = true;
     error = '';
@@ -280,7 +286,10 @@ class DesktopAgentController extends ChangeNotifier {
         await _save();
       }
     } catch (failure) {
-      if (epoch == _epoch) error = failure.toString();
+      if (epoch == _epoch) {
+        error = failure.toString();
+        await _closeRuntime();
+      }
     } finally {
       if (epoch == _epoch) {
         busy = false;
@@ -290,7 +299,7 @@ class DesktopAgentController extends ChangeNotifier {
   }
 
   Future<void> send(String text) async {
-    if (busy || text.trim().isEmpty) return;
+    if (_disposed || busy || text.trim().isEmpty) return;
     if (workspace.isEmpty) {
       error = '请先选择工作目录';
       _changed();
@@ -379,15 +388,20 @@ class DesktopAgentController extends ChangeNotifier {
     tools?.dispose();
   }
 
-  @override
-  void dispose() {
+  Future<void> shutdown() {
+    if (_shutdown != null) return _shutdown!;
     _disposed = true;
     _epoch++;
     room.removeListener(_accountChanged);
     for (final pending in _pending) {
       if (!pending.answer.isCompleted) pending.answer.complete(false);
     }
-    unawaited(_closeRuntime());
+    return _shutdown = Future.wait([_save(), _closeRuntime()]).then((_) {});
+  }
+
+  @override
+  void dispose() {
+    unawaited(shutdown().catchError((Object _) {}));
     super.dispose();
   }
 }

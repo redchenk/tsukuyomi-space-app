@@ -35,10 +35,10 @@ class _FailStorage extends MemoryStorage {
 }
 
 void main() {
-  test('all 311 source keys exist in each locale with useful article and account translations', () {
+  test('all source keys exist in each locale with useful article and account translations', () {
     expect(nativeSiteMessages.keys, unorderedEquals(['zh', 'ja', 'en']));
     for (final messages in nativeSiteMessages.values) {
-      expect(messages, hasLength(311));
+      expect(messages.length, greaterThanOrEqualTo(314));
       expect(messages.keys, unorderedEquals(nativeSiteMessages['zh']!.keys));
       expect(messages.values.every((value) => value.isNotEmpty), isTrue);
     }

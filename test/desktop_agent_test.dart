@@ -758,8 +758,17 @@ void main() {
           await File('${workspace.path}/auto.txt').readAsString(),
           'auto fallback',
         );
-        await agent.stop();
+        await agent.shutdown();
+        final completedRequests = requests;
+        await agent.send('This task must never run after shutdown');
+        expect(requests, completedRequests);
+        expect(
+          store.drafts.keys.any((key) => key.startsWith('agent-session:')),
+          true,
+        );
+        await agent.shutdown();
       } finally {
+        await agent.shutdown();
         agent.dispose();
         room.dispose();
         await provider.close(force: true);
