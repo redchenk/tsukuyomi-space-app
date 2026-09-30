@@ -177,6 +177,35 @@ void main() {
     },
   );
 
+  for (final width in [390.0, 1280.0]) {
+    testWidgets(
+      'an open menu closes at $width when the confirmed administrator role is revoked',
+      (tester) async {
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        Widget page(bool admin) => MaterialApp(
+          home: Scaffold(
+            body: SiteExploreMenu(administrator: admin, onSelected: (_) {}),
+          ),
+        );
+        await tester.pumpWidget(page(true));
+        await tester.tap(find.byIcon(Icons.menu_rounded));
+        await tester.pumpAndSettle();
+        expect(
+          find.byIcon(Icons.admin_panel_settings_outlined),
+          findsOneWidget,
+        );
+        await tester.pumpWidget(page(false));
+        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.admin_panel_settings_outlined), findsNothing);
+        expect(find.byIcon(Icons.menu_rounded), findsOneWidget);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
+    );
+  }
+
   for (final width in [360.0, 390.0, 768.0, 1280.0, 1920.0]) {
     testWidgets(
       'Room and grouped menu at $width: languages, themes, large font, keyboard',

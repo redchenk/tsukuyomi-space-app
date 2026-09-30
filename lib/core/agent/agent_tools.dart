@@ -459,6 +459,7 @@ class SandboxCommandRunner {
       ':root': 'deny',
       ':minimal': 'read',
       ':workspace_roots': 'write',
+      await File(executable).parent.parent.resolveSymbolicLinks(): 'read',
       private.path: 'write',
       for (final root in readRoots)
         await Directory(root).resolveSymbolicLinks(): 'read',

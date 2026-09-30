@@ -32,7 +32,8 @@ class OpenCodeAgentRuntime implements AgentRuntime {
   AgentBridge? _bridge;
   http.Client? _client, _eventsClient;
   Uri? _uri;
-  String _password = '', _stderr = '';
+  String _password = '', _stderr = '', _stdout = '';
+  String _lastBootError = '';
   int? _exitCode;
   AgentSession? _session;
   bool _cancelled = false, _disposed = false;
@@ -234,7 +235,12 @@ class OpenCodeAgentRuntime implements AgentRuntime {
     );
     _exitCode = null;
     _stderr = '';
-    _process!.stdout.drain<void>();
+    _stdout = '';
+    _process!.stdout.transform(utf8.decoder).listen((chunk) {
+      _stdout += chunk;
+      if (_stdout.length > 8192)
+        _stdout = _stdout.substring(_stdout.length - 8192);
+    });
     _process!.stderr.transform(utf8.decoder).listen((chunk) {
       _stderr += chunk;
       if (_stderr.length > 16384) {
@@ -256,10 +262,14 @@ class OpenCodeAgentRuntime implements AgentRuntime {
         if (health['healthy'] == true) return;
       } on ApiFailure {
         rethrow;
-      } catch (_) {}
+      } catch (error) {
+        _lastBootError = error.toString();
+      }
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
-    throw const ApiFailure('桌面 Agent 启动超时');
+    throw ApiFailure(
+      '桌面 Agent 启动超时：${_sanitize(_stderr + _stdout + _lastBootError)}',
+    );
   }
 
   @override

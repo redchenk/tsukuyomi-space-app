@@ -55,8 +55,26 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
   final _anchor = GlobalKey();
   final _focus = FocusNode(debugLabel: 'Explore menu');
   bool _open = false;
+  ModalRoute<dynamic>? _menuRoute;
+
+  void _dismissMenu() {
+    final route = _menuRoute;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (route?.isActive == true) route!.navigator?.removeRoute(route);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant SiteExploreMenu oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_open && oldWidget.administrator != widget.administrator) {
+      _dismissMenu();
+    }
+  }
+
   @override
   void dispose() {
+    _dismissMenu();
     _focus.dispose();
     super.dispose();
   }
@@ -74,7 +92,12 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
         for (final action in widget.actions.keys)
           (
             action,
-            action == 'theme' ? Icons.dark_mode_outlined : Icons.language,
+            switch (action) {
+              'theme' => Icons.dark_mode_outlined,
+              'search' => Icons.search,
+              'music' => Icons.music_note,
+              _ => Icons.language,
+            },
           ),
         if (widget.administrator) ...[
           ('/admin', Icons.admin_panel_settings_outlined),
@@ -82,12 +105,16 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
         ],
       ],
     };
-    Widget menu(BuildContext ctx) => _MenuContents(
-      groups: items,
-      currentPath: widget.currentPath,
-      actions: widget.actions,
-      onSelected: (value) => Navigator.pop(ctx, value),
-    );
+    Widget menu(BuildContext ctx) {
+      _menuRoute = ModalRoute.of(ctx);
+      return _MenuContents(
+        groups: items,
+        currentPath: widget.currentPath,
+        actions: widget.actions,
+        onSelected: (value) => Navigator.pop(ctx, value),
+      );
+    }
+
     final String? selected;
     if (size.width < 960) {
       selected = await showModalBottomSheet<String>(
@@ -138,6 +165,7 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
       );
     }
     _open = false;
+    _menuRoute = null;
     if (!mounted) return;
     _focus.requestFocus();
     if (selected != null) widget.onSelected(selected);
