@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'models.dart';
+import 'room_events.dart';
 
 abstract interface class SiteService {
   String? get cookie;
@@ -25,26 +26,101 @@ abstract interface class SiteDataService {
   ]);
 }
 
-class SiteClient implements SiteService, SiteDataService {
+class SiteClient implements SiteService, SiteDataService, SiteRoomEventService {
   SiteClient({http.Client? client, this.timeout = const Duration(seconds: 25)})
     : _client = client ?? http.Client();
   final http.Client _client;
   final Duration timeout;
   String? _cookie;
+  String? _cookieOrigin;
   final readerCookies = <String, String>{};
+  final visitorCookies = <String, String>{};
   void Function(String origin, String value)? onReaderCookie;
+  void Function(String origin, String? value)? onVisitorCookie;
+  void Function(String origin, String? value)? onSessionCookie;
   int _revision = 0;
+
+  /// Identity epoch, including logout/relogin even when the account ID is the same.
+  int get sessionRevision => _revision;
+  bool _disposed = false;
   void Function()? onUnauthorized;
   @override
   String? get cookie => _cookie;
   @override
   set cookie(String? value) {
     _cookie = value;
+    if (value == null) _cookieOrigin = null;
     _revision++;
   }
 
+  /// Restore a persisted or OAuth session together with the site that issued it.
+  void setSessionCookie(String site, String? value) {
+    _cookie = value;
+    _cookieOrigin = value == null ? null : endpointUri(site).origin;
+    _revision++;
+  }
+
+  String? _cookieFor(String origin) {
+    if (_cookie == null) return null;
+    // Legacy callers can supply a cookie before their first request. Once its
+    // owner is known it must never be sent to another service.
+    _cookieOrigin ??= origin;
+    if (_cookieOrigin != origin) {
+      throw const ApiFailure('登录会话与站点不匹配，请重新登录', status: 409);
+    }
+    return _cookie;
+  }
+
   @override
-  void dispose() => _client.close();
+  void dispose() {
+    _disposed = true;
+    _client.close();
+  }
+
+  @override
+  Stream<RoomServerEvent> roomEvents(String site) async* {
+    if (_disposed) return;
+    final base = endpointUri(site), revision = _revision;
+    final sessionCookie = _cookieFor(base.origin);
+    final abort = Completer<void>();
+    final request =
+        http.AbortableRequest(
+            'GET',
+            base.resolve('/api/room/memory/events'),
+            abortTrigger: abort.future,
+          )
+          ..followRedirects = false
+          ..headers.addAll({
+            'Accept': 'text/event-stream',
+            'Origin': base.origin,
+            'Cache-Control': 'no-cache',
+            'Cookie': ?sessionCookie,
+          });
+    try {
+      final response = await _client.send(request).timeout(timeout);
+      if (response.statusCode == 401 && !_disposed && revision == _revision) {
+        onUnauthorized?.call();
+      }
+      if (response.statusCode != 200 ||
+          !(response.headers['content-type'] ?? '').startsWith(
+            'text/event-stream',
+          )) {
+        throw ApiFailure('实时连接暂不可用', status: response.statusCode);
+      }
+      await for (final event in decodeRoomEvents(
+        response.stream.timeout(const Duration(seconds: 55)),
+      )) {
+        if (revision != _revision) return;
+        yield event;
+      }
+    } catch (_) {
+      // Closing the app or replacing the session can close the socket before
+      // stream cancellation finishes. That connection no longer has an owner.
+      if (!_disposed && revision == _revision) rethrow;
+    } finally {
+      if (!abort.isCompleted) abort.complete();
+    }
+  }
 
   @override
   Future<Map<String, dynamic>> request(
@@ -59,6 +135,7 @@ class SiteClient implements SiteService, SiteDataService {
       throw const ApiFailure('无效的站点接口地址');
     }
     final revision = _revision;
+    final sessionCookie = _cookieFor(base.origin);
     final abort = Completer<void>();
     final req =
         http.AbortableRequest(method, target, abortTrigger: abort.future)
@@ -69,11 +146,15 @@ class SiteClient implements SiteService, SiteDataService {
             'Origin': base.origin,
             'X-Requested-With': 'XMLHttpRequest',
             'Cache-Control': 'no-cache',
-            if (cookie != null || readerCookies.containsKey(base.origin))
+            if (sessionCookie != null ||
+                readerCookies.containsKey(base.origin) ||
+                visitorCookies.containsKey(base.origin))
               'Cookie': [
-                ?cookie,
+                ?sessionCookie,
                 if (readerCookies.containsKey(base.origin))
                   readerCookies[base.origin]!,
+                if (visitorCookies.containsKey(base.origin))
+                  visitorCookies[base.origin]!,
               ].join('; '),
           });
     if (body != null) req.body = jsonEncode(body);
@@ -93,11 +174,35 @@ class SiteClient implements SiteService, SiteDataService {
           headers: stream.headers,
         );
       })().timeout(timeout);
+      // Visitor identity belongs to the browser installation, independently of
+      // login. Preserve a late visitor Set-Cookie even if its account changed.
+      final visitor = RegExp(r'(?:^|,\s*)tsukuyomi_visitor=([^;,\s]*)')
+          .firstMatch(response.headers['set-cookie'] ?? '');
+      if (visitor != null) {
+        final id = visitor.group(1)!;
+        if (id.isEmpty || RegExp(r'^[A-Za-z0-9_-]{20,128}$').hasMatch(id)) {
+          final value = id.isEmpty ? null : 'tsukuyomi_visitor=$id';
+          if (value == null) {
+            visitorCookies.remove(base.origin);
+          } else {
+            visitorCookies[base.origin] = value;
+          }
+          onVisitorCookie?.call(base.origin, value);
+        }
+      }
       // A late response must never replace another account's cookie or data.
       if (revision != _revision) {
         throw const ApiFailure('账号已切换，请重试', status: 409);
       }
-      if (response.statusCode == 401) onUnauthorized?.call();
+      if (response.statusCode == 401 &&
+          !target.path.startsWith('/api/admin/') &&
+          !{
+            '/api/auth/login',
+            '/api/auth/register',
+            '/api/auth/password/reset',
+          }.contains(target.path)) {
+        onUnauthorized?.call();
+      }
       Map<String, dynamic> json;
       try {
         json = Map<String, dynamic>.from(
@@ -115,12 +220,39 @@ class SiteClient implements SiteService, SiteDataService {
           status: response.statusCode,
         );
       }
-      final session = RegExp(r'(?:^|,\s*)tsukuyomi_session=([^;,\s]*)')
-          .firstMatch(response.headers['set-cookie'] ?? '');
-      if (session != null) {
-        _cookie = session.group(1)!.isEmpty
+      final setCookie = response.headers['set-cookie'] ?? '';
+      final sessions = RegExp(
+        r'(?:^|,\s*)(tsukuyomi_session|tsukuyomi_admin_session)=([^;,\s]*)',
+      ).allMatches(setCookie);
+      if (sessions.isNotEmpty) {
+        final saved = <String, String>{};
+        for (final part in (_cookie ?? '').split(';')) {
+          final pair = part.trim().split('=');
+          if (pair.length == 2 &&
+              {
+                'tsukuyomi_session',
+                'tsukuyomi_admin_session',
+              }.contains(pair[0])) {
+            saved[pair[0]] = pair[1];
+          }
+        }
+        for (final session in sessions) {
+          final name = session.group(1)!;
+          final value = session.group(2)!;
+          if (value.isEmpty) {
+            saved.remove(name);
+          } else {
+            saved[name] = value;
+          }
+        }
+        final nextCookie = saved.isEmpty
             ? null
-            : 'tsukuyomi_session=${session.group(1)}';
+            : saved.entries
+                  .map((entry) => '${entry.key}=${entry.value}')
+                  .join('; ');
+        _cookie = nextCookie;
+        _cookieOrigin = nextCookie == null ? null : base.origin;
+        onSessionCookie?.call(base.origin, _cookie);
       }
       final reader = RegExp(r'(?:^|,\s*)tsukuyomi_reader=([^;,\s]+)')
           .firstMatch(response.headers['set-cookie'] ?? '');
@@ -147,7 +279,12 @@ class SiteClient implements SiteService, SiteDataService {
   ]) async => (await request(site, method, path, body))['data'];
   Account _account(dynamic data) {
     final user = data['user'] ?? data;
-    return Account('${user['id']}', '${user['username']}');
+    return Account(
+      '${user['id']}',
+      '${user['username']}',
+      role: '${user['role'] ?? 'user'}',
+      scope: user['scope'] == 'admin' ? 'admin' : 'user',
+    );
   }
 
   Future<Account> authenticate(
@@ -155,10 +292,17 @@ class SiteClient implements SiteService, SiteDataService {
     Map<String, dynamic> body, {
     String path = '/api/auth/login',
   }) async {
+    final previousCookie = cookie, previousOrigin = _cookieOrigin;
     cookie = null;
-    final account = _account(await _data(site, 'POST', path, body));
-    if (cookie == null) throw const ApiFailure('站点未返回会话，请检查服务地址');
-    return account;
+    try {
+      final account = _account(await _data(site, 'POST', path, body));
+      if (cookie == null) throw const ApiFailure('站点未返回会话，请检查服务地址');
+      return account;
+    } catch (_) {
+      cookie = previousCookie;
+      _cookieOrigin = previousOrigin;
+      rethrow;
+    }
   }
 
   @override
@@ -209,7 +353,8 @@ class SiteClient implements SiteService, SiteDataService {
       'turnId': turn.id,
       'userMessage': turn.user,
       'assistantMessage': turn.assistant,
-      'memoryEnabled': turn.memoryEnabled,
+      'memoryEnabled': turn.memorySource != 'local' && turn.memoryEnabled,
+      if (turn.memorySource == 'local') 'memorySource': 'local',
       if (turn.image?['id'] != null) 'imageId': turn.image!['id'],
       if (turn.user.isEmpty) 'opener': true,
     });

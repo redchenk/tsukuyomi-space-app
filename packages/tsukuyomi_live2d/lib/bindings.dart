@@ -1,6 +1,17 @@
 // Hand-maintained bindings for the narrow ABI in src/bridge.cpp.
 import 'dart:ffi';
 
+@Native<
+  Int32 Function(Pointer<Uint8>, Int32, Pointer<Float>, Int32, Pointer<Double>)
+>(symbol: 'ts_audio_envelope')
+external int nativeAudioEnvelope(
+  Pointer<Uint8> bytes,
+  int size,
+  Pointer<Float> levels,
+  int capacity,
+  Pointer<Double> duration,
+);
+
 final class NativeMesh extends Struct {
   @Int32()
   external int vertices;

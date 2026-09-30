@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
 
 import 'models.dart';
 import 'llm_client.dart';
@@ -74,7 +75,7 @@ class WavEnvelope {
           count++;
         }
       }
-      levels.add((math.sqrt(sum / count) * 4).clamp(0, 1));
+      levels.add((math.sqrt(sum / count) * 3.2).clamp(0, 1));
     }
     return WavEnvelope(
       levels,
@@ -185,6 +186,18 @@ class AudioVoice extends VoiceService {
         _envelope = WavEnvelope.parse(audio.bytes);
       } on FormatException {
         // Native players can decode more WAV encodings than the lip analyzer.
+        _envelope = null;
+      }
+    }
+    if (_envelope == null) {
+      try {
+        final decoded = await decodeAudioEnvelope(audio.bytes);
+        if (generation != _generation || _disposed) return;
+        if (decoded != null) {
+          _envelope = WavEnvelope(decoded.levels, decoded.duration);
+        }
+      } catch (_) {
+        // Match the site's fallback only when PCM decoding is unavailable.
         _envelope = null;
       }
     }

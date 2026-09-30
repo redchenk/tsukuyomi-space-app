@@ -25,6 +25,8 @@ class SiteRepository {
   final RoomStorage storage;
   final String Function() site;
   final String? Function() accountId;
+  int? get _sessionRevision =>
+      api is SiteClient ? (api as SiteClient).sessionRevision : null;
   String get scope => '${endpointUri(site()).origin}:${accountId() ?? 'guest'}';
   final Map<String, Future<SiteDocument>> _inFlight = {};
   Future<SiteDocument?> cached(String path, {bool private = false}) async {
@@ -44,7 +46,7 @@ class SiteRepository {
   }
 
   Future<SiteDocument> read(String path, {bool private = false}) {
-    final key = '$scope:$path';
+    final key = '$scope:${_sessionRevision ?? ''}:$path';
     return _inFlight.putIfAbsent(
       key,
       () => _read(path, private: private).whenComplete(() {
@@ -55,6 +57,13 @@ class SiteRepository {
 
   Future<SiteDocument> _read(String path, {required bool private}) async {
     final owner = scope, origin = site();
+    final revision = _sessionRevision;
+    void requireOwner() {
+      if (scope != owner || revision != _sessionRevision) {
+        throw const ApiFailure('登录身份或站点已切换，请重新加载', status: 409);
+      }
+    }
+
     final key = 'site-cache:$owner:$path';
     if (private && accountId() == null) {
       throw const ApiFailure('请先登录', status: 401);
@@ -68,6 +77,8 @@ class SiteRepository {
       }
       Map<String, dynamic>? data;
       for (var attempt = 0; attempt < 2; attempt++) {
+        // A retry must not use the old URL with a newly restored session.
+        requireOwner();
         try {
           data = await api.request(origin, 'GET', live);
           break;
@@ -76,17 +87,20 @@ class SiteRepository {
           await Future<void>.delayed(const Duration(milliseconds: 400));
         }
       }
-      if (scope != owner) throw const ApiFailure('账号已切换，请重新加载', status: 409);
+      requireOwner();
       await storage.saveDraft(key, jsonEncode(data));
+      requireOwner();
       return SiteDocument(data!);
     } on ApiFailure catch (e) {
       if (scope != owner ||
+          revision != _sessionRevision ||
           e.status == 404 ||
           e.status == 409 ||
           e.status == 403) {
         rethrow;
       }
       final saved = await storage.draft(key);
+      requireOwner();
       if (saved.isEmpty) rethrow;
       return SiteDocument(
         Map<String, dynamic>.from(jsonDecode(saved) as Map),

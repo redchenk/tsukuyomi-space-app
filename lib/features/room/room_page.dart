@@ -1,3 +1,5 @@
+import '../../core/site_localization.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
@@ -5,7 +7,6 @@ import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
 
 import '../../core/models.dart';
@@ -19,6 +20,7 @@ import 'room_search.dart';
 import '../../live2d/character_stage.dart';
 import '../settings/settings_dialog.dart';
 import '../site/login_dialog.dart';
+import '../site/site_navigation.dart';
 import 'room_controller.dart';
 import 'room_panels.dart';
 import 'room_style.dart';
@@ -50,6 +52,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
   final _focus = FocusNode();
   final _stageKey = GlobalKey();
   late final RoomMusic _roomMusic;
+  late final bool _ownsMusic;
   String _musicState = '';
   String _lastScope = '', _lastDraft = '', _panel = '聊天';
   bool _ready = false, _quiet = false;
@@ -69,8 +72,13 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     _input.text = c.draft;
     c.addListener(_update);
     _input.addListener(_inputChanged);
-    _roomMusic = RoomMusic(c)..addListener(_musicChanged);
-    unawaited(_roomMusic.load());
+    final shared = SiteMusicScope.maybeOf(context);
+    _ownsMusic = shared == null;
+    _roomMusic = (shared ?? RoomMusic(c))..addListener(_musicChanged);
+    if (_ownsMusic) {
+      c.registerBackgroundMusic(this, _roomMusic.suspend);
+      unawaited(_roomMusic.load());
+    }
   }
 
   void _musicChanged() {
@@ -94,7 +102,10 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     _scroll.dispose();
     _focus.dispose();
     _roomMusic.removeListener(_musicChanged);
-    _roomMusic.dispose();
+    if (_ownsMusic) {
+      c.unregisterBackgroundMusic(this);
+      _roomMusic.dispose();
+    }
     super.dispose();
   }
 
@@ -157,29 +168,14 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message)));
   Future<void> _website(String path) async {
-    if (widget.onNavigate != null &&
-        ([
-              '/stage',
-              '/plaza',
-              '/growth',
-              '/user',
-              '/conversations',
-              '/notifications',
-              '/hub',
-            ].contains(path) ||
-            path.startsWith('/articles/') ||
-            path.startsWith('/stage?'))) {
-      widget.onNavigate!(path == '/hub' ? '/stage' : path);
+    if (path == '/room') {
+      _selectPanel('聊天');
       return;
     }
-    try {
-      final uri = endpointUri(c.settings.siteUrl).resolve(path);
-      if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
-          mounted) {
-        _notice('暂时无法打开网站');
-      }
-    } catch (_) {
-      if (mounted) _notice('暂时无法打开网站');
+    if (widget.onNavigate != null) {
+      widget.onNavigate!(path);
+    } else {
+      await navigateSite(context, c, path);
     }
   }
 
@@ -229,13 +225,13 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
   Widget _image(Map<String, dynamic> image, {double height = 160}) {
     final data = '${image['dataUrl'] ?? ''}', url = '${image['url'] ?? ''}';
     Widget error(BuildContext context, Object error, StackTrace? stack) =>
-        const Text('图片暂不可用');
+        const SiteText('图片暂不可用');
     try {
       final origin = endpointUri(c.settings.siteUrl);
       final remote = origin.resolve(url);
       if (!data.startsWith('data:image/') &&
           !['https', 'http'].contains(remote.scheme)) {
-        return const Text('图片地址不可用');
+        return const SiteText('图片地址不可用');
       }
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -257,7 +253,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
               ),
       );
     } catch (_) {
-      return const Text('图片暂不可用');
+      return const SiteText('图片暂不可用');
     }
   }
 
@@ -282,31 +278,31 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                 voice: c.voice,
                 settings: c.settings,
                 animation: c.animation,
-                world: c.workspace.world,
+                world: c.workspace.currentWorld,
                 onWorld: () => unawaited(
                   showDialog<void>(
                     context: context,
                     builder: (context) => AlertDialog(
-                      title: const Text('房间环境'),
+                      title: const SiteText('房间环境'),
                       content: AnimatedBuilder(
                         animation: c.workspace,
                         builder: (context, _) => Text(
-                          '${c.workspace.world["city"] ?? "月读空间"}  ${c.workspace.world["temperature"] ?? ""}°\n${c.workspace.worldStatus}',
+                          '${c.workspace.currentWorld["city"] ?? "月读空间"}  ${c.workspace.currentWorld["temperature"] ?? ""}°\n${c.workspace.worldStatus}',
                         ),
                       ),
                       actions: [
                         TextButton(
                           onPressed: () => c.workspace.refreshWorld(),
-                          child: const Text('刷新'),
+                          child: const SiteText('刷新'),
                         ),
                         TextButton(
                           onPressed: () =>
                               c.workspace.refreshWorld(locate: true),
-                          child: const Text('使用当前位置'),
+                          child: const SiteText('使用当前位置'),
                         ),
                         TextButton(
                           onPressed: () => Navigator.pop(context),
-                          child: const Text('关闭'),
+                          child: const SiteText('关闭'),
                         ),
                       ],
                     ),
@@ -456,7 +452,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
         border: Border.all(color: p.line),
       ),
       child: PopupMenuButton<String>(
-        tooltip: '房间功能',
+        tooltip: siteTranslate(context, '房间功能'),
         offset: const Offset(0, 54),
         icon: const Icon(CupertinoIcons.chat_bubble, size: 23),
         onSelected: (v) {
@@ -475,13 +471,16 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
           }
         },
         itemBuilder: (_) => [
-          const PopupMenuItem<String>(enabled: false, child: Text('这一刻，慢慢聊')),
+          const PopupMenuItem<String>(
+            enabled: false,
+            child: SiteText('这一刻，慢慢聊'),
+          ),
           PopupMenuItem(
             value: 'new',
             enabled: c.canSend,
-            child: const Text('新建会话'),
+            child: const SiteText('新建会话'),
           ),
-          const PopupMenuItem(value: 'history', child: Text('查看对话开头')),
+          const PopupMenuItem(value: 'history', child: SiteText('查看对话开头')),
           for (final e in _tabs.entries)
             PopupMenuItem(
               value: e.key,
@@ -493,9 +492,9 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                 ],
               ),
             ),
-          const PopupMenuItem(value: 'music', child: Text('房间音乐')),
+          const PopupMenuItem(value: 'music', child: SiteText('房间音乐')),
           PopupMenuItem(value: 'quiet', child: Text(_quiet ? '返回聊天' : '安静陪伴')),
-          const PopupMenuItem(value: 'end', child: Text('结束聊天')),
+          const PopupMenuItem(value: 'end', child: SiteText('结束聊天')),
         ],
       ),
     );
@@ -521,7 +520,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    SiteText(
                       '八千代',
                       style: TextStyle(
                         fontSize: 18,
@@ -551,7 +550,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                 ),
               ),
               IconButton(
-                tooltip: '查看对话历史',
+                tooltip: siteTranslate(context, '查看对话历史'),
                 onPressed: c.turns.isEmpty ? null : _history,
                 icon: const Icon(CupertinoIcons.arrow_uturn_left, size: 17),
               ),
@@ -563,7 +562,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                   side: BorderSide(color: p.line),
                 ),
                 icon: const Icon(CupertinoIcons.plus, size: 12),
-                label: const Text('新建会话', style: TextStyle(fontSize: 10)),
+                label: const SiteText('新建会话', style: TextStyle(fontSize: 10)),
               ),
             ],
           ),
@@ -615,7 +614,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                   ),
                 ),
                 IconButton(
-                  tooltip: '房间设置',
+                  tooltip: siteTranslate(context, '房间设置'),
                   onPressed: _settings,
                   style: IconButton.styleFrom(
                     minimumSize: const Size(30, 30),
@@ -660,7 +659,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
               Text(_panel, style: const TextStyle(fontSize: 18)),
               const Spacer(),
               IconButton(
-                tooltip: '返回聊天',
+                tooltip: siteTranslate(context, '返回聊天'),
                 onPressed: () => _selectPanel('聊天'),
                 icon: const Icon(CupertinoIcons.xmark, size: 18),
               ),
@@ -695,6 +694,14 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                     6,
                   ),
                   children: [
+                    if (c.sharedConversation != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 18),
+                        child: Text(
+                          '${c.sharedConversation!['title'] ?? '公开对话片段'} · ${c.sharedConversation!['author'] ?? ''}',
+                          style: TextStyle(color: p.muted),
+                        ),
+                      ),
                     for (final turn in turns) ...[
                       if (turn.image != null)
                         Align(
@@ -716,7 +723,8 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                       Wrap(
                         alignment: WrapAlignment.end,
                         children: [
-                          if (!turn.pending &&
+                          if (!c.isSharedTurn(turn) &&
+                              !turn.pending &&
                               turn.image == null &&
                               turn.id == turns.last.id) ...[
                             if (turn.user.isNotEmpty)
@@ -724,7 +732,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                                 onPressed: c.canSend
                                     ? () => editRoomTurn(context, c, turn)
                                     : null,
-                                child: const Text('编辑'),
+                                child: const SiteText('编辑'),
                               ),
                             TextButton(
                               onPressed: c.canSend
@@ -734,22 +742,24 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                                       replacement: turn,
                                     )
                                   : null,
-                              child: const Text('重新生成'),
+                              child: const SiteText('重新生成'),
                             ),
                           ],
-                          if (turn.user.isNotEmpty && turn.image == null)
+                          if (!c.isSharedTurn(turn) &&
+                              turn.user.isNotEmpty &&
+                              turn.image == null)
                             TextButton(
                               onPressed: c.canSend
                                   ? () => shareRoomTurn(context, c, turn)
                                   : null,
-                              child: const Text('分享'),
+                              child: const SiteText('分享'),
                             ),
                         ],
                       ),
                       if (turn.pending)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 10),
-                          child: Text(
+                          child: SiteText(
                             '已保存在本机 · 等待同步',
                             style: TextStyle(
                               fontSize: 10,
@@ -799,7 +809,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                       !c.generating)
                     TextButton(
                       onPressed: () => c.send(c.draft),
-                      child: const Text('重试'),
+                      child: const SiteText('重试'),
                     ),
                 ],
               ),
@@ -821,7 +831,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                   ),
                 ),
                 IconButton(
-                  tooltip: '移除图片',
+                  tooltip: siteTranslate(context, '移除图片'),
                   onPressed: c.canSend ? () => c.attach(null) : null,
                   icon: const Icon(CupertinoIcons.xmark),
                 ),
@@ -838,7 +848,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
             child: Row(
               children: [
                 IconButton(
-                  tooltip: '结束聊天',
+                  tooltip: siteTranslate(context, '结束聊天'),
                   onPressed: _endConversation,
                   style: IconButton.styleFrom(
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -856,14 +866,14 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                 ),
                 if (c.account != null)
                   IconButton(
-                    tooltip: '同步会话',
+                    tooltip: siteTranslate(context, '同步会话'),
                     onPressed: c.generating ? null : c.sync,
                     icon: const Icon(
                       CupertinoIcons.arrow_2_circlepath,
                       size: 14,
                     ),
                   ),
-                Text(
+                SiteText(
                   'AI 角色对话 · 请理性判断生成内容',
                   style: TextStyle(fontSize: 8, color: p.muted),
                 ),
@@ -873,7 +883,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
         if (mobile && c.settings.demo && keyboard)
           const Padding(
             padding: EdgeInsets.only(top: 3),
-            child: Text(
+            child: SiteText(
               '离线演示',
               style: TextStyle(fontSize: 9, color: Colors.white70),
             ),
@@ -900,7 +910,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                   Icon(CupertinoIcons.chat_bubble, size: 24, color: p.accent),
                   const SizedBox(height: 18),
                 ],
-                Text(
+                SiteText(
                   '这一刻，慢慢聊',
                   style: TextStyle(
                     fontFamily: RoomStyle.serif,
@@ -913,7 +923,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                 ),
                 if (!short) ...[
                   const SizedBox(height: 12),
-                  Text(
+                  SiteText(
                     '今天的小事、想说的话，都可以留在这里。',
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -935,7 +945,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                     foregroundColor: p.ink,
                   ),
                   icon: const Icon(CupertinoIcons.sparkles, size: 15),
-                  label: Text(
+                  label: SiteText(
                     '我先说',
                     style: TextStyle(fontSize: mobile ? 13 : 10),
                   ),
@@ -1144,7 +1154,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                   children: [
                     attach,
                     Expanded(
-                      child: Text(
+                      child: SiteText(
                         'Enter 发送 · Shift + Enter 换行',
                         textAlign: TextAlign.right,
                         maxLines: 1,
@@ -1222,7 +1232,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
+                            SiteText(
                               '八千代',
                               style: TextStyle(
                                 fontSize: 10,
@@ -1240,7 +1250,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                                   color: p.soft,
                                   borderRadius: BorderRadius.circular(3),
                                 ),
-                                child: Text(
+                                child: SiteText(
                                   'AI',
                                   style: TextStyle(fontSize: 7, color: p.muted),
                                 ),
@@ -1296,7 +1306,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                             ),
                           if (!user) ...[
                             IconButton(
-                              tooltip: '复制回复',
+                              tooltip: siteTranslate(context, '复制回复'),
                               onPressed: () {
                                 Clipboard.setData(
                                   ClipboardData(text: fullReply ?? text),
@@ -1341,7 +1351,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                 CircleAvatar(
                   radius: 10,
                   backgroundColor: p.soft,
-                  child: Text(
+                  child: SiteText(
                     '你',
                     style: TextStyle(fontSize: 9, height: 1.15, color: p.muted),
                   ),
@@ -1366,10 +1376,10 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
             children: [
               Row(
                 children: [
-                  const Text('对话历史', style: TextStyle(fontSize: 20)),
+                  const SiteText('对话历史', style: TextStyle(fontSize: 20)),
                   const Spacer(),
                   IconButton(
-                    tooltip: '关闭',
+                    tooltip: siteTranslate(context, '关闭'),
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(CupertinoIcons.xmark),
                   ),

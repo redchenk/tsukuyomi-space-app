@@ -164,10 +164,14 @@ class ChatTurn {
     this.pending = false,
     this.image,
     this.memoryEnabled = true,
+    this.memorySource = 'cloud',
+    this.localMemoryKey,
   });
   final String id, user, assistant;
   final DateTime createdAt;
   final bool pending, memoryEnabled;
+  final String memorySource;
+  final String? localMemoryKey;
   final Map<String, dynamic>? image;
   ChatTurn synced() => ChatTurn(
     id: id,
@@ -176,6 +180,8 @@ class ChatTurn {
     createdAt: createdAt,
     image: image,
     memoryEnabled: memoryEnabled,
+    memorySource: memorySource,
+    localMemoryKey: localMemoryKey,
   );
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -185,6 +191,8 @@ class ChatTurn {
     'pending': pending,
     'image': image,
     'memoryEnabled': memoryEnabled,
+    if (memorySource == 'local') 'memorySource': 'local',
+    if (localMemoryKey != null) 'localMemoryKey': localMemoryKey,
   };
   factory ChatTurn.fromJson(Map<String, dynamic> j) => ChatTurn(
     id: j['id'] as String,
@@ -194,12 +202,20 @@ class ChatTurn {
     pending: j['pending'] == true,
     image: j['image'] is Map ? Map<String, dynamic>.from(j['image']) : null,
     memoryEnabled: j['memoryEnabled'] != false,
+    memorySource: j['memorySource'] == 'local' ? 'local' : 'cloud',
+    localMemoryKey: j['localMemoryKey'] as String?,
   );
 }
 
 class Account {
-  const Account(this.id, this.username);
-  final String id, username;
+  const Account(
+    this.id,
+    this.username, {
+    this.role = 'user',
+    this.scope = 'user',
+  });
+  final String id, username, role, scope;
+  bool get isAdministrator => role == 'admin' || role == 'super_admin';
 }
 
 class ApiFailure implements Exception {

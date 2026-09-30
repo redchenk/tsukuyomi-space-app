@@ -9,6 +9,7 @@ import '../../core/site_client.dart';
 import '../../core/storage.dart';
 import '../../core/voice_service.dart';
 import '../../core/room_archive.dart';
+import '../../core/room_events.dart';
 import 'room_workspace.dart';
 import '../../live2d/room_animation.dart';
 
@@ -26,7 +27,17 @@ class RoomController extends ChangeNotifier {
     if (site is SiteClient) {
       (site as SiteClient).onUnauthorized = expireSession;
       (site as SiteClient).onReaderCookie = (origin, value) {
-        unawaited(storage.writeSecret('reader.$origin', value));
+        unawaited(_writeCredential('reader.$origin', value).catchError((_) {}));
+      };
+      (site as SiteClient).onVisitorCookie = (origin, value) {
+        unawaited(
+          _writeCredential('visitor.$origin', value).catchError((_) {}),
+        );
+      };
+      (site as SiteClient).onSessionCookie = (origin, value) {
+        unawaited(
+          _writeCredential('session.$origin', value).catchError((_) {}),
+        );
       };
     }
   }
@@ -34,6 +45,18 @@ class RoomController extends ChangeNotifier {
   final ChatService chat;
   final SiteService site;
   final VoiceService voice;
+  final Map<String, Future<void>> _credentialWrites = {};
+  // Cookie rotations and explicit logout share the same ordered queue. A slow
+  // keychain write must never restore credentials after a later logout.
+  Future<void> _writeCredential(String key, String? value) {
+    final previous = _credentialWrites[key] ?? Future<void>.value();
+    final write = previous
+        .catchError((_) {})
+        .then((_) => storage.writeSecret(key, value));
+    _credentialWrites[key] = write;
+    return write;
+  }
+
   final ChatService Function()? diaryClientFactory;
   late final RoomWorkspace workspace;
   final animation = RoomAnimation();
@@ -42,7 +65,16 @@ class RoomController extends ChangeNotifier {
   String diaryText = '', diaryStatus = '';
   Map<String, dynamic>? pendingDiary;
   String? _draftTurnId;
-  bool _committing = false;
+  int? _committingGeneration;
+  bool get _committing => _committingGeneration != null;
+  void _setSessionCookie(String? value) {
+    if (site is SiteClient) {
+      (site as SiteClient).setSessionCookie(settings.siteUrl, value);
+    } else {
+      site.cookie = value;
+    }
+  }
+
   Future<void> attach(Map<String, dynamic>? value) async {
     if (!canSend) return;
     attachment = value;
@@ -62,6 +94,32 @@ class RoomController extends ChangeNotifier {
   );
 
   RoomSettings settings = const RoomSettings();
+  final Map<Object, Future<void> Function(bool)> _backgroundMusic = {};
+  int _musicSuspensions = 0;
+  void registerBackgroundMusic(
+    Object owner,
+    Future<void> Function(bool) callback,
+  ) {
+    _backgroundMusic[owner] = callback;
+    if (_musicSuspensions > 0) unawaited(callback(true));
+  }
+
+  void unregisterBackgroundMusic(Object owner) =>
+      _backgroundMusic.remove(owner);
+  Future<void> suspendBackgroundMusic() async {
+    if (_musicSuspensions++ > 0) return;
+    for (final callback in List.of(_backgroundMusic.values)) {
+      await callback(true);
+    }
+  }
+
+  Future<void> resumeBackgroundMusic() async {
+    if (_musicSuspensions == 0 || --_musicSuspensions > 0) return;
+    for (final callback in List.of(_backgroundMusic.values)) {
+      await callback(false);
+    }
+  }
+
   Account? account;
   List<ChatTurn> turns = [];
   String draft = '',
@@ -74,20 +132,29 @@ class RoomController extends ChangeNotifier {
   bool _disposed = false, _syncing = false;
   DateTime? _conversationStart;
   Set<String> _previousConversationIds = {};
-  List<ChatTurn> get visibleTurns => _conversationStart == null
-      ? turns
-      : turns
-            .where(
-              (t) =>
-                  !_previousConversationIds.contains(t.id) &&
-                  !t.createdAt.isBefore(_conversationStart!),
-            )
-            .toList();
+  Map<String, dynamic>? sharedConversation;
+  ChatTurn? _sharedTurn;
+  DateTime? _beforeShareStart;
+  Set<String> _beforeShareIds = {};
+  List<ChatTurn> get visibleTurns => [
+    ?_sharedTurn,
+    ...(_conversationStart == null
+        ? turns
+        : turns
+              .where(
+                (t) =>
+                    !_previousConversationIds.contains(t.id) &&
+                    !t.createdAt.isBefore(_conversationStart!),
+              )
+              .toList()),
+  ];
+  bool isSharedTurn(ChatTurn turn) => turn.id == _sharedTurn?.id;
   String get scope => settings.demo
       ? 'demo'
       : '${endpointUri(settings.siteUrl).origin}:${account?.id ?? 'guest'}';
   String get _sessionKey => 'session.${endpointUri(settings.siteUrl).origin}';
-  bool get canSend => !generating && !busy && !loading && !_syncing;
+  bool get canSend =>
+      !generating && !busy && !loading && !_syncing && !_committing;
   int get pendingCount => turns.where((t) => t.pending).length;
   void _changed() {
     if (!_disposed) notifyListeners();
@@ -98,16 +165,18 @@ class RoomController extends ChangeNotifier {
   void expireSession() {
     if (account == null || sessionExpired) return;
     sessionExpired = true;
+    _closeEvents();
     syncStatus = '登录已过期，请重新登录；本机内容已保留';
-    unawaited(storage.writeSecret(_sessionKey, null));
+    unawaited(_writeCredential(_sessionKey, null).catchError((_) {}));
     _changed();
   }
 
   void _startRetry() {
     _retry?.cancel();
+    _startEvents();
     if (account == null || settings.demo || _disposed) return;
     _retry = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (!generating && !busy) {
+      if (!generating && !busy && !_committing) {
         unawaited(sync());
         unawaited(workspace.archive.sync());
       }
@@ -136,6 +205,12 @@ class RoomController extends ChangeNotifier {
         final origin = endpointUri(settings.siteUrl).origin;
         final reader = await storage.readSecret('reader.$origin');
         if (reader != null) (site as SiteClient).readerCookies[origin] = reader;
+        final visitor = await storage.readSecret('visitor.$origin');
+        if (visitor != null &&
+            RegExp(r'^tsukuyomi_visitor=[A-Za-z0-9_-]{20,128}$')
+                .hasMatch(visitor)) {
+          (site as SiteClient).visitorCookies[origin] = visitor;
+        }
       }
       if (!kIsWeb) {
         final hint = await storage.draft(_accountKey);
@@ -145,7 +220,7 @@ class RoomController extends ChangeNotifier {
             account = Account(j['id'], j['username']);
           } catch (_) {}
         }
-        site.cookie = await storage.readSecret(_sessionKey);
+        _setSessionCookie(await storage.readSecret(_sessionKey));
         await _loadScope();
         _changed();
         if (site.cookie != null) {
@@ -174,6 +249,7 @@ class RoomController extends ChangeNotifier {
   }
 
   Future<void> _loadScope() async {
+    leaveSharedConversation();
     _conversationStart = null;
     _previousConversationIds = {};
     turns = await storage.history(scope);
@@ -202,6 +278,7 @@ class RoomController extends ChangeNotifier {
     busy = true;
     _changed();
     try {
+      leaveSharedConversation();
       if (clearHistory && account != null && !settings.demo) {
         if (sessionExpired) throw const ApiFailure('请重新登录后新建云端会话');
         await workspace.request('DELETE', '/api/room/chat');
@@ -232,7 +309,9 @@ class RoomController extends ChangeNotifier {
   }
 
   Future<void> configure(RoomSettings value) async {
-    if (generating || busy || _syncing) throw const ApiFailure('请等待当前操作完成');
+    if (generating || busy || _syncing || _committing) {
+      throw const ApiFailure('请等待当前操作完成');
+    }
     endpointUri(value.siteUrl);
     if (!value.demo) endpointUri(value.llmUrl);
     if (value.speak) endpointUri(value.ttsUrl);
@@ -244,13 +323,14 @@ class RoomController extends ChangeNotifier {
       final changedAccount =
           endpointUri(value.siteUrl).origin !=
           endpointUri(settings.siteUrl).origin;
+      final changedScope = changedAccount || value.demo != settings.demo;
       settings = value;
       if (changedAccount) {
         account = null;
-        site.cookie = null;
+        _setSessionCookie(null);
         sessionExpired = false;
       }
-      await _loadScope();
+      if (changedScope) await _loadScope();
       _startRetry();
       error = '';
     } finally {
@@ -265,10 +345,12 @@ class RoomController extends ChangeNotifier {
     Map<String, dynamic>? credentials,
     String authPath = '/api/auth/login',
   }) async {
-    if (generating || busy || _syncing) {
+    if (generating || busy || _syncing || _committing) {
       throw const ApiFailure('请等待当前操作完成');
     }
     if (kIsWeb) throw const ApiFailure('请使用原生应用登录；Web 仅用于界面预览');
+    final previousCookie = site.cookie, previousAccount = account;
+    final previousExpired = sessionExpired;
     busy = true;
     error = '';
     _changed();
@@ -281,13 +363,16 @@ class RoomController extends ChangeNotifier {
               path: authPath,
             )
           : await site.login(settings.siteUrl, username, password);
-      await storage.writeSecret(_sessionKey, site.cookie);
+      await _writeCredential(_sessionKey, site.cookie);
       account = user;
       await _rememberAccount();
       sessionExpired = false;
       await _loadScope();
     } catch (_) {
-      site.cookie = null;
+      _setSessionCookie(previousCookie);
+      account = previousAccount;
+      sessionExpired = previousExpired;
+      await _writeCredential(_sessionKey, previousCookie);
       rethrow;
     } finally {
       busy = false;
@@ -302,6 +387,7 @@ class RoomController extends ChangeNotifier {
       throw const ApiFailure('请等待同步完成');
     }
     stop();
+    _closeEvents();
     busy = true;
     _changed();
     try {
@@ -310,8 +396,8 @@ class RoomController extends ChangeNotifier {
       } catch (_) {
         /* Always clear local credentials. */
       }
-      site.cookie = null;
-      await storage.writeSecret(_sessionKey, null);
+      _setSessionCookie(null);
+      await _writeCredential(_sessionKey, null);
       account = null;
       await _rememberAccount();
       sessionExpired = false;
@@ -320,6 +406,180 @@ class RoomController extends ChangeNotifier {
       busy = false;
       _changed();
     }
+  }
+
+  void showSharedConversation(Map<String, dynamic> share) {
+    if (!canSend ||
+        '${share['shareKey'] ?? ''}'.isEmpty ||
+        '${share['assistantMessage'] ?? ''}'.isEmpty) {
+      throw const ApiFailure('分享内容无效或当前会话正在操作');
+    }
+    leaveSharedConversation();
+    _beforeShareStart = _conversationStart;
+    _beforeShareIds = Set.of(_previousConversationIds);
+    _conversationStart = DateTime.now();
+    _previousConversationIds = turns.map((turn) => turn.id).toSet();
+    sharedConversation = Map.of(share);
+    _sharedTurn = ChatTurn(
+      id: 'shared-${share['shareKey']}',
+      user: '${share['userMessage'] ?? ''}',
+      assistant: '${share['assistantMessage']}',
+      createdAt: DateTime.tryParse('${share['createdAt']}') ?? DateTime.now(),
+    );
+    workspace.sharedWorld = jsonMap(share['scene']);
+    _changed();
+  }
+
+  void leaveSharedConversation({String? shareKey, bool notify = true}) {
+    if (sharedConversation == null ||
+        (shareKey != null && shareKey != sharedConversation!['shareKey'])) {
+      return;
+    }
+    _conversationStart = _beforeShareStart;
+    _previousConversationIds = _beforeShareIds;
+    _beforeShareIds = {};
+    _sharedTurn = null;
+    sharedConversation = null;
+    workspace.sharedWorld = null;
+    if (notify) _changed();
+  }
+
+  StreamSubscription<RoomServerEvent>? _events;
+  Timer? _eventReconnect, _eventRefresh;
+  String? _eventSession;
+  int _eventEpoch = 0, memoryRevision = 0;
+  bool _paused = false, _refreshChat = false, _refreshMemory = false;
+  void _closeEvents() {
+    _eventEpoch++;
+    _eventSession = null;
+    final events = _events;
+    if (events != null) {
+      // Cancellation may race with the HTTP client closing its SSE socket.
+      // The former subscription has already been invalidated by _eventEpoch.
+      unawaited(events.cancel().catchError((Object _) {}));
+    }
+    _events = null;
+    _eventReconnect?.cancel();
+    _eventReconnect = null;
+    _eventRefresh?.cancel();
+    _eventRefresh = null;
+    _refreshChat = false;
+    _refreshMemory = false;
+  }
+
+  void _startEvents() {
+    if (_disposed ||
+        _paused ||
+        account == null ||
+        settings.demo ||
+        sessionExpired ||
+        site is! SiteRoomEventService ||
+        site.cookie == null) {
+      _closeEvents();
+      return;
+    }
+    final session = '$scope:${site.cookie}';
+    if (_eventSession == session && _events != null) return;
+    _closeEvents();
+    _eventSession = session;
+    final epoch = _eventEpoch, target = scope;
+    void reconnect() {
+      if (_disposed || epoch != _eventEpoch || target != scope) return;
+      _events = null;
+      _eventReconnect = Timer(const Duration(seconds: 3), _startEvents);
+    }
+
+    _events = (site as SiteRoomEventService)
+        .roomEvents(settings.siteUrl)
+        .listen(
+          (event) {
+            if (_disposed ||
+                epoch != _eventEpoch ||
+                target != scope ||
+                sessionExpired) {
+              return;
+            }
+            if (event.type == 'chat' || event.type == 'ready') {
+              _refreshChat = true;
+            }
+            if (event.type == 'memory' || event.type == 'ready') {
+              _refreshMemory = true;
+            }
+            _scheduleEventRefresh();
+          },
+          onError: (Object _, StackTrace _) {
+            reconnect();
+          },
+          onDone: reconnect,
+          cancelOnError: true,
+        );
+  }
+
+  void _scheduleEventRefresh() {
+    _eventRefresh?.cancel();
+    final epoch = _eventEpoch;
+    _eventRefresh = Timer(const Duration(milliseconds: 150), () async {
+      if (_disposed || epoch != _eventEpoch || sessionExpired) return;
+      if (generating || busy || _syncing || _committing) {
+        _scheduleEventRefresh();
+        return;
+      }
+      final chat = _refreshChat, memory = _refreshMemory;
+      _refreshChat = false;
+      _refreshMemory = false;
+      if (chat) await sync();
+      if (_disposed || epoch != _eventEpoch) return;
+      if (memory) {
+        memoryRevision++;
+        workspace.changed();
+      }
+    });
+  }
+
+  /// Accept only a completed OAuth session from the configured site. The
+  /// identity is verified by that site before changing any account scope.
+  Future<void> acceptSiteSession(
+    String expectedSite,
+    String sessionCookie,
+  ) async {
+    if (generating || busy || _syncing || _committing) {
+      throw const ApiFailure('请等待当前操作完成');
+    }
+    final origin = endpointUri(expectedSite).origin;
+    if (origin != endpointUri(settings.siteUrl).origin ||
+        !RegExp(r'^tsukuyomi_session=[A-Za-z0-9._~\-]+$')
+            .hasMatch(sessionCookie)) {
+      throw const ApiFailure('授权会话与当前站点不匹配');
+    }
+    final previousCookie = site.cookie, previousAccount = account;
+    final previousExpired = sessionExpired;
+    busy = true;
+    _changed();
+    try {
+      await voice.stop();
+      _setSessionCookie(sessionCookie);
+      final verified = await site.me(settings.siteUrl);
+      if (origin != endpointUri(settings.siteUrl).origin) {
+        throw const ApiFailure('站点已切换，请重新授权');
+      }
+      await _writeCredential(_sessionKey, site.cookie);
+      account = verified;
+      sessionExpired = false;
+      await _rememberAccount();
+      await _loadScope();
+      error = '';
+    } catch (_) {
+      _setSessionCookie(previousCookie);
+      account = previousAccount;
+      sessionExpired = previousExpired;
+      await _writeCredential(_sessionKey, previousCookie);
+      rethrow;
+    } finally {
+      busy = false;
+      _changed();
+    }
+    _startRetry();
+    if (!settings.demo) await sync();
   }
 
   Future<void> send(
@@ -380,37 +640,15 @@ class RoomController extends ChangeNotifier {
         llm.image = settings.option('visionMode', 'auto') == 'mcp'
             ? null
             : image;
-        llm.referenceContext = await workspace.context(
+        final context = await workspace.context(
           requestText,
           image: image,
+          isCurrent: () => generation == _generation && !_disposed,
         );
-        if (settings.flag('memoryEnabled', true) &&
-            !settings.demo &&
-            account != null &&
-            !sessionExpired &&
-            site is SiteDataService) {
-          try {
-            final result = await (site as SiteDataService)
-                .request(
-                  settings.siteUrl,
-                  'GET',
-                  '/api/room/memory?purpose=chat&limit=6&q=${Uri.encodeQueryComponent(text)}',
-                )
-                .timeout(const Duration(seconds: 2));
-            if (generation != _generation || _disposed) return;
-            final memories = (result['data'] as List? ?? [])
-                .map(
-                  (m) =>
-                      '${m['context'] ?? m['content'] ?? m['summary'] ?? ''}',
-                )
-                .where((m) => m.isNotEmpty);
-            (chat as LlmClient).memoryContext = memories
-                .join('\n')
-                .substring(0, memories.join('\n').length.clamp(0, 8000));
-          } catch (_) {
-            syncStatus = '记忆暂不可用，本轮仍可对话';
-          }
+        if (generation != _generation || _disposed || targetScope != scope) {
+          return;
         }
+        llm.referenceContext = context.text;
       }
       if (generation != _generation || _disposed) return;
       await for (final delta in chat.reply(
@@ -427,7 +665,7 @@ class RoomController extends ChangeNotifier {
       final cleaned = cleanRoomReply(partial);
       if (cleaned.isEmpty) throw const ApiFailure('模型没有返回可显示的回复');
       Map<String, dynamic>? savedImage = image;
-      _committing = true;
+      _committingGeneration = generation;
       if (replacement != null && account != null && !settings.demo) {
         if (sessionExpired) throw const ApiFailure('请重新登录后修改云端对话');
         await workspace.request(
@@ -438,7 +676,10 @@ class RoomController extends ChangeNotifier {
             'expectedAssistantMessage': replacement.assistant,
             'userMessage': opener ? '' : requestText,
             'assistantMessage': cleaned,
-            'memoryEnabled': settings.flag('memoryEnabled', true),
+            'memoryEnabled':
+                !workspace.usesLocalMemory &&
+                settings.flag('memoryEnabled', true),
+            if (workspace.usesLocalMemory) 'memorySource': 'local',
           },
         );
       }
@@ -448,6 +689,10 @@ class RoomController extends ChangeNotifier {
         assistant: cleaned,
         image: savedImage,
         memoryEnabled: settings.flag('memoryEnabled', true),
+        memorySource: workspace.usesLocalMemory ? 'local' : 'cloud',
+        localMemoryKey: workspace.usesLocalMemory
+            ? workspace.localMemoryKey
+            : null,
         createdAt: replacement?.createdAt ?? DateTime.now(),
         pending: replacement == null && account != null && !settings.demo,
       );
@@ -461,15 +706,24 @@ class RoomController extends ChangeNotifier {
       } catch (_) {
         syncStatus = '本轮记忆保存失败，对话已保存';
       }
-      animation.react(cleaned);
+      if (generation != _generation || _disposed || targetScope != scope) {
+        return;
+      }
+      if (!settings.speak || settings.demo) animation.react(cleaned);
       recording = [...recording.where((v) => v.id != turnId), turn];
       pendingDiary = null;
       await _saveRecording();
+      if (generation != _generation || _disposed || targetScope != scope) {
+        return;
+      }
       attachment = null;
       _draftTurnId = null;
       await storage.saveDraft('$targetScope.pending-id', '');
       await storage.saveDraft('$targetScope.image-draft', '');
       await storage.saveDraft(targetScope, '');
+      if (generation != _generation || _disposed || targetScope != scope) {
+        return;
+      }
       draft = '';
       partial = '';
       sendingText = '';
@@ -482,8 +736,8 @@ class RoomController extends ChangeNotifier {
         error = e is ApiFailure ? e.message : '连接失败，请检查服务设置后重试';
       }
     } finally {
-      _committing = false;
-      if (generation == _generation) {
+      if (_committingGeneration == generation) _committingGeneration = null;
+      if (generation == _generation && !_disposed) {
         generating = false;
         partial = '';
         sendingText = '';
@@ -493,14 +747,30 @@ class RoomController extends ChangeNotifier {
   }
 
   Future<void> _speak(String text) async {
+    final generation = _generation;
+    var reacted = false;
+    void onPlayback() {
+      if (voice.playing &&
+          !reacted &&
+          !_disposed &&
+          generation == _generation) {
+        reacted = true;
+        animation.react(text);
+      }
+    }
+
+    voice.addListener(onPlayback);
     try {
       if (voice is AudioVoice) (voice as AudioVoice).siteCookie = site.cookie;
       await voice.speak(settings, speechRoomText(text));
+      onPlayback();
     } catch (e) {
       if (!_disposed) {
         error = e is ApiFailure ? e.message : '语音播放失败，对话已保存；请检查 TTS 设置';
         _changed();
       }
+    } finally {
+      voice.removeListener(onPlayback);
     }
   }
 
@@ -539,6 +809,20 @@ class RoomController extends ChangeNotifier {
     final targetScope = scope;
     try {
       for (var turn in List<ChatTurn>.of(turns.where((t) => t.pending))) {
+        // A cloud turn still queued when local mode is selected follows that
+        // choice. Once local, retries remain local even after choosing cloud.
+        if (turn.memorySource == 'local' || workspace.usesLocalMemory) {
+          turn = ChatTurn.fromJson({
+            ...turn.toJson(),
+            'memorySource': 'local',
+            'localMemoryKey': turn.localMemoryKey ?? workspace.localMemoryKey,
+          });
+          turns = turns.map((t) => t.id == turn.id ? turn : t).toList();
+          await storage.saveHistory(targetScope, turns);
+          if (targetScope != scope || _disposed) return;
+          await workspace.captureGuestTurn(turn);
+          if (targetScope != scope || _disposed) return;
+        }
         if (turn.image?['dataUrl'] != null && turn.image?['id'] == null) {
           final image = jsonMap(
             (await workspace.request('POST', '/api/room/chat/images', {
@@ -683,11 +967,14 @@ class RoomController extends ChangeNotifier {
   }
 
   void pause() {
+    _paused = true;
+    _closeEvents();
     _retry?.cancel();
     stop();
   }
 
   void resume() {
+    _paused = false;
     _startRetry();
     unawaited(sync());
     unawaited(workspace.archive.sync());
@@ -697,6 +984,7 @@ class RoomController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _closeEvents();
     _diaryClient?.cancel();
     _retry?.cancel();
     _generation++;

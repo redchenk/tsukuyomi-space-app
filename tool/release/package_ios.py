@@ -6,6 +6,7 @@ import plistlib
 import stat
 import subprocess
 import zipfile
+from metadata import read_version
 
 root = pathlib.Path(__file__).resolve().parents[2]
 app = root / 'build/ios/iphoneos/Runner.app'
@@ -21,6 +22,8 @@ for binary in [app / info['CFBundleExecutable'], *app.glob('Frameworks/*.framewo
     arches = subprocess.check_output(['lipo', '-archs', str(binary)], text=True).strip()
     assert 'arm64' in arches, f'{binary}: {arches}'
 version = os.environ.get('APP_VERSION', info['CFBundleShortVersionString'])
+assert version == info['CFBundleShortVersionString'] == read_version()[0], 'IPA version must match pubspec.yaml'
+assert info['CFBundleVersion'] == str(read_version()[1]), 'IPA build number must match pubspec.yaml'
 output = root / 'dist' / f'tsukuyomi-space-{version}-ios-arm64-unsigned.ipa'
 output.parent.mkdir(exist_ok=True)
 with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:

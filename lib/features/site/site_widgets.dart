@@ -2,22 +2,59 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:html/parser.dart' as html;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models.dart';
+import '../../core/site_localization.dart';
 import '../room/room_style.dart';
+import '../room/room_music.dart';
+import 'native_rich_text.dart';
+import 'site_search.dart';
+import 'site_chrome.dart';
 
 const siteDestinations = <String, String>{
+  '/hub': '中枢大厅',
   '/room': '私人居所',
   '/stage': '主舞台',
   '/plaza': '月读广场',
   '/conversations': '会话与记忆',
   '/growth': '月契成长',
   '/user': '个人中心',
+  '/notifications': '站内信',
+  '/wiki': '月读百科',
+  '/gallery': '幻想画廊',
+  '/pixel': '像素工坊',
+  '/game': '辉夜跑酷',
+  '/friend-links': '友情链接',
+  '/reality': '现实连接',
+  '/editor': '创作文章',
+  '/attachments': '附件管理',
+  '/agent-os': 'Agent OS',
 };
+String siteDestinationLabel(BuildContext context, String path) {
+  const keys = {
+    '/hub': 'hubTitle',
+    '/room': 'room',
+    '/stage': 'stage',
+    '/plaza': 'plaza',
+    '/user': 'ucTitle',
+    '/notifications': 'notifications',
+    '/wiki': 'wiki',
+    '/gallery': 'gallery',
+    '/pixel': 'arena',
+    '/game': 'game',
+    '/reality': 'reality',
+    '/editor': 'editorTitle',
+    '/attachments': 'attachments',
+    '/agent-os': 'agentOs',
+  };
+  final key = keys[path];
+  return key == null
+      ? siteTranslate(context, siteDestinations[path] ?? path)
+      : siteTr(context, key);
+}
+
 String textOf(Map value, String key, [String fallback = '']) =>
     '${value[key] ?? fallback}';
 Map<String, dynamic> mapOf(dynamic value) =>
@@ -119,9 +156,11 @@ class SiteHeader extends StatelessWidget {
     required this.onLogin,
     this.username,
     this.onTheme,
+    this.role,
   });
   final String title;
   final String? username;
+  final String? role;
   final ValueChanged<String> onGo;
   final VoidCallback onLogin;
   final VoidCallback? onTheme;
@@ -143,34 +182,52 @@ class SiteHeader extends StatelessWidget {
                 size: 26,
               ),
             if (!compact) const SizedBox(width: 10),
-            InkWell(
-              onTap: () => onGo('/room'),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '月读空间',
-                    style: TextStyle(
-                      fontFamily: RoomStyle.serif,
-                      fontSize: 21,
-                      letterSpacing: 2,
+            Expanded(
+              child: InkWell(
+                onTap: () => onGo('/hub'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SiteText(
+                      '月读空间',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: RoomStyle.serif,
+                        fontSize: 21,
+                        letterSpacing: 2,
+                      ),
                     ),
-                  ),
-                  Text(title, style: const TextStyle(fontSize: 10)),
-                ],
+                    SiteText(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const Spacer(),
             if (!compact)
-              for (final path in [
-                '/stage',
-                '/plaza',
-                '/conversations',
-                '/growth',
-              ])
+              if (SiteControllerScope.maybeOf(context) case final controller?)
+                IconButton(
+                  onPressed: () => showSiteSearch(context, controller, onGo),
+                  icon: const Icon(Icons.search),
+                  tooltip: '搜索月读空间',
+                ),
+            if (!compact)
+              if (SiteMusicScope.maybeOf(context) case final music?)
+                IconButton(
+                  onPressed: () => showRoomMusic(context, music),
+                  icon: const Icon(CupertinoIcons.music_note_2),
+                  tooltip: '全站音乐',
+                ),
+            if (!compact) const SiteLanguageMenu(),
+            if (!compact)
+              for (final path in ['/hub', '/stage', '/plaza', '/wiki'])
                 TextButton(
                   onPressed: () => onGo(path),
-                  child: Text(siteDestinations[path]!),
+                  child: Text(siteDestinationLabel(context, path)),
                 ),
             if (!compact)
               IconButton(
@@ -183,20 +240,75 @@ class SiteHeader extends StatelessWidget {
               icon: const Icon(CupertinoIcons.person_crop_circle),
               tooltip: username ?? '登录',
             ),
+            if (username != null &&
+                SiteChromeScope.maybeOf(context)?.authed == true)
+              IconButton(
+                onPressed: () => onGo('/notifications'),
+                tooltip: siteTr(context, 'notifications'),
+                icon: const SiteNotificationBadge(),
+              ),
             PopupMenuButton<String>(
               tooltip: '探索',
-              onSelected: onGo,
+              onSelected: (path) {
+                if (path == 'search') {
+                  final controller = SiteControllerScope.maybeOf(context);
+                  if (controller != null) {
+                    showSiteSearch(context, controller, onGo);
+                  }
+                } else if (path == 'music') {
+                  final music = SiteMusicScope.maybeOf(context);
+                  if (music != null) showRoomMusic(context, music);
+                } else if (path.startsWith('language:')) {
+                  SiteLocaleScope.maybeOf(context)
+                      ?.setLanguage(path.substring(9));
+                } else {
+                  onGo(path);
+                }
+              },
               icon: const Icon(Icons.menu),
               itemBuilder: (_) => [
+                if (compact && SiteMusicScope.maybeOf(context) != null)
+                  const PopupMenuItem(value: 'music', child: SiteText('全站音乐')),
+                if (compact && SiteLocaleScope.maybeOf(context) != null) ...[
+                  const PopupMenuItem(
+                    value: 'language:zh',
+                    child: SiteText('中文'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'language:ja',
+                    child: SiteText('日本語'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'language:en',
+                    child: SiteText('English'),
+                  ),
+                ],
+                if (compact && SiteControllerScope.maybeOf(context) != null)
+                  const PopupMenuItem(
+                    value: 'search',
+                    child: SiteText('搜索月读空间'),
+                  ),
                 for (final item in siteDestinations.entries)
-                  PopupMenuItem(value: item.key, child: Text(item.value)),
+                  PopupMenuItem(
+                    value: item.key,
+                    child: Text(siteDestinationLabel(context, item.key)),
+                  ),
+                if (username != null &&
+                    (role == 'admin' || role == 'super_admin')) ...[
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(value: '/admin', child: SiteText('内容管理')),
+                  const PopupMenuItem(
+                    value: '/terminal',
+                    child: SiteText('管理终端'),
+                  ),
+                ],
               ],
             ),
             if (!compact)
               FilledButton.icon(
                 onPressed: () => onGo('/room'),
                 icon: const Icon(CupertinoIcons.moon),
-                label: const Text('进入房间'),
+                label: const SiteText('进入房间'),
               ),
           ],
         ),
@@ -211,55 +323,23 @@ class ArticleBody extends StatelessWidget {
     required this.content,
     required this.format,
     required this.site,
+    this.onNavigate,
+    this.initialAnchor = '',
+    this.headers,
   });
-  final String content, format, site;
+  final String content, format, site, initialAnchor;
+  final ValueChanged<String>? onNavigate;
+  final Map<String, String>? headers;
+
   @override
-  Widget build(BuildContext context) {
-    if (format == 'html') {
-      // Remote documents never get access to local file/asset image providers.
-      final document = html.parseFragment(content);
-      for (final element in document.querySelectorAll('img,source')) {
-        final src = element.attributes['src'] ?? '';
-        final uri = Uri.tryParse(src);
-        if (uri == null ||
-            (uri.hasScheme &&
-                !['https', 'http', 'data'].contains(uri.scheme))) {
-          element.remove();
-        }
-      }
-      for (final element in document.querySelectorAll(
-        'script,iframe,object,embed,input,form',
-      )) {
-        element.remove();
-      }
-      return SelectionArea(
-        child: HtmlWidget(
-          document.outerHtml,
-          baseUrl: endpointUri(site),
-          textStyle: const TextStyle(fontSize: 17, height: 1.85),
-          onTapUrl: (url) => openSiteLink(site, url),
-        ),
-      );
-    }
-    return MarkdownBody(
-      data: content,
-      selectable: true,
-      styleSheet: MarkdownStyleSheet(
-        p: const TextStyle(fontSize: 17, height: 1.85),
-      ),
-      onTapLink: (_, href, _) {
-        if (href != null) openSiteLink(site, href);
-      },
-      imageBuilder: (uri, title, alt) {
-        final target = endpointUri(site).resolveUri(uri);
-        if (!['https', 'http'].contains(target.scheme)) return Text(alt ?? '');
-        return Image.network(
-          '$target',
-          errorBuilder: (_, _, _) => Text(alt ?? '图片暂不可用'),
-        );
-      },
-    );
-  }
+  Widget build(BuildContext context) => NativeRichText(
+    content: content,
+    format: format,
+    site: site,
+    onNavigate: onNavigate,
+    initialAnchor: initialAnchor,
+    headers: headers,
+  );
 }
 
 /// The website returns a flat list; replies belong below their root message.

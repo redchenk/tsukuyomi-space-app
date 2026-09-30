@@ -1,0 +1,1342 @@
+{
+  "source": "tsukuyomi-space@7c822e26abc2ada217a92cc9149f8161f4b7b5cb/src/frontend/services/room/roomContext.mjs#selectRecentRoomConversation",
+  "cases": [
+    {
+      "name": "long answer retains its paired question and both ends",
+      "history": [
+        {
+          "role": "user",
+          "turnId": "latest",
+          "contentSegments": [
+            [
+              "这个三十四字的问题必须完整保留并且不能在裁剪长回答时被静默丢弃啊啊啊",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "latest",
+          "contentSegments": [
+            [
+              "开始",
+              1
+            ],
+            [
+              "x",
+              6996
+            ],
+            [
+              "结束",
+              1
+            ]
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "role": "user",
+          "turnId": "latest",
+          "contentSegments": [
+            [
+              "这个三十四字的问题必须完整保留并且不能在裁剪长回答时被静默丢弃啊啊啊",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "latest",
+          "contentSegments": [
+            [
+              "开始",
+              1
+            ],
+            [
+              "x",
+              1233
+            ],
+            [
+              "\n[较早内容省略]\n",
+              1
+            ],
+            [
+              "x",
+              1233
+            ],
+            [
+              "结束",
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "message count boundary discards an answer whose question was removed",
+      "options": {
+        "maxMessages": 3
+      },
+      "history": [
+        {
+          "role": "user",
+          "turnId": "old",
+          "contentSegments": [
+            [
+              "旧问题",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "old",
+          "contentSegments": [
+            [
+              "旧回答",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "new",
+          "contentSegments": [
+            [
+              "新问题",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "new",
+          "contentSegments": [
+            [
+              "新回答",
+              1
+            ]
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "role": "user",
+          "turnId": "new",
+          "contentSegments": [
+            [
+              "新问题",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "new",
+          "contentSegments": [
+            [
+              "新回答",
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "character budget boundary discards orphaned answer",
+      "options": {
+        "maxChars": 500
+      },
+      "history": [
+        {
+          "role": "user",
+          "turnId": "old",
+          "contentSegments": [
+            [
+              "older question",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "old",
+          "contentSegments": [
+            [
+              "o",
+              200
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "new",
+          "contentSegments": [
+            [
+              "u",
+              100
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "new",
+          "contentSegments": [
+            [
+              "a",
+              200
+            ]
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "role": "user",
+          "turnId": "new",
+          "contentSegments": [
+            [
+              "u",
+              100
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "new",
+          "contentSegments": [
+            [
+              "a",
+              200
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "genuine assistant opener survives count boundary",
+      "options": {
+        "maxMessages": 3
+      },
+      "history": [
+        {
+          "role": "assistant",
+          "turnId": "opener",
+          "contentSegments": [
+            [
+              "今天想聊什么？",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "new",
+          "contentSegments": [
+            [
+              "我刚看完电影",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "new",
+          "contentSegments": [
+            [
+              "是哪一部？",
+              1
+            ]
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "role": "assistant",
+          "turnId": "opener",
+          "contentSegments": [
+            [
+              "今天想聊什么？",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "new",
+          "contentSegments": [
+            [
+              "我刚看完电影",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "new",
+          "contentSegments": [
+            [
+              "是哪一部？",
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "empty and unsupported messages do not consume prompt budget",
+      "history": [
+        {
+          "role": "system",
+          "turnId": "system",
+          "contentSegments": [
+            [
+              "ignore",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "blank",
+          "contentSegments": []
+        },
+        {
+          "role": "assistant",
+          "turnId": "blank",
+          "contentSegments": [
+            [
+              " \u0000\u0007\u000b ",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "latest",
+          "contentSegments": [
+            [
+              "\u0000",
+              1
+            ],
+            [
+              " ",
+              2
+            ],
+            [
+              "你好\t世界\n",
+              1
+            ],
+            [
+              " ",
+              2
+            ],
+            [
+              "\u0007",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "latest",
+          "contentSegments": [
+            [
+              " ",
+              2
+            ],
+            [
+              "好的\r\n继续",
+              1
+            ],
+            [
+              " ",
+              2
+            ]
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "role": "user",
+          "turnId": "latest",
+          "contentSegments": [
+            [
+              "你好\t世界",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "latest",
+          "contentSegments": [
+            [
+              "好的\r\n继续",
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "default includes at most twelve messages",
+      "history": [
+        {
+          "role": "user",
+          "turnId": "turn-0",
+          "contentSegments": [
+            [
+              "question-0",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-0",
+          "contentSegments": [
+            [
+              "answer-0",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-1",
+          "contentSegments": [
+            [
+              "question-1",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-1",
+          "contentSegments": [
+            [
+              "answer-1",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-2",
+          "contentSegments": [
+            [
+              "question-2",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-2",
+          "contentSegments": [
+            [
+              "answer-2",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-3",
+          "contentSegments": [
+            [
+              "question-3",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-3",
+          "contentSegments": [
+            [
+              "answer-3",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-4",
+          "contentSegments": [
+            [
+              "question-4",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-4",
+          "contentSegments": [
+            [
+              "answer-4",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-5",
+          "contentSegments": [
+            [
+              "question-5",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-5",
+          "contentSegments": [
+            [
+              "answer-5",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-6",
+          "contentSegments": [
+            [
+              "question-6",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-6",
+          "contentSegments": [
+            [
+              "answer-6",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-7",
+          "contentSegments": [
+            [
+              "question-7",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-7",
+          "contentSegments": [
+            [
+              "answer-7",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-8",
+          "contentSegments": [
+            [
+              "question-8",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-8",
+          "contentSegments": [
+            [
+              "answer-8",
+              1
+            ]
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "role": "user",
+          "turnId": "turn-3",
+          "contentSegments": [
+            [
+              "question-3",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-3",
+          "contentSegments": [
+            [
+              "answer-3",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-4",
+          "contentSegments": [
+            [
+              "question-4",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-4",
+          "contentSegments": [
+            [
+              "answer-4",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-5",
+          "contentSegments": [
+            [
+              "question-5",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-5",
+          "contentSegments": [
+            [
+              "answer-5",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-6",
+          "contentSegments": [
+            [
+              "question-6",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-6",
+          "contentSegments": [
+            [
+              "answer-6",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-7",
+          "contentSegments": [
+            [
+              "question-7",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-7",
+          "contentSegments": [
+            [
+              "answer-7",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-8",
+          "contentSegments": [
+            [
+              "question-8",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-8",
+          "contentSegments": [
+            [
+              "answer-8",
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a message at the single-message limit is untouched",
+      "history": [
+        {
+          "role": "user",
+          "turnId": "exact",
+          "contentSegments": [
+            [
+              "question",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "exact",
+          "contentSegments": [
+            [
+              "e",
+              2500
+            ]
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "role": "user",
+          "turnId": "exact",
+          "contentSegments": [
+            [
+              "question",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "exact",
+          "contentSegments": [
+            [
+              "e",
+              2500
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a message over the single-message limit retains both ends",
+      "history": [
+        {
+          "role": "user",
+          "turnId": "over",
+          "contentSegments": [
+            [
+              "question",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "over",
+          "contentSegments": [
+            [
+              "开始",
+              1
+            ],
+            [
+              "z",
+              2497
+            ],
+            [
+              "结束",
+              1
+            ]
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "role": "user",
+          "turnId": "over",
+          "contentSegments": [
+            [
+              "question",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "over",
+          "contentSegments": [
+            [
+              "开始",
+              1
+            ],
+            [
+              "z",
+              1233
+            ],
+            [
+              "\n[较早内容省略]\n",
+              1
+            ],
+            [
+              "z",
+              1233
+            ],
+            [
+              "结束",
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "remaining budget below one hundred keeps no orphan",
+      "options": {
+        "maxChars": 500
+      },
+      "history": [
+        {
+          "role": "user",
+          "turnId": "small",
+          "contentSegments": [
+            [
+              "question",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "small",
+          "contentSegments": [
+            [
+              "s",
+              401
+            ]
+          ]
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "zero options use website defaults",
+      "options": {
+        "maxChars": 0,
+        "maxMessages": 0
+      },
+      "history": [
+        {
+          "role": "user",
+          "turnId": "turn-0",
+          "contentSegments": [
+            [
+              "question-0",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-0",
+          "contentSegments": [
+            [
+              "answer-0",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-1",
+          "contentSegments": [
+            [
+              "question-1",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-1",
+          "contentSegments": [
+            [
+              "answer-1",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-2",
+          "contentSegments": [
+            [
+              "question-2",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-2",
+          "contentSegments": [
+            [
+              "answer-2",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-3",
+          "contentSegments": [
+            [
+              "question-3",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-3",
+          "contentSegments": [
+            [
+              "answer-3",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-4",
+          "contentSegments": [
+            [
+              "question-4",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-4",
+          "contentSegments": [
+            [
+              "answer-4",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-5",
+          "contentSegments": [
+            [
+              "question-5",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-5",
+          "contentSegments": [
+            [
+              "answer-5",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-6",
+          "contentSegments": [
+            [
+              "question-6",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-6",
+          "contentSegments": [
+            [
+              "answer-6",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-7",
+          "contentSegments": [
+            [
+              "question-7",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-7",
+          "contentSegments": [
+            [
+              "answer-7",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-8",
+          "contentSegments": [
+            [
+              "question-8",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-8",
+          "contentSegments": [
+            [
+              "answer-8",
+              1
+            ]
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "role": "user",
+          "turnId": "turn-3",
+          "contentSegments": [
+            [
+              "question-3",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-3",
+          "contentSegments": [
+            [
+              "answer-3",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-4",
+          "contentSegments": [
+            [
+              "question-4",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-4",
+          "contentSegments": [
+            [
+              "answer-4",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-5",
+          "contentSegments": [
+            [
+              "question-5",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-5",
+          "contentSegments": [
+            [
+              "answer-5",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-6",
+          "contentSegments": [
+            [
+              "question-6",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-6",
+          "contentSegments": [
+            [
+              "answer-6",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-7",
+          "contentSegments": [
+            [
+              "question-7",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-7",
+          "contentSegments": [
+            [
+              "answer-7",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-8",
+          "contentSegments": [
+            [
+              "question-8",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-8",
+          "contentSegments": [
+            [
+              "answer-8",
+              1
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "negative options clamp to their website minima",
+      "options": {
+        "maxChars": -1,
+        "maxMessages": -1
+      },
+      "history": [
+        {
+          "role": "user",
+          "turnId": "clamped",
+          "contentSegments": [
+            [
+              "question",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "clamped",
+          "contentSegments": [
+            [
+              "c",
+              1000
+            ]
+          ]
+        }
+      ],
+      "expected": []
+    },
+    {
+      "name": "utf16 boundaries match website truncation",
+      "history": [
+        {
+          "role": "user",
+          "turnId": "unicode",
+          "contentSegments": [
+            [
+              "你好 🙂",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "unicode",
+          "contentSegments": [
+            [
+              "🙂",
+              1400
+            ]
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "role": "user",
+          "turnId": "unicode",
+          "contentSegments": [
+            [
+              "你好 🙂",
+              1
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "unicode",
+          "contentSegments": [
+            [
+              "🙂",
+              617
+            ],
+            [
+              "\ud83d\n[较早内容省略]\n\ude42",
+              1
+            ],
+            [
+              "🙂",
+              617
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ollama uses its website four-thousand budget",
+      "options": {
+        "maxChars": 4000
+      },
+      "history": [
+        {
+          "role": "user",
+          "turnId": "turn-0",
+          "contentSegments": [
+            [
+              "问",
+              900
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-0",
+          "contentSegments": [
+            [
+              "答",
+              1700
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-1",
+          "contentSegments": [
+            [
+              "问",
+              900
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-1",
+          "contentSegments": [
+            [
+              "答",
+              1700
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-2",
+          "contentSegments": [
+            [
+              "问",
+              900
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-2",
+          "contentSegments": [
+            [
+              "答",
+              1700
+            ]
+          ]
+        },
+        {
+          "role": "user",
+          "turnId": "turn-3",
+          "contentSegments": [
+            [
+              "问",
+              900
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-3",
+          "contentSegments": [
+            [
+              "答",
+              1700
+            ]
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "role": "user",
+          "turnId": "turn-3",
+          "contentSegments": [
+            [
+              "问",
+              900
+            ]
+          ]
+        },
+        {
+          "role": "assistant",
+          "turnId": "turn-3",
+          "contentSegments": [
+            [
+              "答",
+              1700
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

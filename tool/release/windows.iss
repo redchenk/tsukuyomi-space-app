@@ -29,4 +29,17 @@ Name: "{autodesktop}\Tsukuyomi Space"; Filename: "{app}\tsukuyomi_space_app.exe"
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; Flags: unchecked
 [Run]
+Filename: "{app}\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent /install"; StatusMsg: "Installing Microsoft Edge WebView2 for QQ sign-in..."; Flags: runhidden; Check: NeedsWebView2
 Filename: "{app}\tsukuyomi_space_app.exe"; Description: "Launch Tsukuyomi Space"; Flags: nowait postinstall skipifsilent
+[Code]
+function NeedsWebView2: Boolean;
+var
+  Version: String;
+  RuntimeKey: String;
+begin
+  RuntimeKey := 'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+  Result := not ((RegQueryStringValue(HKLM32, RuntimeKey, 'pv', Version) and
+    (Version <> '') and (Version <> '0.0.0.0')) or
+    (RegQueryStringValue(HKCU, RuntimeKey, 'pv', Version) and
+    (Version <> '') and (Version <> '0.0.0.0')));
+end;

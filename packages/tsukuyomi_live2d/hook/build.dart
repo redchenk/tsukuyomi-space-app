@@ -43,7 +43,7 @@ void main(List<String> args) async {
       throw StateError('Release requires Cubism Core for $os/$arch: $core');
     }
     if (requireCore.existsSync()) output.dependencies.add(requireCore.uri);
-    final sources = <String>['src/bridge.cpp'];
+    final sources = <String>['src/bridge.cpp', 'src/audio_envelope.cpp'];
     if (enabled) {
       final framework = Directory.fromUri(sdk.resolve('Framework/src/'));
       for (final file

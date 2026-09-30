@@ -7,13 +7,13 @@ class RoomStyle {
   final bool dark;
   static const breakpoint = 860.0;
   Color get background =>
-      dark ? const Color(0xff17151e) : const Color(0xfff5f4fa);
-  Color get surface => dark ? const Color(0xff25212f) : Colors.white;
-  Color get soft => dark ? const Color(0xff312b3e) : const Color(0xffefedf7);
-  Color get line => dark ? const Color(0xff443c53) : const Color(0xffe5e1ef);
-  Color get ink => dark ? const Color(0xfff1edf9) : const Color(0xff292738);
-  Color get muted => dark ? const Color(0xffb9b0ca) : const Color(0xff514b62);
-  Color get accent => dark ? const Color(0xffc5adee) : const Color(0xff60439f);
+      dark ? const Color(0xff10121c) : const Color(0xfff5f4fa);
+  Color get surface => dark ? const Color(0xff1b1e2c) : Colors.white;
+  Color get soft => dark ? const Color(0xff25283a) : const Color(0xffefedf7);
+  Color get line => dark ? const Color(0xff343448) : const Color(0xffe5e1ef);
+  Color get ink => dark ? const Color(0xfff0edf8) : const Color(0xff292738);
+  Color get muted => dark ? const Color(0xffcec9df) : const Color(0xff514b62);
+  Color get accent => dark ? const Color(0xffc4b5fd) : const Color(0xff60439f);
   Color get primary => dark ? const Color(0xffb79cde) : const Color(0xff7052ae);
   Color get onPrimary => dark ? const Color(0xff251c32) : Colors.white;
   Color get selected =>

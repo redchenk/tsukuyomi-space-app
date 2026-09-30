@@ -1,8 +1,10 @@
 # 月读空间 · Flutter 原生客户端
 
-Tsukuyomi Space 的独立 Flutter 客户端。0.4.0 提供原生 Room、登录、会话与记忆、文章阅读、广场、成长和个人中心，直接连接原网站 API。
+Tsukuyomi Space 的独立 Flutter 客户端。0.5.0 整站测试版提供原生 Room、统一认证、内容阅读与创作、社区、游戏和管理页面，直接连接原网站 API。
 
-下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。0.4.0 提供 Android APK、macOS Universal DMG、Windows 安装程序、Linux DEB 和供用户自签的 iOS IPA。
+整站原生页面包含入口、Hub、Wiki、图库、附件库、编辑器、像素工坊、辉夜跑酷、友链、公开主页、管理后台和 Live2D 工作台，支持跨设备事件、中文／日语／英语、全站搜索及八千代导览。后台只向有效登录的 admin／super_admin 显示和开放；本地、合并与云端记忆来源跟进原站最新逻辑。实现与验收边界见 [整站迁移记录](docs/native-full-site-implementation-2026-09-30.md)。
+
+下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。发布包包括 Android APK、macOS Universal DMG、Windows 安装程序、Linux DEB 和供用户自签的 iOS IPA。
 
 默认进入明确标记的离线演示模式。演示回复来自本地固定文本，不会请求 AI 或上传会话。连接真实服务需在「房间设置」填写模型地址并关闭演示模式。
 
@@ -12,7 +14,7 @@ Room 按 [现有网站](https://yachiyo.hk/room) 的桌面和手机版分别实�
 
 - **桌面（宽度 > 860）**：顶部导航、左侧角色舞台、右侧聊天工作区，包含聊天／日记／资料／便签标签、快捷话题和输入框。
 - **移动端（宽度 ≤ 860）**：全屏角色场景，顶部悬浮导航与房间工具，底部叠加聊天和胶囊输入框；弹出键盘时输入框上移，保持场景完整。
-- 聊天、历史搜索、新建会话、资料、本机便签、明暗主题、表情和安静陪伴可操作。图片聊天支持压缩、上传、历史回读和失败恢复；房间音乐支持曲目、进度、音量与播放控制。核心导航和云端日记在应用内打开；投稿编辑器、百科、图库和游戏仍通过网站打开。
+- 聊天、历史搜索、新建会话、资料、本机便签、明暗主题、表情和安静陪伴可操作。图片聊天支持压缩、上传、历史回读和失败恢复；房间音乐支持曲目、进度、音量与播放控制。投稿编辑器、百科、图库、像素工坊和游戏均在应用内以 Flutter 页面打开。
 
 房间中的「新建会话」会先确认清空；已登录时先清除网站聊天，再清除对应本机聊天与录制。需要留存时可先结束会话生成日记，或分享对话。便签需点击保存，仅存本机，与聊天草稿分开。
 
@@ -29,7 +31,7 @@ flutter run -d macos
 
 首次克隆不包含 Cubism SDK 和角色模型，仍可运行界面和对话功能，角色区域会明确显示模型载入失败和重试入口。Web 仅作为界面预览，不提供 Cubism Native 或站点账号登录。
 
-macOS 调试通过 Swift Package Manager 集成插件。iOS 需要相应 Xcode SDK，Android 需要 Android SDK/NDK。Windows 和 Linux 在各自系统构建。
+macOS 使用 Swift Package Manager；尚未支持 SwiftPM 的视频及 OAuth WebView 插件由 CocoaPods 集成，构建前需安装 CocoaPods。iOS 需要相应 Xcode SDK，Android 需要 Android SDK/NDK。Windows 和 Linux 在各自系统构建。
 
 ## 启用真实 Live2D
 
@@ -64,13 +66,13 @@ flutter run -d macos
 
 聊天支持 OpenAI 兼容 Chat Completions / Responses、Anthropic Messages、Ollama 和网站代理，处理 **SSE、NDJSON 和完整 JSON**。UTF-8 分片、CRLF、结束标记、超时、取消和截断均有测试。设置中的 MCP 可列出工具，并按白名单在发送前调用搜索与图片理解，将结果加入模型上下文。未完成回复不写入历史，保留用户输入供重试。桌面 Enter 发送、Shift + Enter 换行，也支持 ⌘ Enter / Ctrl Enter；⌘ K / Ctrl K 打开本机历史搜索。移动端回车换行，点击按钮发送。
 
-TTS 支持 OpenAI 兼容、MiMo、MiniMax、ElevenLabs、GPT-SoVITS 和网站代理，设置中可独立试听与停止。WAV 分析 16-bit PCM WAV 的 20ms RMS 音量包络，并与播放器时间对齐控制口型；MP3 使用估算包络。真实供应商音色与音素级口型仍需验收。语音失败不撤销已保存的文字对话。
+TTS 支持 OpenAI 兼容、MiMo、MiniMax、ElevenLabs、GPT-SoVITS 和网站代理，设置中可独立试听与停止。WAV/MP3 解码后分析真实 PCM 的 20ms RMS 音量包络，并与播放器时间对齐控制口型；仅解码不可用时采用降级包络。真实供应商音色与音素级口型仍需验收。语音失败不撤销已保存的文字对话。
 
 远程服务要求 HTTPS；HTTP 仅用于 localhost/回环地址及 Android 模拟器主机 `10.0.2.2`。手机上的 localhost 指手机自身，不能直接访问电脑的 Ollama。原生应用的网络访问仍受各平台网络权限约束。
 
 ## 登录与同步
 
-设置中的站点默认 `https://yachiyo.hk`。支持用户名/邮箱 + 密码、邮箱验证码、注册和密码重设。QQ OAuth 尚未接入原生客户端。
+设置中的站点默认 `https://yachiyo.hk`。支持用户名/邮箱 + 密码、邮箱验证码、注册和密码重设。QQ OAuth 的第三方授权页通过系统 WebView 打开，账号创建、绑定与邮箱补全均使用原生表单；线上提供方回调需真实账号验收。
 
 客户端兼容目前网站的 HttpOnly Cookie 会话，原生 HTTP 客户端持有 Cookie；写请求按当前服务契约发送 `Origin` 和 `X-Requested-With`。不会修改原网站后端，也不会把登录 Cookie 发给模型/TTS 服务。会话到期需要重新登录，尚无 refresh-token 接口。
 
@@ -111,7 +113,7 @@ flutter build web
 
 真实模型测试产物：`artifacts/native-live2d.png`。普通 CI 验证不带模型的开发壳；Release CI 从官方 SDK 与固定版本的原网站仓库取得资源并校验 SHA-256，运行真实模型测试，缺少 Cubism Core 时禁止发布。
 
-本版五个平台的 Release 构建和 Android 原生模型动画检查已通过，安装包与校验和见 [v0.4.0-beta.1](https://github.com/redchenk/tsukuyomi-space-app/releases/tag/v0.4.0-beta.1)。129 项自动化测试、2 项隔离网站后端集成测试和界面对照的验收记录见 [design-qa.md](design-qa.md)。外部付费服务与已签名 iPhone 安装仍需使用实际账号和设备验证。
+五个平台的安装包由发布流水线统一构建，通过原生模型检查和包结构校验后发布至 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)。自动化测试、真实后端联调及界面检查见 [整站验收记录](docs/native-full-site-implementation-2026-09-30.md)。外部服务、QQ 实号回调与已签名 iPhone 安装仍需对应账号和设备验证。
 
 眨眼后高光发白的修正与原生验证方法见 [docs/live2d-blink-fix.md](docs/live2d-blink-fix.md)。
 

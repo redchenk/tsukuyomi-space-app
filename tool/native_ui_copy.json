@@ -1,0 +1,2302 @@
+[
+  [
+    "ACT · 实际执行指令",
+    "ACT · 実行した指示",
+    "ACT · Executed commands"
+  ],
+  [
+    "QQ 授权 · 完成后返回原生应用",
+    "QQ 認証 · 完了後アプリに戻る",
+    "QQ authorization · Return to the app when complete"
+  ],
+  [
+    "QQ 登录 / 授权",
+    "QQ ログイン / 認証",
+    "QQ sign-in / authorization"
+  ],
+  [
+    "严重剧透警告：以下内容揭示角色身份、离别、时间循环与最终结局。",
+    "重大なネタバレ：キャラクターの正体、別れ、時間ループと結末を含みます。",
+    "Major spoilers: character identities, farewells, time loops and the ending."
+  ],
+  [
+    "停止请求",
+    "リクエストを停止",
+    "Stop request"
+  ],
+  [
+    "全部",
+    "すべて",
+    "All"
+  ],
+  [
+    "制作人员",
+    "スタッフ",
+    "Staff"
+  ],
+  [
+    "加入观众队列",
+    "観客キューに追加",
+    "Join audience queue"
+  ],
+  [
+    "去登录",
+    "ログインへ",
+    "Sign in"
+  ],
+  [
+    "可控 Cubism 参数",
+    "操作可能な Cubism パラメーター",
+    "Controllable Cubism parameters"
+  ],
+  [
+    "回到主舞台",
+    "メインステージに戻る",
+    "Back to Main Stage"
+  ],
+  [
+    "声优阵容",
+    "声の出演",
+    "Voice cast"
+  ],
+  [
+    "官方 Music 页面",
+    "公式 Music ページ",
+    "Official Music page"
+  ],
+  [
+    "展开完整剧情与结局剧透",
+    "あらすじと結末のネタバレを表示",
+    "Show full plot and ending spoilers"
+  ],
+  [
+    "展开身份与结局相关内容",
+    "正体と結末の内容を表示",
+    "Show identity and ending details"
+  ],
+  [
+    "应用 JSON",
+    "JSON を適用",
+    "Apply JSON"
+  ],
+  [
+    "忘记密码",
+    "パスワードを忘れた",
+    "Forgot password"
+  ],
+  [
+    "成为第一个友邻",
+    "最初の隣人になる",
+    "Become the first neighbor"
+  ],
+  [
+    "打开独立词条",
+    "独立した項目を開く",
+    "Open full entry"
+  ],
+  [
+    "打招呼",
+    "あいさつ",
+    "Say hello"
+  ],
+  [
+    "暂无公开文章。当这位用户发布文章后，会在这里形成公开创作列表。",
+    "公開記事はまだありません。投稿された記事がここに表示されます。",
+    "No public articles yet. This user’s published work will appear here."
+  ],
+  [
+    "朗读字幕",
+    "字幕を読み上げる",
+    "Read subtitles aloud"
+  ],
+  [
+    "未找到匹配词条",
+    "一致する項目がありません",
+    "No matching entries"
+  ],
+  [
+    "本站使用《超时空辉夜姬》相关素材版权归原著所有，本站为非盈利性质。",
+    "『超かぐや姫！』の素材の権利は各権利者に帰属します。当サイトは非営利です。",
+    "Cosmic Princess Kaguya! materials belong to their rights holders. This site is non-profit."
+  ],
+  [
+    "查看最新文章",
+    "最新の記事を見る",
+    "Read latest articles"
+  ],
+  [
+    "查看独立词条",
+    "独立した項目を見る",
+    "View full entry"
+  ],
+  [
+    "模型与语音设置",
+    "モデルと音声の設定",
+    "Model and voice settings"
+  ],
+  [
+    "模型原始输出",
+    "モデルの生出力",
+    "Raw model output"
+  ],
+  [
+    "流式导演",
+    "ストリーミング演出",
+    "Streaming director"
+  ],
+  [
+    "清空动作队列",
+    "動作キューを空にする",
+    "Clear action queue"
+  ],
+  [
+    "清除导演历史",
+    "演出履歴を削除",
+    "Clear director history"
+  ],
+  [
+    "点击显示剧透",
+    "クリックしてネタバレを表示",
+    "Click to reveal spoilers"
+  ],
+  [
+    "用户中心",
+    "ユーザーセンター",
+    "User center"
+  ],
+  [
+    "申请友链",
+    "リンクを申請",
+    "Apply for a friend link"
+  ],
+  [
+    "直播记录",
+    "配信記録",
+    "Live records"
+  ],
+  [
+    "继续编辑申请",
+    "申請の編集を続ける",
+    "Continue editing application"
+  ],
+  [
+    "编辑个人资料",
+    "プロフィールを編集",
+    "Edit profile"
+  ],
+  [
+    "自动语音",
+    "自動音声",
+    "Automatic voice"
+  ],
+  [
+    "超かぐや姫！ · Cosmic Princess Kaguya!",
+    "超かぐや姫！ · Cosmic Princess Kaguya!",
+    "Cosmic Princess Kaguya!"
+  ],
+  [
+    "超辉夜姬！Wiki",
+    "超かぐや姫！Wiki",
+    "Cosmic Princess Kaguya! Wiki"
+  ],
+  [
+    "跳转至萌娘百科",
+    "萌娘百科へ移動",
+    "Open Moegirlpedia"
+  ],
+  [
+    "返回 Wiki 总览",
+    "Wiki の概要に戻る",
+    "Back to Wiki overview"
+  ],
+  [
+    "返回友链",
+    "リンク集に戻る",
+    "Back to friend links"
+  ],
+  [
+    "返回普通登录",
+    "通常のログインに戻る",
+    "Back to regular sign-in"
+  ],
+  [
+    "返回首页",
+    "ホームに戻る",
+    "Back to home"
+  ],
+  [
+    "还没有申请记录",
+    "申請履歴はありません",
+    "No applications yet"
+  ],
+  [
+    "重新授权",
+    "再認証",
+    "Authorize again"
+  ],
+  [
+    "重试",
+    "再試行",
+    "Retry"
+  ],
+  [
+    "阅读",
+    "読む",
+    "Read"
+  ],
+  [
+    "Markdown 语法指南",
+    "Markdown 構文ガイド",
+    "Markdown syntax guide"
+  ],
+  [
+    "上一页",
+    "前のページ",
+    "Previous page"
+  ],
+  [
+    "上传 / 选择封面",
+    "表紙をアップロード / 選択",
+    "Upload / choose cover"
+  ],
+  [
+    "上传 / 选择附件",
+    "添付をアップロード / 選択",
+    "Upload / choose attachment"
+  ],
+  [
+    "上传文件",
+    "ファイルをアップロード",
+    "Upload file"
+  ],
+  [
+    "下一页",
+    "次のページ",
+    "Next page"
+  ],
+  [
+    "保存本机草稿",
+    "端末に下書きを保存",
+    "Save local draft"
+  ],
+  [
+    "保存草稿并离开",
+    "下書きを保存して退出",
+    "Save draft and leave"
+  ],
+  [
+    "全部用户",
+    "すべてのユーザー",
+    "All users"
+  ],
+  [
+    "内容块",
+    "コンテンツブロック",
+    "Content blocks"
+  ],
+  [
+    "写文章",
+    "記事を書く",
+    "Write an article"
+  ],
+  [
+    "删除",
+    "削除",
+    "Delete"
+  ],
+  [
+    "取消",
+    "キャンセル",
+    "Cancel"
+  ],
+  [
+    "复制 Markdown",
+    "Markdown をコピー",
+    "Copy Markdown"
+  ],
+  [
+    "复制失败，请重试",
+    "コピーに失敗しました。再試行してください",
+    "Copy failed. Please try again"
+  ],
+  [
+    "媒体卡片",
+    "メディアカード",
+    "Media card"
+  ],
+  [
+    "对象存储",
+    "オブジェクトストレージ",
+    "Object storage"
+  ],
+  [
+    "封面图片",
+    "表紙画像",
+    "Cover image"
+  ],
+  [
+    "封面暂时无法预览",
+    "表紙をプレビューできません",
+    "Cover preview unavailable"
+  ],
+  [
+    "已发布",
+    "公開済み",
+    "Published"
+  ],
+  [
+    "已插入文章的资源链接可能会失效。",
+    "記事に挿入した素材のリンクが無効になる可能性があります。",
+    "Links already inserted in articles may stop working."
+  ],
+  [
+    "当前平台可通过浏览器打开此嵌入内容",
+    "この環境ではブラウザーで埋め込み内容を開けます",
+    "Open this embedded content in your browser on this platform"
+  ],
+  [
+    "恢复站点内容",
+    "サイトの内容に戻す",
+    "Restore site content"
+  ],
+  [
+    "打开原链接",
+    "元のリンクを開く",
+    "Open original link"
+  ],
+  [
+    "插入",
+    "挿入",
+    "Insert"
+  ],
+  [
+    "插入示例",
+    "例を挿入",
+    "Insert example"
+  ],
+  [
+    "播放",
+    "再生",
+    "Play"
+  ],
+  [
+    "文章目录",
+    "記事の目次",
+    "Article contents"
+  ],
+  [
+    "暂停上传",
+    "アップロードを一時停止",
+    "Pause upload"
+  ],
+  [
+    "最新影像",
+    "最新の画像",
+    "Latest image"
+  ],
+  [
+    "未发布的内容会保存到本机草稿。",
+    "未公開の内容は端末の下書きに保存されます。",
+    "Unpublished content is saved as a local draft."
+  ],
+  [
+    "未完成的上传保留 24 小时。重新选择同一文件可继续。",
+    "未完了のアップロードは24時間保持されます。同じファイルを選択して再開できます。",
+    "Unfinished uploads are kept for 24 hours. Select the same file to resume."
+  ],
+  [
+    "本地存储",
+    "ローカルストレージ",
+    "Local storage"
+  ],
+  [
+    "登录后可以创作和编辑自己的文章",
+    "ログインすると自分の記事を作成・編集できます",
+    "Sign in to create and edit your articles"
+  ],
+  [
+    "登录后管理自己上传的附件",
+    "ログインして自分の添付を管理",
+    "Sign in to manage your uploads"
+  ],
+  [
+    "登录已过期，本机草稿已保留。",
+    "ログイン期限が切れました。端末の下書きは保持されています。",
+    "Your session expired. Local drafts are preserved."
+  ],
+  [
+    "离开文章编辑器？",
+    "記事エディターを離れますか？",
+    "Leave the article editor?"
+  ],
+  [
+    "移除封面",
+    "表紙を削除",
+    "Remove cover"
+  ],
+  [
+    "站点草稿",
+    "サイトの下書き",
+    "Site draft"
+  ],
+  [
+    "继续编辑",
+    "編集を続ける",
+    "Continue editing"
+  ],
+  [
+    "跟随站点默认存储",
+    "サイトの既定ストレージを使う",
+    "Use site default storage"
+  ],
+  [
+    "还没有匹配的附件",
+    "一致する添付はありません",
+    "No matching attachments"
+  ],
+  [
+    "重新登录",
+    "再ログイン",
+    "Sign in again"
+  ],
+  [
+    "随机放映 · 每 30 秒轮换",
+    "ランダム表示 · 30秒ごとに更新",
+    "Random feature · Changes every 30 seconds"
+  ],
+  [
+    "复制代码",
+    "コードをコピー",
+    "Copy code"
+  ],
+  [
+    "已复制",
+    "コピー済み",
+    "Copied"
+  ],
+  [
+    "返回引用",
+    "引用に戻る",
+    "Back to reference"
+  ],
+  [
+    "剧透内容（点击显示）",
+    "ネタバレ（クリックで表示）",
+    "Spoiler (click to reveal)"
+  ],
+  [
+    "图片已加入图库",
+    "画像をギャラリーに追加しました",
+    "Image added to gallery"
+  ],
+  [
+    "附件已上传",
+    "添付をアップロードしました",
+    "Attachment uploaded"
+  ],
+  [
+    "附件已删除",
+    "添付を削除しました",
+    "Attachment deleted"
+  ],
+  [
+    "Markdown 已复制，可以直接粘贴到文章正文",
+    "Markdown をコピーしました。記事本文に貼り付けできます",
+    "Markdown copied. Paste it into your article"
+  ],
+  [
+    "草稿已保存到本机",
+    "下書きを端末に保存しました",
+    "Draft saved locally"
+  ],
+  [
+    "文章已发布",
+    "記事を公開しました",
+    "Article published"
+  ],
+  [
+    "文章已保存",
+    "記事を保存しました",
+    "Article saved"
+  ],
+  [
+    "已恢复本机草稿",
+    "端末の下書きを復元しました",
+    "Local draft restored"
+  ],
+  [
+    "我知道了",
+    "了解しました",
+    "Got it"
+  ],
+  [
+    "• 站点可正常访问\\n• 内容合法且无恶意跳转\\n• 建议添加本站友链",
+    "• サイトにアクセスできます\\n• 内容が合法で、悪意ある転送はありません\\n• 当サイトへのリンク追加を推奨します",
+    "• Your site is reachable\\n• Content is lawful with no malicious redirects\\n• Consider linking back to this site"
+  ],
+  [
+    "非官方粉丝整理 · 原创动画电影 · 2026\\n音乐 × 科幻 × 青春",
+    "非公式ファン資料 · オリジナルアニメ映画 · 2026\\n音楽 × SF × 青春",
+    "Unofficial fan archive · Original animated film · 2026\\nMusic × science fiction × youth"
+  ],
+  [
+    "创作文章",
+    "記事を作成",
+    "Create article"
+  ],
+  [
+    "编辑文章",
+    "記事を編集",
+    "Edit article"
+  ],
+  [
+    "写下新的创作",
+    "新しい作品を書く",
+    "Create something new"
+  ],
+  [
+    "文章正文",
+    "記事の本文",
+    "Article body"
+  ],
+  [
+    "标题",
+    "タイトル",
+    "Title"
+  ],
+  [
+    "分类",
+    "カテゴリー",
+    "Category"
+  ],
+  [
+    "阅读时长",
+    "読了時間",
+    "Reading time"
+  ],
+  [
+    "正文格式",
+    "本文の形式",
+    "Content format"
+  ],
+  [
+    "发布状态",
+    "公開状態",
+    "Publication status"
+  ],
+  [
+    "摘要",
+    "概要",
+    "Excerpt"
+  ],
+  [
+    "自动生成摘要",
+    "概要を自動生成",
+    "Generate excerpt"
+  ],
+  [
+    "正在生成…",
+    "生成中…",
+    "Generating…"
+  ],
+  [
+    "正在保存…",
+    "保存中…",
+    "Saving…"
+  ],
+  [
+    "发布文章",
+    "記事を公開",
+    "Publish article"
+  ],
+  [
+    "保存更新",
+    "更新を保存",
+    "Save changes"
+  ],
+  [
+    "预览",
+    "プレビュー",
+    "Preview"
+  ],
+  [
+    "打开",
+    "開く",
+    "Open"
+  ],
+  [
+    "浏览图库",
+    "ギャラリーを見る",
+    "Browse gallery"
+  ],
+  [
+    "图库管理",
+    "ギャラリー管理",
+    "Manage gallery"
+  ],
+  [
+    "图片",
+    "画像",
+    "Images"
+  ],
+  [
+    "视频",
+    "動画",
+    "Video"
+  ],
+  [
+    "音频",
+    "音声",
+    "Audio"
+  ],
+  [
+    "文档",
+    "ドキュメント",
+    "Documents"
+  ],
+  [
+    "文件",
+    "ファイル",
+    "Files"
+  ],
+  [
+    "表格",
+    "表",
+    "Table"
+  ],
+  [
+    "任务清单",
+    "タスクリスト",
+    "Task list"
+  ],
+  [
+    "提示框",
+    "注意書き",
+    "Callout"
+  ],
+  [
+    "GitHub 提示",
+    "GitHub アラート",
+    "GitHub alert"
+  ],
+  [
+    "折叠内容",
+    "折りたたみ",
+    "Collapsible content"
+  ],
+  [
+    "代码块",
+    "コードブロック",
+    "Code block"
+  ],
+  [
+    "数学公式",
+    "数式",
+    "Math formula"
+  ],
+  [
+    "脚注",
+    "脚注",
+    "Footnote"
+  ],
+  [
+    "图片画廊",
+    "画像ギャラリー",
+    "Image gallery"
+  ],
+  [
+    "缩写释义",
+    "略語の説明",
+    "Abbreviation"
+  ],
+  [
+    "下标",
+    "下付き",
+    "Subscript"
+  ],
+  [
+    "上标",
+    "上付き",
+    "Superscript"
+  ],
+  [
+    "加粗",
+    "太字",
+    "Bold"
+  ],
+  [
+    "斜体",
+    "斜体",
+    "Italic"
+  ],
+  [
+    "删除线",
+    "取り消し線",
+    "Strikethrough"
+  ],
+  [
+    "高亮",
+    "ハイライト",
+    "Highlight"
+  ],
+  [
+    "防剧透",
+    "ネタバレ隠し",
+    "Spoiler"
+  ],
+  [
+    "代码",
+    "コード",
+    "Code"
+  ],
+  [
+    "链接",
+    "リンク",
+    "Link"
+  ],
+  [
+    "引用",
+    "引用",
+    "Quote"
+  ],
+  [
+    "列表",
+    "リスト",
+    "List"
+  ],
+  [
+    "有序列表",
+    "番号付きリスト",
+    "Ordered list"
+  ],
+  [
+    "分隔线",
+    "区切り線",
+    "Divider"
+  ],
+  [
+    "撰写",
+    "執筆",
+    "Write"
+  ],
+  [
+    "并排预览",
+    "並べてプレビュー",
+    "Split preview"
+  ],
+  [
+    "插入内容块",
+    "コンテンツブロックを挿入",
+    "Insert content block"
+  ],
+  [
+    "取消上传",
+    "アップロードを取消",
+    "Cancel upload"
+  ],
+  [
+    "关闭图片",
+    "画像を閉じる",
+    "Close image"
+  ],
+  [
+    "嵌入 iframe",
+    "iframe を埋め込む",
+    "Embed iframe"
+  ],
+  [
+    "HTTPS 地址",
+    "HTTPS アドレス",
+    "HTTPS URL"
+  ],
+  [
+    "高度（220–900）",
+    "高さ（220–900）",
+    "Height (220–900)"
+  ],
+  [
+    "点击显示剧透内容",
+    "クリックしてネタバレを表示",
+    "Click to reveal spoiler"
+  ],
+  [
+    "空格跳跃 · ↑ ↓ 控制 · 点击画面中的「开始游戏」",
+    "スペースでジャンプ · ↑ ↓で操作 · ゲーム画面の「開始」をクリック",
+    "Space to jump · ↑ ↓ controls · Click Start in the game"
+  ],
+  [
+    "重开",
+    "やり直す",
+    "Restart"
+  ],
+  [
+    "设置",
+    "設定",
+    "Settings"
+  ],
+  [
+    "正在加载原版游戏素材",
+    "オリジナルのゲーム素材を読み込み中",
+    "Loading original game assets"
+  ],
+  [
+    "继续游戏",
+    "ゲームを続ける",
+    "Resume game"
+  ],
+  [
+    "游戏设置",
+    "ゲーム設定",
+    "Game settings"
+  ],
+  [
+    "静音",
+    "ミュート",
+    "Mute"
+  ],
+  [
+    "开启声音",
+    "ミュート解除",
+    "Unmute"
+  ],
+  [
+    "音量",
+    "音量",
+    "Volume"
+  ],
+  [
+    "触屏按键",
+    "タッチ操作ボタン",
+    "Touch controls"
+  ],
+  [
+    "P 暂停 / 继续；Esc 退出全屏。切到后台会暂停，返回后点击继续。",
+    "Pで一時停止・再開、Escで全画面解除。バックグラウンドでは一時停止します。戻ったら「続ける」を押してください。",
+    "P pauses or resumes; Esc exits full screen. The game pauses in the background. Click Resume when you return."
+  ],
+  [
+    "完成",
+    "完了",
+    "Done"
+  ],
+  [
+    "刷新积分榜",
+    "ランキングを更新",
+    "Refresh leaderboard"
+  ],
+  [
+    "重试同步",
+    "同期を再試行",
+    "Retry sync"
+  ],
+  [
+    "下载 PNG",
+    "PNGをダウンロード",
+    "Download PNG"
+  ],
+  [
+    "编辑作品",
+    "作品を編集",
+    "Edit artwork"
+  ],
+  [
+    "删除作品？",
+    "作品を削除しますか？",
+    "Delete artwork?"
+  ],
+  [
+    "月光像素工坊",
+    "月光ピクセル工房",
+    "Moonlight Pixel Workshop"
+  ],
+  [
+    "选择工具与颜色，在网格里绘制，再导出或发布你的作品。",
+    "ツールと色を選び、グリッドに描いて作品を出力・公開しましょう。",
+    "Choose a tool and color, draw on the grid, then export or publish your artwork."
+  ],
+  [
+    "适应画布",
+    "キャンバスに合わせる",
+    "Fit canvas"
+  ],
+  [
+    "制作备忘",
+    "制作メモ",
+    "Drawing notes"
+  ],
+  [
+    "记下绘画灵感，只在本次页面保留",
+    "絵のアイデアをメモできます。このページを開いている間だけ保存されます。",
+    "Keep drawing ideas here for this page session"
+  ],
+  [
+    "撤销 Ctrl/Cmd+Z",
+    "元に戻す Ctrl/Cmd+Z",
+    "Undo Ctrl/Cmd+Z"
+  ],
+  [
+    "重做 Ctrl/Cmd+Shift+Z",
+    "やり直す Ctrl/Cmd+Shift+Z",
+    "Redo Ctrl/Cmd+Shift+Z"
+  ],
+  [
+    "颜色与设置",
+    "色と設定",
+    "Colors and settings"
+  ],
+  [
+    "导入图片",
+    "画像を読み込む",
+    "Import image"
+  ],
+  [
+    "导出 PNG",
+    "PNGを書き出す",
+    "Export PNG"
+  ],
+  [
+    "月亮示例",
+    "月のサンプル",
+    "Moon example"
+  ],
+  [
+    "清空画布？",
+    "キャンバスを消去しますか？",
+    "Clear canvas?"
+  ],
+  [
+    "清空",
+    "消去",
+    "Clear"
+  ],
+  [
+    "添加颜色",
+    "色を追加",
+    "Add color"
+  ],
+  [
+    "添加",
+    "追加",
+    "Add"
+  ],
+  [
+    "自定义颜色",
+    "カスタムカラー",
+    "Custom color"
+  ],
+  [
+    "画笔大小",
+    "ブラシサイズ",
+    "Brush size"
+  ],
+  [
+    "笔压",
+    "筆圧",
+    "Pen pressure"
+  ],
+  [
+    "笔迹稳定",
+    "手ぶれ補正",
+    "Stroke stabilization"
+  ],
+  [
+    "网格",
+    "グリッド",
+    "Grid"
+  ],
+  [
+    "背景",
+    "背景",
+    "Background"
+  ],
+  [
+    "导出画稿",
+    "画稿を書き出す",
+    "Export drawing"
+  ],
+  [
+    "导入画稿",
+    "画稿を読み込む",
+    "Import drawing"
+  ],
+  [
+    "快捷键：B 画笔、E 橡皮、F 填充、V/H 移动；空格拖动；[ ] 笔刷大小；+ − 缩放。触控可双指缩放，触笔支持笔压和防误触。",
+    "ショートカット：Bブラシ、E消しゴム、F塗りつぶし、V/H移動。スペースでドラッグ、[ ]でブラシサイズ、+ −でズーム。タッチはピンチズーム、ペンは筆圧と誤タッチ防止に対応します。",
+    "Shortcuts: B brush, E eraser, F fill, V/H pan; hold Space to drag; [ ] brush size; + − zoom. Pinch to zoom on touch screens. Stylus supports pressure and palm rejection."
+  ],
+  [
+    "作品名称",
+    "作品名",
+    "Artwork name"
+  ],
+  [
+    "作品描述",
+    "作品の説明",
+    "Artwork description"
+  ],
+  [
+    "保存画稿",
+    "画稿を保存",
+    "Save drawing"
+  ],
+  [
+    "另存新作品",
+    "新しい作品として保存",
+    "Save as new artwork"
+  ],
+  [
+    "社区作品",
+    "コミュニティの作品",
+    "Community artwork"
+  ],
+  [
+    "热门",
+    "人気",
+    "Popular"
+  ],
+  [
+    "我的作品",
+    "自分の作品",
+    "My artwork"
+  ],
+  [
+    "还没有公开作品，第一缕月光可以从这里开始。",
+    "公開作品はまだありません。最初の月明かりをここから描いてみましょう。",
+    "No public artwork yet. Let the first moonbeam start here."
+  ],
+  [
+    "分享作品",
+    "作品を共有",
+    "Share artwork"
+  ],
+  [
+    "删除作品",
+    "作品を削除",
+    "Delete artwork"
+  ],
+  [
+    "全站音乐",
+    "サイトの音楽",
+    "Site music"
+  ],
+  [
+    "切换主题",
+    "テーマを切り替える",
+    "Change theme"
+  ],
+  [
+    "内容管理",
+    "コンテンツ管理",
+    "Content management"
+  ],
+  [
+    "管理终端",
+    "管理ターミナル",
+    "Administration terminal"
+  ],
+  [
+    "确认",
+    "確認",
+    "Confirm"
+  ],
+  [
+    "关闭",
+    "閉じる",
+    "Close"
+  ],
+  [
+    "返回",
+    "戻る",
+    "Back"
+  ],
+  [
+    "保存",
+    "保存",
+    "Save"
+  ],
+  [
+    "搜索",
+    "検索",
+    "Search"
+  ],
+  [
+    "更新密码",
+    "パスワードを更新",
+    "Update password"
+  ],
+  [
+    "管理员账号安全",
+    "管理者アカウントのセキュリティ",
+    "Administrator account security"
+  ],
+  [
+    "需要管理员权限",
+    "管理者権限が必要です",
+    "Administrator access required"
+  ],
+  [
+    "请使用 admin 或 super_admin 角色账号登录。",
+    "admin または super_admin ロールのアカウントでログインしてください。",
+    "Sign in with an admin or super_admin account."
+  ],
+  [
+    "管理员账号",
+    "管理者アカウント",
+    "Administrator account"
+  ],
+  [
+    "使用站点管理员账号登录",
+    "サイト管理者アカウントでログイン",
+    "Sign in with a site administrator account"
+  ],
+  [
+    "验证终端账号",
+    "ターミナルアカウントを認証",
+    "Verify terminal account"
+  ],
+  [
+    "退出终端",
+    "ターミナルからログアウト",
+    "Sign out of terminal"
+  ],
+  [
+    "保存站点配置",
+    "サイト設定を保存",
+    "Save site configuration"
+  ],
+  [
+    "审核邮件与通知",
+    "審査メールと通知",
+    "Review emails and notifications"
+  ],
+  [
+    "待审核留言邮件提醒",
+    "審査待ちメッセージのメール通知",
+    "Email alerts for pending messages"
+  ],
+  [
+    "保存通知设置",
+    "通知設定を保存",
+    "Save notification settings"
+  ],
+  [
+    "包含禁止发布的内容，不能通过审核",
+    "投稿禁止の内容が含まれているため承認できません",
+    "Contains prohibited content and cannot be approved"
+  ],
+  [
+    "暂无内容",
+    "コンテンツはまだありません",
+    "No content yet"
+  ],
+  [
+    "站点归档",
+    "サイトアーカイブ",
+    "Site archive"
+  ],
+  [
+    "角色状态",
+    "キャラクターの状態",
+    "Character status"
+  ],
+  [
+    "重新载入",
+    "再読み込み",
+    "Reload"
+  ],
+  [
+    "八千代的房间",
+    "八千代の部屋",
+    "Yachiyo's room"
+  ],
+  [
+    "和八千代一起，把时间慢下来。",
+    "八千代と一緒に、ゆっくり時を過ごしましょう。",
+    "Slow down and spend a moment with Yachiyo."
+  ],
+  [
+    "八千代",
+    "八千代",
+    "Yachiyo"
+  ],
+  [
+    "月夜小屋",
+    "月夜の小屋",
+    "Moonlit cottage"
+  ],
+  [
+    "此刻，在月读相遇。",
+    "今、月読で出会う。",
+    "Meet here, in Tsukuyomi."
+  ],
+  [
+    "房间与角色设置",
+    "部屋とキャラクターの設定",
+    "Room and character settings"
+  ],
+  [
+    "截图保存失败，请重试",
+    "スクリーンショットを保存できませんでした。再試行してください。",
+    "Screenshot could not be saved. Try again."
+  ],
+  [
+    "房间音乐",
+    "部屋の音楽",
+    "Room music"
+  ],
+  [
+    "表情",
+    "表情",
+    "Expression"
+  ],
+  [
+    "动作",
+    "動作",
+    "Action"
+  ],
+  [
+    "保存角色截图",
+    "キャラクターのスクリーンショットを保存",
+    "Save character screenshot"
+  ],
+  [
+    "Yachiyo Live2D 原生舞台",
+    "Yachiyo ネイティブLive2Dステージ",
+    "Yachiyo Native Live2D Stage"
+  ],
+  [
+    "Cubism Native · 表情、身体与语义动作在本机模型上执行",
+    "Cubism Native · 表情、身体、意味動作を端末上のモデルで実行",
+    "Cubism Native · Expressions, body movements and semantic actions run on the local model"
+  ],
+  [
+    "直播导演",
+    "ライブ演出",
+    "Live director"
+  ],
+  [
+    "表情与动作测试",
+    "表情と動作のテスト",
+    "Expression and action tests"
+  ],
+  [
+    "单次 LLM 导演",
+    "LLMによる単発演出",
+    "Single LLM direction"
+  ],
+  [
+    "参数 JSON",
+    "パラメーターJSON",
+    "Parameter JSON"
+  ],
+  [
+    "支持 expressionMix、actions、parameters、sequence 和 interruptPolicy。未知参数不会写入模型。",
+    "expressionMix、actions、parameters、sequence、interruptPolicyに対応。未知のパラメーターはモデルに適用されません。",
+    "Supports expressionMix, actions, parameters, sequence and interruptPolicy. Unknown parameters are ignored."
+  ],
+  [
+    "Live2D 工作台",
+    "Live2Dワークベンチ",
+    "Live2D workbench"
+  ],
+  [
+    "主题已切换，暂时无法保存到本机",
+    "テーマを切り替えましたが、端末に保存できませんでした。",
+    "Theme changed, but could not be saved to this device."
+  ],
+  [
+    "房间设置",
+    "部屋の設定",
+    "Room settings"
+  ],
+  [
+    "私人居所  ›  房间设置",
+    "プライベートルーム › 部屋の設定",
+    "Private room › Room settings"
+  ],
+  [
+    "返回房间",
+    "部屋に戻る",
+    "Back to room"
+  ],
+  [
+    "当前房间",
+    "現在の部屋",
+    "Current room"
+  ],
+  [
+    "聊天模型",
+    "チャットモデル",
+    "Chat model"
+  ],
+  [
+    "语音朗读",
+    "音声読み上げ",
+    "Voice readout"
+  ],
+  [
+    "长期记忆",
+    "長期記憶",
+    "Long-term memory"
+  ],
+  [
+    "数据存在哪里？",
+    "データはどこに保存されますか？",
+    "Where is my data stored?"
+  ],
+  [
+    "只需连接一个模型，就能开始聊天",
+    "モデルを接続するだけで会話を始められます",
+    "Connect a model to start chatting"
+  ],
+  [
+    "语音、记忆和外观按需调整，不必一次填完所有设置。",
+    "音声、記憶、見た目は必要に応じて設定できます。すべてを一度に入力する必要はありません。",
+    "Adjust voice, memory and appearance as needed. You can fill in the other settings later."
+  ],
+  [
+    "① 选择服务    ② 填写密钥    ③ 测试连接",
+    "① サービスを選ぶ    ② キーを入力    ③ 接続をテスト",
+    "① Choose a service    ② Enter your key    ③ Test the connection"
+  ],
+  [
+    "设置尚未保存",
+    "未保存の設定",
+    "Unsaved settings"
+  ],
+  [
+    "离开会丢失尚未保存的修改。",
+    "離れると未保存の変更は失われます。",
+    "Leaving will discard your unsaved changes."
+  ],
+  [
+    "放弃并离开",
+    "変更を破棄して離れる",
+    "Discard and leave"
+  ],
+  [
+    "服务商",
+    "プロバイダー",
+    "Provider"
+  ],
+  [
+    "更多服务商",
+    "その他のプロバイダー",
+    "More providers"
+  ],
+  [
+    "模型",
+    "モデル",
+    "Model"
+  ],
+  [
+    "刷新模型",
+    "モデルを更新",
+    "Refresh models"
+  ],
+  [
+    "同步模型目录",
+    "モデル一覧を同期",
+    "Sync model catalog"
+  ],
+  [
+    "高级连接设置",
+    "接続の詳細設定",
+    "Advanced connection settings"
+  ],
+  [
+    "API 端点 · 图片理解 · 代理 · 补充指令",
+    "APIエンドポイント · 画像理解 · プロキシ · 補足指示",
+    "API endpoint · Image understanding · Proxy · Additional instructions"
+  ],
+  [
+    "离线演示",
+    "オフラインデモ",
+    "Offline demo"
+  ],
+  [
+    "开启语音回复",
+    "音声応答を有効にする",
+    "Enable spoken replies"
+  ],
+  [
+    "让八千代把回复读给你听。",
+    "八千代が返答を読み上げます。",
+    "Let Yachiyo read her replies to you."
+  ],
+  [
+    "OpenAI 兼容音频格式",
+    "OpenAI互換の音声形式",
+    "OpenAI-compatible audio format"
+  ],
+  [
+    "WAV · 支持音量口型",
+    "WAV · 音量に応じたリップシンク",
+    "WAV · Volume-based lip sync"
+  ],
+  [
+    "停止试听",
+    "試聴を停止",
+    "Stop preview"
+  ],
+  [
+    "自定义 Live2D JSON",
+    "カスタムLive2D JSON",
+    "Custom Live2D JSON"
+  ],
+  [
+    "不触发动作",
+    "動作を実行しない",
+    "No action"
+  ],
+  [
+    "搜索设置",
+    "設定を検索",
+    "Search settings"
+  ],
+  [
+    "查看配置指引",
+    "設定ガイドを表示",
+    "View setup guide"
+  ],
+  [
+    "收起配置提示",
+    "設定のヒントを閉じる",
+    "Hide setup tips"
+  ],
+  [
+    "全部设置 ﹀",
+    "すべての設定 ﹀",
+    "All settings ﹀"
+  ],
+  [
+    "所有修改已保存",
+    "すべての変更を保存しました",
+    "All changes saved"
+  ],
+  [
+    "放弃修改",
+    "変更を破棄",
+    "Discard changes"
+  ],
+  [
+    "保存全部",
+    "すべて保存",
+    "Save all"
+  ],
+  [
+    "类型",
+    "種類",
+    "Type"
+  ],
+  [
+    "启用这条知识",
+    "この知識を有効にする",
+    "Enable this knowledge"
+  ],
+  [
+    "搜索记忆",
+    "記憶を検索",
+    "Search memories"
+  ],
+  [
+    "记忆类型",
+    "記憶の種類",
+    "Memory type"
+  ],
+  [
+    "全部类型",
+    "すべての種類",
+    "All types"
+  ],
+  [
+    "添加记忆",
+    "記憶を追加",
+    "Add memory"
+  ],
+  [
+    "清空记忆",
+    "記憶を消去",
+    "Clear memories"
+  ],
+  [
+    "同步向量记忆",
+    "ベクトル記憶を同期",
+    "Sync vector memories"
+  ],
+  [
+    "重试保存编辑内容",
+    "変更の保存を再試行",
+    "Retry saving changes"
+  ],
+  [
+    "还没有可显示的记忆。",
+    "表示できる記憶はまだありません。",
+    "No memories to show yet."
+  ],
+  [
+    "展开原文",
+    "元の文を表示",
+    "Show original text"
+  ],
+  [
+    "加载更多",
+    "さらに読み込む",
+    "Load more"
+  ],
+  [
+    "随手记下这一刻",
+    "この瞬間をメモしよう",
+    "Jot down this moment"
+  ],
+  [
+    "想留住的话、突然冒出的念头…",
+    "残したい言葉、ふと思いついたこと…",
+    "Words to remember, thoughts that just came to mind…"
+  ],
+  [
+    "保存便签",
+    "メモを保存",
+    "Save note"
+  ],
+  [
+    "月见八千代",
+    "月見八千代",
+    "Tsukimi Yachiyo"
+  ],
+  [
+    "在这里，陪着你",
+    "ここで、あなたと一緒に",
+    "Here with you"
+  ],
+  [
+    "昵称",
+    "ニックネーム",
+    "Nickname"
+  ],
+  [
+    "你希望八千代怎么称呼你",
+    "八千代にどう呼んでほしいですか？",
+    "What would you like Yachiyo to call you?"
+  ],
+  [
+    "个性签名",
+    "プロフィール",
+    "Bio"
+  ],
+  [
+    "编辑日记人设",
+    "日記の人格設定を編集",
+    "Edit diary persona"
+  ],
+  [
+    "只影响日记作者，聊天中的八千代保持不变。",
+    "日記を書く人格だけに適用されます。会話中の八千代は変わりません。",
+    "This changes the diary author only. Yachiyo's chat persona stays the same."
+  ],
+  [
+    "保存人设",
+    "人格設定を保存",
+    "Save persona"
+  ],
+  [
+    "日记作者人设",
+    "日記を書く人格設定",
+    "Diary author persona"
+  ],
+  [
+    "编辑人设",
+    "人格設定を編集",
+    "Edit persona"
+  ],
+  [
+    "同步",
+    "同期",
+    "Sync"
+  ],
+  [
+    "导出存档",
+    "アーカイブを書き出す",
+    "Export archive"
+  ],
+  [
+    "导入存档",
+    "アーカイブを読み込む",
+    "Import archive"
+  ],
+  [
+    "清空日记",
+    "日記を消去",
+    "Clear diary"
+  ],
+  [
+    "还没有日记。结束一次聊天，八千代会把这段相处写进日记。",
+    "日記はまだありません。会話を終えると、八千代が一緒に過ごした時間を日記にします。",
+    "No diary entries yet. End a chat and Yachiyo will write about your time together."
+  ],
+  [
+    "选择日记",
+    "日記を選ぶ",
+    "Select diary entry"
+  ],
+  [
+    "删除这篇日记",
+    "この日記を削除",
+    "Delete this diary entry"
+  ],
+  [
+    "关闭音乐面板",
+    "音楽パネルを閉じる",
+    "Close music panel"
+  ],
+  [
+    "上一曲",
+    "前の曲",
+    "Previous track"
+  ],
+  [
+    "下一曲",
+    "次の曲",
+    "Next track"
+  ],
+  [
+    "搜索页面、文章与内容",
+    "ページ、記事、コンテンツを検索",
+    "Search pages, articles and content"
+  ],
+  [
+    "快捷入口",
+    "クイックリンク",
+    "Quick links"
+  ],
+  [
+    "文章",
+    "記事",
+    "Articles"
+  ],
+  [
+    "没有找到相关文章",
+    "該当する記事はありません",
+    "No matching articles"
+  ],
+  [
+    "切换浅色 / 深色",
+    "ライト・ダークテーマを切り替える",
+    "Switch light / dark theme"
+  ],
+  [
+    "编辑最后一条消息",
+    "最後のメッセージを編集",
+    "Edit last message"
+  ],
+  [
+    "保存并重新生成",
+    "保存して再生成",
+    "Save and regenerate"
+  ],
+  [
+    "把这段聊天写成日记？",
+    "この会話を日記に書きますか？",
+    "Write this chat into the diary?"
+  ],
+  [
+    "停止生成并保留对话",
+    "生成を停止して会話を保持",
+    "Stop generation and keep chat"
+  ],
+  [
+    "继续聊天",
+    "会話を続ける",
+    "Continue chatting"
+  ],
+  [
+    "不生成日记，直接结束",
+    "日記を作らず終了",
+    "End without a diary entry"
+  ],
+  [
+    "分享这段相遇",
+    "この出会いを共有",
+    "Share this encounter"
+  ],
+  [
+    "关闭分享",
+    "共有を閉じる",
+    "Close sharing"
+  ],
+  [
+    "分享标题",
+    "共有タイトル",
+    "Share title"
+  ],
+  [
+    "保存图片",
+    "画像を保存",
+    "Save image"
+  ],
+  [
+    "创建公开分享链接",
+    "公開共有リンクを作成",
+    "Create public share link"
+  ],
+  [
+    "撤销链接",
+    "リンクを無効化",
+    "Revoke link"
+  ],
+  [
+    "创建链接后，持有链接的人可以查看这一轮对话。",
+    "リンクを持つ人はこの会話を閲覧できます。",
+    "Anyone with the link can view this exchange."
+  ],
+  [
+    "图片暂不可用",
+    "画像を一時的に表示できません",
+    "Image temporarily unavailable"
+  ],
+  [
+    "图片地址不可用",
+    "画像のアドレスが利用できません",
+    "Image address unavailable"
+  ],
+  [
+    "房间环境",
+    "部屋の環境",
+    "Room environment"
+  ],
+  [
+    "使用当前位置",
+    "現在地を使用",
+    "Use current location"
+  ],
+  [
+    "房间功能",
+    "部屋の機能",
+    "Room features"
+  ],
+  [
+    "这一刻，慢慢聊",
+    "このひととき、ゆっくり話そう",
+    "Take a moment, have a chat"
+  ],
+  [
+    "新建会话",
+    "新しい会話",
+    "New conversation"
+  ],
+  [
+    "查看对话开头",
+    "会話の最初へ",
+    "Go to conversation start"
+  ],
+  [
+    "结束聊天",
+    "会話を終える",
+    "End chat"
+  ],
+  [
+    "查看对话历史",
+    "会話履歴を表示",
+    "View chat history"
+  ],
+  [
+    "返回聊天",
+    "会話に戻る",
+    "Back to chat"
+  ],
+  [
+    "重新生成",
+    "再生成",
+    "Regenerate"
+  ],
+  [
+    "分享",
+    "共有",
+    "Share"
+  ],
+  [
+    "已保存在本机 · 等待同步",
+    "端末に保存済み · 同期待ち",
+    "Saved on device · Waiting to sync"
+  ],
+  [
+    "移除图片",
+    "画像を削除",
+    "Remove image"
+  ],
+  [
+    "同步会话",
+    "会話を同期",
+    "Sync conversation"
+  ],
+  [
+    "AI 角色对话 · 请理性判断生成内容",
+    "AIキャラクターとの会話 · 生成内容を適切に判断してください",
+    "AI character chat · Use your judgment when reading generated content"
+  ],
+  [
+    "今天的小事、想说的话，都可以留在这里。",
+    "今日の小さな出来事や話したいことを、ここに残せます。",
+    "Leave today's little moments and anything you want to say here."
+  ],
+  [
+    "我先说",
+    "先に話して",
+    "You start"
+  ],
+  [
+    "Enter 发送 · Shift + Enter 换行",
+    "Enterで送信 · Shift + Enterで改行",
+    "Enter to send · Shift + Enter for a new line"
+  ],
+  [
+    "复制回复",
+    "返答をコピー",
+    "Copy reply"
+  ],
+  [
+    "你",
+    "あなた",
+    "You"
+  ],
+  [
+    "对话历史",
+    "会話履歴",
+    "Chat history"
+  ],
+  [
+    "公开对话片段",
+    "公開された会話の一節",
+    "Public conversation excerpt"
+  ],
+  [
+    "返回私人居所",
+    "プライベートルームに戻る",
+    "Back to private room"
+  ],
+  [
+    "此页面暂未提供原生版本",
+    "このページにはネイティブ版がまだありません",
+    "This page has no native version yet"
+  ],
+  [
+    "在网站打开",
+    "ウェブサイトで開く",
+    "Open on website"
+  ],
+  [
+    "写下你的内容…",
+    "内容を入力…",
+    "Write your content…"
+  ],
+  [
+    "保留草稿并返回",
+    "下書きを残して戻る",
+    "Keep draft and go back"
+  ],
+  [
+    "确认操作",
+    "操作を確認",
+    "Confirm action"
+  ],
+  [
+    "编辑推荐",
+    "編集部のおすすめ",
+    "Editor's picks"
+  ],
+  [
+    "关于主舞台",
+    "メインステージについて",
+    "About Main Stage"
+  ],
+  [
+    "月读空间的文章与创作档案。浏览公告、传说、技术、二创和日常记录。",
+    "月読空間の記事と創作アーカイブ。お知らせ、伝承、技術、二次創作、日常の記録を閲覧できます。",
+    "Tsukuyomi Space's articles and creative archive. Browse announcements, lore, technology, fan works and everyday stories."
+  ],
+  [
+    "搜索文章…",
+    "記事を検索…",
+    "Search articles…"
+  ],
+  [
+    "01  留言墙",
+    "01  メッセージウォール",
+    "01  Message wall"
+  ],
+  [
+    "访客、创作者和路过的观测者在这里交换留言。问候、反馈和灵感都可以落在这里。",
+    "訪問者、制作者、通りがかりの観測者がメッセージを交わします。あいさつ、感想、ひらめきを残してください。",
+    "Visitors, creators and passing observers exchange messages here. Leave greetings, feedback and inspiration."
+  ],
+  [
+    "当前频道                 公共留言墙",
+    "現在のチャンネル                 公開メッセージウォール",
+    "Current channel                 Public message wall"
+  ],
+  [
+    "热门话题",
+    "人気の話題",
+    "Trending topics"
+  ],
+  [
+    "还没有话题，试试发布 #月读茶会#",
+    "話題はまだありません。#月读茶会# を投稿してみましょう",
+    "No topics yet. Try posting #月读茶会#"
+  ],
+  [
+    "返回主舞台",
+    "メインステージに戻る",
+    "Back to Main Stage"
+  ],
+  [
+    "已完成",
+    "完了済み",
+    "Completed"
+  ],
+  [
+    "去完成",
+    "達成する",
+    "Go complete"
+  ],
+  [
+    "复制邀请链接",
+    "招待リンクをコピー",
+    "Copy invitation link"
+  ],
+  [
+    "立即同步",
+    "今すぐ同期",
+    "Sync now"
+  ],
+  [
+    "编辑资料",
+    "プロフィールを編集",
+    "Edit profile"
+  ],
+  [
+    "全部已读",
+    "すべて既読にする",
+    "Mark all read"
+  ],
+  [
+    "标为已读",
+    "既読にする",
+    "Mark as read"
+  ],
+  [
+    "已读",
+    "既読",
+    "Read"
+  ],
+  [
+    "登录已过期，草稿和缓存仍在。重新登录后继续同步。",
+    "ログインの有効期限が切れました。下書きとキャッシュは残っています。再ログインして同期を続けてください。",
+    "Your session expired. Drafts and cached content remain available. Sign in again to continue syncing."
+  ],
+  [
+    "暂时还没有公开友链",
+    "公開されたリンクはまだありません",
+    "No public friend links yet"
+  ],
+  [
+    "申请已提交",
+    "申請を送信しました",
+    "Application submitted"
+  ],
+  [
+    "登录后申请",
+    "ログインして申請",
+    "Sign in to apply"
+  ],
+  [
+    "申请记录将绑定当前账号，方便查看审核状态。",
+    "申請は現在のアカウントに関連付けられ、審査状況を確認できます。",
+    "Your application will be linked to this account so you can track its review status."
+  ],
+  [
+    "站点信息",
+    "サイト情報",
+    "Site information"
+  ],
+  [
+    "收录条件",
+    "掲載条件",
+    "Listing requirements"
+  ],
+  [
+    "我的申请",
+    "自分の申請",
+    "My applications"
+  ],
+  [
+    "取消授权",
+    "認証をキャンセル",
+    "Cancel authorization"
+  ],
+  [
+    "关闭绑定",
+    "連携を閉じる",
+    "Close binding"
+  ],
+  [
+    "编辑留言",
+    "メッセージを編集",
+    "Edit message"
+  ],
+  [
+    "留言内容",
+    "メッセージの内容",
+    "Message content"
+  ],
+  [
+    "查看公开主页",
+    "公開プロフィールを表示",
+    "View public profile"
+  ],
+  [
+    "密码安全",
+    "パスワードのセキュリティ",
+    "Password security"
+  ],
+  [
+    "QQ 账号",
+    "QQアカウント",
+    "QQ account"
+  ],
+  [
+    "解绑 QQ",
+    "QQ連携を解除",
+    "Unlink QQ"
+  ],
+  [
+    "绑定 QQ 账号",
+    "QQアカウントを連携",
+    "Link QQ account"
+  ],
+  [
+    "搜索我的内容",
+    "自分のコンテンツを検索",
+    "Search my content"
+  ],
+  [
+    "创作像素画",
+    "ピクセルアートを作成",
+    "Create pixel art"
+  ],
+  [
+    "个人中心",
+    "アカウントセンター",
+    "Account center"
+  ],
+  [
+    "登录后管理你的内容",
+    "ログインしてコンテンツを管理",
+    "Sign in to manage your content"
+  ],
+  [
+    "返回页面顶部",
+    "ページの先頭へ",
+    "Back to top"
+  ],
+  [
+    "词条目录",
+    "項目の目次",
+    "Entry contents"
+  ],
+  [
+    "相关词条索引",
+    "関連項目",
+    "Related entries"
+  ],
+  [
+    "词条未找到",
+    "項目が見つかりません",
+    "Entry not found"
+  ],
+  [
+    "本页目录",
+    "このページの目次",
+    "On this page"
+  ],
+  [
+    "创作档案",
+    "創作アーカイブ",
+    "Creative archive"
+  ],
+  [
+    "最新文章",
+    "最新の記事",
+    "Latest articles"
+  ],
+  [
+    "搜索页面和公开文章",
+    "ページと公開記事を検索",
+    "Search pages and public articles"
+  ],
+  [
+    "画笔",
+    "ブラシ",
+    "Brush"
+  ],
+  [
+    "橡皮",
+    "消しゴム",
+    "Eraser"
+  ],
+  [
+    "填充",
+    "塗りつぶし",
+    "Fill"
+  ],
+  [
+    "移动",
+    "移動",
+    "Pan"
+  ],
+  [
+    "取色",
+    "スポイト",
+    "Eyedropper"
+  ],
+  [
+    "直线",
+    "直線",
+    "Line"
+  ],
+  [
+    "矩形",
+    "矩形",
+    "Rectangle"
+  ],
+  [
+    "圆形",
+    "円形",
+    "Circle"
+  ],
+  [
+    "椭圆",
+    "楕円",
+    "Ellipse"
+  ],
+  [
+    "与你相遇，在月光之下",
+    "月明かりの下で、あなたと出会う",
+    "Meet you beneath the moonlight"
+  ],
+  [
+    "给日常留一点月光。与八千代聊天，读故事、看创作，遇见同频的人。",
+    "日常に少しの月明かりを。八千代と話し、物語や創作を楽しみ、気の合う人と出会いましょう。",
+    "Leave a little moonlight in your day. Chat with Yachiyo, explore stories and creations, and meet kindred spirits."
+  ],
+  [
+    "进入私人居所",
+    "プライベートルームに入る",
+    "Enter private room"
+  ],
+  [
+    "发现创作",
+    "創作を見つける",
+    "Discover creations"
+  ],
+  [
+    "站内公告",
+    "サイトのお知らせ",
+    "Site announcements"
+  ],
+  [
+    "月下新鲜事",
+    "月明かりの新着情報",
+    "Fresh under the moon"
+  ],
+  [
+    "读一篇文章，发现一份创作，留下今天的问候。",
+    "記事を読み、創作を見つけ、今日のあいさつを残しましょう。",
+    "Read an article, discover a creation, and leave a greeting today."
+  ],
+  [
+    "逛逛广场",
+    "広場を散策",
+    "Explore the plaza"
+  ],
+  [
+    "分享此刻，也遇见同频的人。",
+    "この瞬間を共有し、気の合う人と出会う。",
+    "Share the moment and meet kindred spirits."
+  ],
+  [
+    "还没有留言，写下第一句问候。",
+    "メッセージはまだありません。最初のあいさつを書いてみましょう。",
+    "No messages yet. Leave the first greeting."
+  ],
+  [
+    "留一句问候",
+    "あいさつを残す",
+    "Leave a greeting"
+  ],
+  [
+    "今天有什么想和大家分享的？",
+    "今日はみんなに何を伝えたいですか？",
+    "What would you like to share today?"
+  ],
+  [
+    "一起留下的足迹",
+    "一緒に残した足跡",
+    "Footsteps we leave together"
+  ],
+  [
+    "你来啦。刚好，\n给自己留一点放空的时间。",
+    "来てくれたね。ちょうどよかった。\n少し、のんびりする時間を作ろう。",
+    "You're here. Good timing.\nTake a little time to unwind."
+  ],
+  [
+    "此\n刻\n，\n在\n月\n读\n相\n遇\n。",
+    "今\n、\n月\n読\nで\n出\n会\nう\n。",
+    "Meet\nHere\nIn\nTsukuyomi."
+  ],
+  [
+    "先聊起来，\n再慢慢变成你的房间。",
+    "まずは話そう。\n少しずつ、あなたの部屋にしていこう。",
+    "Start chatting,\nthen make this room your own."
+  ],
+  [
+    "保持友好，避免刷屏和敏感信息。\n\n友链申请请使用上方独立入口，审核状态可随时查看。\n\n反馈问题时尽量写清页面、操作和现象。",
+    "友好的に接し、連投や機密情報の投稿を避けてください。\n\nリンクの申請には上の専用入口を使ってください。審査状況はいつでも確認できます。\n\n不具合の報告は、ページ、操作、現象をできるだけ具体的に書いてください。",
+    "Be friendly and avoid spam or sensitive information.\n\nUse the dedicated entry above to apply for friend links and track review status.\n\nWhen reporting a problem, describe the page, your actions and what happened."
+  ],
+  [
+    "继续",
+    "続ける",
+    "Resume"
+  ],
+  [
+    "暂停",
+    "一時停止",
+    "Pause"
+  ],
+  [
+    "退出全屏",
+    "全画面表示を終了",
+    "Exit full screen"
+  ],
+  [
+    "没有当前密码？使用邮箱验证",
+    "現在のパスワードが分かりませんか？メールで認証",
+    "Forgot your current password? Verify by email"
+  ],
+  [
+    "搜索图库",
+    "ギャラリーを検索",
+    "Search gallery"
+  ],
+  [
+    "搜索附件",
+    "添付ファイルを検索",
+    "Search attachments"
+  ],
+  [
+    "媒体地址无效",
+    "メディアのURLが無効です",
+    "Invalid media address"
+  ]
+]

@@ -13,4 +13,13 @@ The character model, expressions, textures and room artwork are from the owner's
 https://github.com/redchenk/tsukuyomi-space
 The original artwork and character rights remain with their respective owners. This preview release does not grant permission to reuse those assets in other products.
 
+The bundled Wiki artwork, Yachiyo guide sprites, game project, costumes, fonts
+and audio are also taken from that original project. Their source and native
+conversion details are recorded in assets/game/README.md; all original rights
+remain with their respective creators.
+
+The native WAV/MP3 envelope decoder uses dr_libs by David Reid under its MIT
+license. The complete license is included in
+packages/tsukuyomi_live2d/src/vendor/dr_libs/LICENSE.
+
 Flutter, Dart and third-party Dart packages retain their respective licenses. Flutter's generated NOTICES file in the application's asset bundle contains dependency notices.

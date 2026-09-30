@@ -1,16 +1,42 @@
+import 'core/site_localization.dart';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
 
 import 'core/llm_client.dart';
+import 'core/app_theme_controller.dart';
+import 'core/locale_controller.dart';
 import 'core/site_client.dart';
+import 'core/site_routes.dart';
 import 'core/storage.dart';
 import 'core/voice_service.dart';
 import 'features/room/room_controller.dart';
 import 'features/room/room_page.dart';
-import 'features/room/room_style.dart';
+import 'features/room/room_music.dart';
+import 'features/room/shared_room_page.dart';
 import 'features/site/site_page.dart';
+import 'features/site/hub_page.dart';
+import 'features/site/site_navigation.dart';
 import 'features/settings/settings_page.dart';
+import 'features/site/access_page.dart';
+import 'features/site/wiki_page.dart';
+import 'features/site/reality_page.dart';
+import 'features/site/friend_links_page.dart';
+import 'features/site/user_profile_page.dart';
+import 'features/site/asset_library_page.dart';
+import 'features/site/editor_page.dart';
+import 'features/site/management_page.dart';
+import 'features/site/user_center_page.dart';
+import 'features/pixel/pixel_page.dart';
+import 'features/game/game_page.dart';
+import 'features/site/native_auth_page.dart';
+import 'features/site/site_search.dart';
+import 'features/site/site_chrome.dart';
+import 'features/site/site_guide.dart';
+import 'features/live2d/live2d_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +47,7 @@ Future<void> main() async {
     site: SiteClient(),
     voice: AudioVoice(),
   );
-  runApp(TsukuyomiApp(controller: controller));
+  runApp(TsukuyomiApp(controller: controller, initialPath: '/'));
   await controller.initialize();
 }
 
@@ -31,73 +57,432 @@ class TsukuyomiApp extends StatefulWidget {
     required this.controller,
     this.loadNative = true,
     this.modelLoader,
+    this.initialPath = '/room',
   });
   final RoomController controller;
   final bool loadNative;
   final Future<Live2DModel> Function()? modelLoader;
+  final String initialPath;
   @override
   State<TsukuyomiApp> createState() => _TsukuyomiAppState();
 }
 
 class _TsukuyomiAppState extends State<TsukuyomiApp> {
-  bool _dark = false;
+  late final AppThemeController _theme;
+  late final RoomMusic _music;
+  late final LocaleController _locale;
+  late final SiteChromeController _chrome;
+  late final NavigatorObserver _routeObserver;
+  final _navigator = GlobalKey<NavigatorState>();
+  final _messenger = GlobalKey<ScaffoldMessengerState>();
+  late final ValueNotifier<String> _activePath;
+  bool get _dark => _theme.dark;
+
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: '月读空间',
-    debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      brightness: _dark ? Brightness.dark : Brightness.light,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xff60439f),
-        brightness: _dark ? Brightness.dark : Brightness.light,
-        surface: _dark ? const Color(0xff25212f) : Colors.white,
-        primary: _dark ? const Color(0xffc5adee) : const Color(0xff60439f),
-      ),
-      scaffoldBackgroundColor: _dark
-          ? const Color(0xff17151e)
-          : const Color(0xfff5f4fa),
-      fontFamilyFallback: const [
-        'PingFang SC',
-        'Microsoft YaHei',
-        'Noto Sans CJK SC',
-      ],
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: _dark ? const Color(0xff312b3e) : const Color(0xffefedf7),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-      ),
-      snackBarTheme: const SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
-      ),
-    ),
-    onGenerateRoute: (settings) => MaterialPageRoute<void>(
-      settings: settings,
-      builder: (_) => settings.name == '/room/settings'
-          ? RoomSettingsPage(
-              controller: widget.controller,
-              onTheme: () => setState(() => _dark = !_dark),
-            )
-          : SitePage(
-              controller: widget.controller,
-              path: settings.name ?? '/stage',
-              onTheme: () => setState(() => _dark = !_dark),
+  void initState() {
+    super.initState();
+    _music = RoomMusic(widget.controller);
+    widget.controller.registerBackgroundMusic(this, _music.suspend);
+    _music.load();
+    _theme = AppThemeController(widget.controller.storage)
+      ..addListener(_themeChanged);
+    _theme.restore();
+    _locale = LocaleController(widget.controller.storage)
+      ..addListener(_themeChanged);
+    _locale.restore();
+    _chrome = SiteChromeController(
+      widget.controller,
+      initialPath: widget.initialPath,
+    )..start();
+    _activePath = ValueNotifier(widget.initialPath);
+    _routeObserver = _SiteRouteObserver(_chrome, (path) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _activePath.value != path) _activePath.value = path;
+      });
+    });
+  }
+
+  void _themeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _toggleTheme() {
+    _theme.toggle().then((saved) {
+      if (!saved && mounted) {
+        _messenger.currentState?.showSnackBar(
+          const SnackBar(content: SiteText('主题已切换，暂时无法保存到本机')),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    widget.controller.unregisterBackgroundMusic(this);
+    _music.dispose();
+    _theme.removeListener(_themeChanged);
+    _theme.dispose();
+    _locale.removeListener(_themeChanged);
+    _locale.dispose();
+    _chrome.dispose();
+    _activePath.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SiteMusicScope(
+    music: _music,
+    child: SiteControllerScope(
+      controller: widget.controller,
+      child: SiteLocaleScope(
+        controller: _locale,
+        child: MaterialApp(
+          navigatorKey: _navigator,
+          navigatorObservers: [_routeObserver],
+          locale: _locale.locale,
+          supportedLocales: const [Locale('zh'), Locale('ja'), Locale('en')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          builder: (context, child) => Shortcuts(
+            shortcuts: const {
+              SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+                  _SearchIntent(),
+              SingleActivator(LogicalKeyboardKey.keyK, control: true):
+                  _SearchIntent(),
+            },
+            child: Actions(
+              actions: {
+                _SearchIntent: CallbackAction<_SearchIntent>(
+                  onInvoke: (_) {
+                    final route = Uri.tryParse(_activePath.value)?.path;
+                    if ([
+                      '/',
+                      '/login',
+                      '/register',
+                      '/live2d',
+                    ].contains(route)) {
+                      return null;
+                    }
+                    final navigatorContext =
+                        _navigator.currentState?.overlay?.context;
+                    if (navigatorContext != null) {
+                      showSiteSearch(
+                        navigatorContext,
+                        widget.controller,
+                        (path) => navigateSite(
+                          navigatorContext,
+                          widget.controller,
+                          path,
+                        ),
+                      );
+                    }
+                    return null;
+                  },
+                ),
+              },
+              child: SiteChromeScope(
+                controller: _chrome,
+                child: Overlay.wrap(
+                  child: SiteVisitPopupOverlay(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        child ?? const SizedBox(),
+                        Positioned(
+                          right: 14,
+                          bottom: 12,
+                          child: ValueListenableBuilder<String>(
+                            valueListenable: _activePath,
+                            builder: (context, path, _) {
+                              final route = Uri.tryParse(path)?.path ?? '/';
+                              final hidden =
+                                  [
+                                    '/',
+                                    '/login',
+                                    '/register',
+                                    '/room',
+                                    '/room/settings',
+                                    '/game',
+                                  ].contains(route) ||
+                                  route.startsWith('/room/shared/');
+                              return Offstage(
+                                offstage: hidden,
+                                child: TickerMode(
+                                  enabled: !hidden,
+                                  child: SiteGuideButton(
+                                    controller: widget.controller,
+                                    path: path,
+                                    reduced: hidden || !widget.loadNative,
+                                    dialogContext: () => _navigator
+                                        .currentState!
+                                        .overlay!
+                                        .context,
+                                    onGo: (next) => navigateSite(
+                                      _navigator.currentState!.overlay!.context,
+                                      widget.controller,
+                                      next,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
-    ),
-    home: Builder(
-      builder: (context) => DefaultTextStyle.merge(
-        style: TextStyle(color: RoomStyle(context).ink),
-        child: RoomPage(
-          controller: widget.controller,
-          onNavigate: (path) => Navigator.of(context).pushNamed(path),
-          loadNative: widget.loadNative,
-          modelLoader: widget.modelLoader,
-          onToggleTheme: () => setState(() => _dark = !_dark),
+          ),
+          title: '月读空间',
+          debugShowCheckedModeBanner: false,
+          scaffoldMessengerKey: _messenger,
+          theme: ThemeData(
+            useMaterial3: true,
+            brightness: _dark ? Brightness.dark : Brightness.light,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xff60439f),
+              brightness: _dark ? Brightness.dark : Brightness.light,
+              surface: _dark ? const Color(0xff1b1e2c) : Colors.white,
+              primary: _dark
+                  ? const Color(0xffc4b5fd)
+                  : const Color(0xff60439f),
+            ),
+            scaffoldBackgroundColor: _dark
+                ? const Color(0xff10121c)
+                : const Color(0xfff5f4fa),
+            fontFamilyFallback: const [
+              'PingFang SC',
+              'Microsoft YaHei',
+              'Noto Sans CJK SC',
+            ],
+            inputDecorationTheme: InputDecorationTheme(
+              filled: true,
+              fillColor: _dark
+                  ? const Color(0xff25283a)
+                  : const Color(0xffefedf7),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            snackBarTheme: const SnackBarThemeData(
+              behavior: SnackBarBehavior.floating,
+            ),
+          ),
+          initialRoute: widget.initialPath,
+          onGenerateRoute: _route,
+          onGenerateInitialRoutes: (name) => [
+            _route(RouteSettings(name: name)),
+          ],
         ),
       ),
     ),
   );
+
+  MaterialPageRoute<void> _route(RouteSettings settings) {
+    final requested = settings.name ?? '';
+    final path = nativeSitePath(Uri.parse(requested));
+    return MaterialPageRoute<void>(
+      settings: RouteSettings(
+        name: path ?? requested,
+        arguments: settings.arguments,
+      ),
+      builder: (context) {
+        final route = path == null ? null : Uri.parse(path).path;
+        void go(String value) =>
+            navigateSite(context, widget.controller, value);
+        final c = widget.controller;
+        if (route == '/live2d') {
+          return Live2DPage(
+            controller: c,
+            path: path!,
+            onGo: go,
+            onTheme: _toggleTheme,
+            loadNative: widget.loadNative,
+            modelLoader: widget.modelLoader,
+          );
+        }
+        if (route == '/login' || route == '/register') {
+          return NativeAuthPage(
+            controller: c,
+            path: path!,
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route == '/game') {
+          return GamePage(
+            controller: c,
+            path: path!,
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route == '/') {
+          return AccessPage(
+            controller: c,
+            path: path!,
+            onGo: go,
+            onTheme: _toggleTheme,
+            playVideo: widget.loadNative,
+          );
+        }
+        if (route == '/wiki' || route?.startsWith('/wiki/') == true) {
+          return WikiPage(
+            controller: c,
+            path: path!,
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route == '/reality') {
+          return RealityPage(
+            controller: c,
+            path: path!,
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route == '/friend-links' || route == '/friend-links/apply') {
+          return FriendLinksPage(
+            controller: c,
+            path: path!,
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route?.startsWith('/users/') == true) {
+          return UserProfilePage(
+            controller: c,
+            path: path!,
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route == '/gallery' || route == '/gallery/manage') {
+          return GalleryPage(
+            controller: c,
+            path: path!,
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route == '/attachments') {
+          return AttachmentsPage(
+            controller: c,
+            path: path!,
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route == '/editor') {
+          return EditorPage(
+            controller: c,
+            path: path!,
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route == '/pixel') {
+          return PixelPage(
+            controller: c,
+            path: path!,
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route == '/user') {
+          return UserCenterPage(controller: c, onGo: go, onTheme: _toggleTheme);
+        }
+        if (route == '/admin' || route == '/terminal') {
+          return ManagementPage(
+            controller: c,
+            path: path!,
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route == '/room/settings') {
+          final section = Uri.parse(path!).queryParameters['section'];
+          return RoomSettingsPage(
+            controller: widget.controller,
+            initialSection: roomSections.containsKey(section)
+                ? section!
+                : 'llm',
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route == '/hub') {
+          return HubPage(
+            controller: widget.controller,
+            onGo: (value) =>
+                navigateSite(context, widget.controller, value, replace: true),
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route == '/room') return _room(context);
+        if (route?.startsWith('/room/shared/') == true) {
+          return SharedRoomPage(
+            controller: c,
+            shareKey: Uri.parse(path!).pathSegments[2],
+            onGo: go,
+            onTheme: _toggleTheme,
+            loadNative: widget.loadNative,
+            modelLoader: widget.modelLoader,
+          );
+        }
+        if (path == null) {
+          return SiteRouteFallback(
+            controller: widget.controller,
+            path: requested,
+          );
+        }
+        return SitePage(
+          controller: widget.controller,
+          path: path,
+          onTheme: _toggleTheme,
+        );
+      },
+    );
+  }
+
+  Widget _room(BuildContext context) => RoomPage(
+    controller: widget.controller,
+    onNavigate: (path) => navigateSite(context, widget.controller, path),
+    loadNative: widget.loadNative,
+    modelLoader: widget.modelLoader,
+    onToggleTheme: _toggleTheme,
+  );
+}
+
+class _SearchIntent extends Intent {
+  const _SearchIntent();
+}
+
+class _SiteRouteObserver extends NavigatorObserver {
+  _SiteRouteObserver(this.chrome, this.onPath);
+  final SiteChromeController chrome;
+  final ValueChanged<String> onPath;
+  void _changed(Route<dynamic>? route) {
+    if (route is PageRoute) {
+      final path = route.settings.name ?? '/';
+      chrome.routeChanged(path);
+      onPath(path);
+    }
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _changed(route);
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _changed(previousRoute);
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) =>
+      _changed(newRoute);
 }

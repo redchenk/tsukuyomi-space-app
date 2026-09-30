@@ -1,8 +1,11 @@
+import '../../core/site_localization.dart';
+
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/models.dart';
 import '../../core/site_client.dart';
@@ -11,7 +14,13 @@ import '../room/room_controller.dart';
 import '../room/room_style.dart';
 import '../settings/settings_dialog.dart';
 import 'login_dialog.dart';
+import 'site_message_anchor.dart';
+import 'site_notification.dart';
+import 'site_chrome.dart';
+import 'site_share_actions.dart';
 import 'site_widgets.dart';
+import 'site_navigation.dart';
+import '../../core/site_routes.dart';
 
 class SitePage extends StatefulWidget {
   const SitePage({
@@ -29,7 +38,14 @@ class SitePage extends StatefulWidget {
 
 class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
   late final SiteRepository repo;
+  late final SiteShareActions _shares;
   final _search = TextEditingController(), _composer = TextEditingController();
+  final _scroll = ScrollController();
+  final _messageAnchorKeys = <String, GlobalKey>{};
+  String? _fragmentOverride;
+  SiteMessageAnchor? _pendingAnchor;
+  int _anchorRevision = 0;
+  bool _anchorDataReady = false;
   Map<String, dynamic> _payload = {}, _extra = {};
   String _error = '',
       _notice = '',
@@ -37,19 +53,31 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       _category = '',
       _sort = 'featured',
       _tab = '会话';
-  bool _loading = true, _working = false;
-  int _page = 1, _request = 0;
+  bool _loading = true, _working = false, _copying = false;
+  bool _notificationBusy = false;
+  int _page = 1, _request = 0, _writeRevision = 0;
   Timer? _debounce, _readingTimer;
   final _visibleReading = Stopwatch();
   String _readingToken = '';
+  String _growthInviteSource = '';
   String _profileTab = '个人资料';
   final List<String> _diaryCursors = [''];
   final Set<String> _expandedReplies = {};
   bool _readingSent = false;
   RoomController get c => widget.controller;
-  String get route => Uri.parse(widget.path).path;
-  bool get article => route.startsWith('/articles/');
-  String get articleId => route.split('/').elementAtOrNull(2) ?? '';
+  String get pagePath {
+    final path = nativeSitePath(Uri.parse(widget.path)) ?? widget.path;
+    return _fragmentOverride == null
+        ? path
+        : Uri.parse(path).replace(fragment: _fragmentOverride).toString();
+  }
+
+  String get route => Uri.parse(pagePath).path;
+  bool get article =>
+      nativeSitePath(Uri.parse(widget.path)) != null &&
+      route.startsWith('/articles/');
+  String get articleId =>
+      Uri.parse(pagePath).pathSegments.elementAtOrNull(1) ?? '';
   bool get privatePage =>
       ['/growth', '/user', '/conversations', '/notifications'].contains(route);
   String get title => article ? '文章阅读' : siteDestinations[route] ?? '月读空间';
@@ -64,12 +92,51 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       site: () => c.settings.siteUrl,
       accountId: () => c.account?.id,
     );
+    _shares = SiteShareActions(
+      repository: repo,
+      canRecordGrowth: () => c.account != null && !c.sessionExpired,
+    );
     _scope = repo.scope;
-    _search.text = Uri.parse(widget.path).queryParameters['q'] ?? '';
-    if (Uri.parse(widget.path).queryParameters['tab'] == 'diary') _tab = '日记';
+    _pendingAnchor = SiteMessageAnchor.parse(
+      route,
+      Uri.parse(pagePath).fragment,
+    );
+    _search.text = Uri.parse(pagePath).queryParameters['q'] ?? '';
+    if (Uri.parse(pagePath).queryParameters['tab'] == 'diary') _tab = '日记';
     c.addListener(_accountChanged);
     _restoreDraft();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant SitePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.path == widget.path) return;
+    final oldPath = nativeSitePath(Uri.parse(oldWidget.path)) ?? oldWidget.path;
+    _fragmentOverride = null;
+    final documentChanged =
+        Uri.parse(oldPath).replace(fragment: '') !=
+        Uri.parse(pagePath).replace(fragment: '');
+    _queueAnchor(Uri.parse(pagePath).fragment, stopScrolling: false);
+    if (documentChanged) {
+      _request++;
+      _writeRevision++;
+      _working = false;
+      _payload = {};
+      _extra = {};
+      _page = 1;
+      _anchorDataReady = false;
+      _expandedReplies.clear();
+      _messageAnchorKeys.clear();
+      _search.text = Uri.parse(pagePath).queryParameters['q'] ?? '';
+      _tab = Uri.parse(pagePath).queryParameters['tab'] == 'diary'
+          ? '日记'
+          : '会话';
+      _restoreDraft();
+      _load();
+    } else {
+      _revealPendingAnchor();
+    }
   }
 
   Future<void> _restoreDraft() async {
@@ -83,8 +150,17 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
     if (_scope != repo.scope) {
       _scope = repo.scope;
       _request++;
+      _writeRevision++;
+      _working = false;
       _payload = {};
       _extra = {};
+      _notificationBusy = false;
+      if (route == '/plaza') _page = 1;
+      _cancelAnchor();
+      _anchorDataReady = false;
+      _messageAnchorKeys.clear();
+      _expandedReplies.clear();
+      if (_scroll.hasClients) _scroll.jumpTo(0);
       _composer.clear();
       _restoreDraft();
       _load();
@@ -105,22 +181,96 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
   @override
   void dispose() {
     _request++;
+    _writeRevision++;
     _debounce?.cancel();
     _readingTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     c.removeListener(_accountChanged);
     _search.dispose();
     _composer.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
   void _go(String path) {
-    if (path == '/room') {
-      Navigator.popUntil(context, (r) => r.isFirst);
-      return;
+    try {
+      final value = path.startsWith('#')
+          ? Uri.parse(pagePath).replace(fragment: path.substring(1)).toString()
+          : path;
+      final target = resolveSiteTarget(c.settings.siteUrl, value).nativePath;
+      if (target != null &&
+          Uri.parse(target).replace(fragment: '') ==
+              Uri.parse(pagePath).replace(fragment: '')) {
+        setState(() => _queueAnchor(Uri.parse(target).fragment));
+        _revealPendingAnchor();
+        return;
+      }
+    } catch (_) {
+      // Shared navigation handles unsupported or malformed URLs.
     }
-    if (path == route) return;
-    Navigator.pushReplacementNamed(context, path);
+    if (path == pagePath) return;
+    navigateSite(context, c, path, replace: true);
+  }
+
+  void _cancelAnchor({bool stopScrolling = true}) {
+    _anchorRevision++;
+    _pendingAnchor = null;
+    if (stopScrolling && _scroll.hasClients) _scroll.jumpTo(_scroll.offset);
+  }
+
+  void _queueAnchor(String fragment, {bool stopScrolling = true}) {
+    _cancelAnchor(stopScrolling: stopScrolling);
+    _fragmentOverride = fragment;
+    _pendingAnchor = SiteMessageAnchor.parse(route, fragment);
+    if (!stopScrolling) {
+      final revision = _anchorRevision, owner = repo.scope;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            revision == _anchorRevision &&
+            owner == repo.scope &&
+            _scroll.hasClients) {
+          _scroll.jumpTo(_scroll.offset);
+        }
+      });
+    }
+  }
+
+  void _revealPendingAnchor() {
+    final anchor = _pendingAnchor;
+    if (anchor == null || !_anchorDataReady || !mounted) return;
+    final rows = route == '/plaza'
+        ? _plazaRows()
+        : messageThreads(rowsOf(_extra['comments']));
+    final location = findSiteMessageAnchor(rows, anchor.id);
+    // Consume the request once, including missing/deleted targets. A later
+    // rebuild or a manual page change must not pull the reader back.
+    _pendingAnchor = null;
+    if (location == null) return;
+    setState(() {
+      if (route == '/plaza') _page = location.page;
+      if (location.reply) _expandedReplies.add(location.rootId);
+    });
+    final revision = _anchorRevision, owner = repo.scope, request = _request;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          revision != _anchorRevision ||
+          owner != repo.scope ||
+          request != _request ||
+          ModalRoute.of(context)?.isCurrent != true) {
+        return;
+      }
+      final target = _messageAnchorKeys[anchor.id]?.currentContext;
+      if (target == null) return;
+      unawaited(
+        Scrollable.ensureVisible(
+          target,
+          alignment: .5,
+          duration: article || MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 240),
+        ),
+      );
+    });
   }
 
   Future<void> _login() async {
@@ -136,12 +286,28 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     final ticket = ++_request;
     setState(() {
       _loading = true;
       _error = '';
     });
     try {
+      if (route == '/growth') {
+        await _captureGrowthInvite();
+        if (!mounted || ticket != _request) return;
+      }
+      if (!article &&
+          !const {
+            '/stage',
+            '/plaza',
+            '/growth',
+            '/user',
+            '/notifications',
+            '/conversations',
+          }.contains(route)) {
+        throw const FormatException('此页面暂未提供原生版本');
+      }
       String path;
       if (article) {
         path = '/api/articles/${Uri.encodeComponent(articleId)}';
@@ -150,7 +316,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
           '/plaza' => '/api/messages',
           '/growth' => '/api/growth/me',
           '/user' => '/api/user/profile',
-          '/notifications' => '/api/user/notifications?limit=30&page=$_page',
+          '/notifications' => _notificationPath(_page),
           '/conversations' =>
             _tab == '记忆'
                 ? '/api/room/memory?view=manage&limit=30&offset=${(_page - 1) * 30}&q=${Uri.encodeQueryComponent(_search.text)}'
@@ -172,11 +338,32 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       }
       final doc = await repo.read(path, private: privatePage);
       if (!mounted || ticket != _request) return;
+      var payload = doc.payload;
+      if (route == '/growth' && !doc.cached) {
+        final claimed = await _claimGrowthInvite();
+        if (!mounted || ticket != _request) return;
+        if (claimed != null) payload = {...payload, 'data': claimed};
+      }
       setState(() {
-        _payload = doc.payload;
+        _payload = payload;
+        if (route == '/plaza') _anchorDataReady = true;
+        if (route == '/notifications') {
+          final page = mapOf(_payload['pagination'])['page'];
+          if (page is num) _page = page.toInt().clamp(1, 0x7fffffff);
+        }
         _notice = doc.notice;
         _loading = false;
       });
+      if (route == '/notifications' && !doc.cached) {
+        publishSiteUnread(
+          context,
+          notificationUnreadCount(
+            _payload['unread'],
+            _notificationItems(_payload),
+          ),
+        );
+      }
+      if (route == '/plaza') _revealPendingAnchor();
       if (article && !doc.cached) _beginReading(doc.payload);
       final extras = <String, String>{
         if ((article || route == '/plaza') && c.account != null)
@@ -207,8 +394,10 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
             if (mounted && ticket == _request) {
               setState(() {
                 _extra[entry.key] = data.data;
+                if (entry.key == 'comments') _anchorDataReady = true;
                 if (data.notice.isNotEmpty) _notice = data.notice;
               });
+              if (entry.key == 'comments') _revealPendingAnchor();
             }
           } catch (_) {
             if (mounted && ticket == _request) {
@@ -274,19 +463,28 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
     String path, [
     Map<String, dynamic>? body,
   ]) async {
-    if (_working) return null;
+    if (!mounted || _working) return null;
     if (c.account == null || c.sessionExpired) {
       await _login();
       return null;
     }
+    final revision = ++_writeRevision, owner = repo.scope;
     setState(() => _working = true);
     try {
-      return await repo.write(method, path, body);
+      final result = await repo.write(method, path, body);
+      if (!mounted || revision != _writeRevision || owner != repo.scope) {
+        return null;
+      }
+      return result;
     } catch (e) {
-      _toast('$e');
+      if (mounted && revision == _writeRevision && owner == repo.scope) {
+        _toast('$e');
+      }
       return null;
     } finally {
-      if (mounted) setState(() => _working = false);
+      if (mounted && revision == _writeRevision && owner == repo.scope) {
+        setState(() => _working = false);
+      }
     }
   }
 
@@ -345,7 +543,9 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                     maxLength: maxLength,
                     enabled: !working,
                     onChanged: (text) => c.storage.saveDraft(key, text),
-                    decoration: const InputDecoration(hintText: '写下你的内容…'),
+                    decoration: InputDecoration(
+                      hintText: siteTranslate(context, '写下你的内容…'),
+                    ),
                   ),
                   if (failure.isNotEmpty)
                     Text(
@@ -361,7 +561,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
           actions: [
             TextButton(
               onPressed: working ? null : () => Navigator.pop(context),
-              child: const Text('保留草稿并返回'),
+              child: const SiteText('保留草稿并返回'),
             ),
             FilledButton(
               onPressed: working
@@ -401,16 +601,16 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('确认操作'),
+          title: const SiteText('确认操作'),
           content: Text(text),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('返回'),
+              child: const SiteText('返回'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('确认'),
+              child: const SiteText('确认'),
             ),
           ],
         ),
@@ -506,8 +706,12 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         TextButton(
-          onPressed: _page > 1 && !_loading
+          onPressed:
+              _page > 1 &&
+                  !_loading &&
+                  !(route == '/notifications' && _notificationBusy)
               ? () {
+                  if (route == '/plaza') _cancelAnchor();
                   _page--;
                   if (route == '/plaza') {
                     setState(() {});
@@ -516,12 +720,16 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                   }
                 }
               : null,
-          child: const Text('上一页'),
+          child: const SiteText('上一页'),
         ),
         Text('第 $_page 页 / 共 $totalPages 页'),
         TextButton(
-          onPressed: _page < totalPages && !_loading
+          onPressed:
+              _page < totalPages &&
+                  !_loading &&
+                  !(route == '/notifications' && _notificationBusy)
               ? () {
+                  if (route == '/plaza') _cancelAnchor();
                   _page++;
                   if (route == '/plaza') {
                     setState(() {});
@@ -530,7 +738,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                   }
                 }
               : null,
-          child: const Text('下一页'),
+          child: const SiteText('下一页'),
         ),
       ],
     ),
@@ -548,7 +756,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           if (a['pinned_at'] != null)
-            Text(
+            SiteText(
               '编辑推荐',
               style: TextStyle(
                 color: RoomStyle(context).accent,
@@ -751,11 +959,11 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
           tilePadding: EdgeInsets.zero,
           dense: true,
           visualDensity: VisualDensity.compact,
-          title: const Text('关于主舞台', style: TextStyle(fontSize: 12)),
+          title: const SiteText('关于主舞台', style: TextStyle(fontSize: 12)),
           children: const [
             Padding(
               padding: EdgeInsets.only(bottom: 16),
-              child: Text('月读空间的文章与创作档案。浏览公告、传说、技术、二创和日常记录。'),
+              child: SiteText('月读空间的文章与创作档案。浏览公告、传说、技术、二创和日常记录。'),
             ),
           ],
         ),
@@ -766,8 +974,8 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
               child: TextField(
                 controller: _search,
                 onChanged: _searchChanged,
-                decoration: const InputDecoration(
-                  hintText: '搜索文章…',
+                decoration: InputDecoration(
+                  hintText: siteTranslate(context, '搜索文章…'),
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 14,
@@ -781,7 +989,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
             FilledButton.icon(
               onPressed: () => openSiteLink(c.settings.siteUrl, '/editor'),
               icon: const Icon(CupertinoIcons.pencil, size: 16),
-              label: const Text('新建投稿', style: TextStyle(fontSize: 12)),
+              label: const SiteText('新建投稿', style: TextStyle(fontSize: 12)),
             ),
           ],
         ),
@@ -831,9 +1039,9 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
     child: c.account == null
         ? Column(
             children: [
-              const Text('登录后开放留言终端'),
+              const SiteText('登录后开放留言终端'),
               const SizedBox(height: 12),
-              FilledButton(onPressed: _login, child: const Text('去登录')),
+              FilledButton(onPressed: _login, child: const SiteText('去登录')),
             ],
           )
         : Column(
@@ -867,11 +1075,13 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
   Widget _message(Map m, {bool reply = false}) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: SiteCard(
+      key: ValueKey('site-message-${m['id']}'),
       padding: EdgeInsets.all(reply ? 14 : 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            key: _messageAnchorKeys.putIfAbsent('${m['id']}', GlobalKey.new),
             children: [
               SiteAvatar(
                 value: textOf(m, 'avatar', textOf(m, 'author_avatar')),
@@ -939,17 +1149,15 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 label: Text('回复 ${rowsOf(m['replies']).length}'),
               ),
               TextButton.icon(
-                onPressed: () async {
-                  await Clipboard.setData(
-                    ClipboardData(
-                      text:
-                          '${c.settings.siteUrl}${m['article_id'] != null ? '/articles/${m['article_id']}' : '/plaza'}#${m['article_id'] != null ? 'comment' : 'msg'}-${m['parent_id'] ?? m['id']}',
-                    ),
-                  );
-                  _toast('链接已复制');
-                },
+                onPressed: _copying
+                    ? null
+                    : () => _copyLink(
+                        '${m['article_id'] != null ? '/articles/${m['article_id']}' : '/plaza'}#${m['article_id'] != null ? 'comment' : 'msg'}-${m['id']}',
+                        '链接已复制',
+                        recordGrowth: false,
+                      ),
                 icon: const Icon(CupertinoIcons.link, size: 16),
-                label: const Text('复制链接'),
+                label: const SiteText('复制链接'),
               ),
             ],
           ),
@@ -976,7 +1184,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       ),
     ),
   );
-  Widget _plaza() {
+  List<Map<String, dynamic>> _plazaRows() {
     var rows = messageThreads(rowsOf(_payload['data']));
     rows.sort(
       (a, b) => textOf(b, 'created_at').compareTo(textOf(a, 'created_at')),
@@ -1003,6 +1211,11 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
     if (_sort == 'mine') {
       rows = rows.where((m) => '${m['user_id']}' == c.account?.id).toList();
     }
+    return rows;
+  }
+
+  Widget _plaza() {
+    final rows = _plazaRows();
     final wall = SiteCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1013,7 +1226,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 Row(
                   children: [
                     const Expanded(
-                      child: Text(
+                      child: SiteText(
                         '01  留言墙',
                         style: TextStyle(
                           fontSize: 18,
@@ -1026,7 +1239,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                     TextButton.icon(
                       onPressed: _loading ? null : _load,
                       icon: const Icon(CupertinoIcons.refresh, size: 16),
-                      label: const Text('刷新'),
+                      label: const SiteText('刷新'),
                     ),
                   ],
                 ),
@@ -1086,7 +1299,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    SiteText(
                       'TSUKUYOMI PLAZA',
                       style: TextStyle(
                         color: RoomStyle(context).accent,
@@ -1095,7 +1308,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                       ),
                     ),
                     SizedBox(height: box.maxWidth >= 900 ? 38 : 18),
-                    Text(
+                    SiteText(
                       '月读广场',
                       style: TextStyle(
                         fontSize: box.maxWidth < 650 ? 38 : 60,
@@ -1104,7 +1317,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    const SiteText(
                       '访客、创作者和路过的观测者在这里交换留言。问候、反馈和灵感都可以落在这里。',
                       style: TextStyle(height: 1.8),
                     ),
@@ -1120,7 +1333,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    const SiteText(
                       '当前频道                 公共留言墙',
                       style: TextStyle(fontSize: 12),
                     ),
@@ -1248,7 +1461,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            const SiteText(
               '热门话题',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
@@ -1271,7 +1484,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 32),
                 child: Center(
-                  child: Text(
+                  child: SiteText(
                     '还没有话题，试试发布 #月读茶会#',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12),
@@ -1286,7 +1499,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            const SiteText(
               '常驻访客',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
@@ -1318,12 +1531,12 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            SiteText(
               '留言约定',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             SizedBox(height: 14),
-            Text(
+            SiteText(
               '保持友好，避免刷屏和敏感信息。\n\n友链申请请使用上方独立入口，审核状态可随时查看。\n\n反馈问题时尽量写清页面、操作和现象。',
               style: TextStyle(height: 1.7),
             ),
@@ -1345,7 +1558,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
           child: TextButton.icon(
             onPressed: () => Navigator.pop(context),
             icon: const Icon(CupertinoIcons.back),
-            label: const Text('返回主舞台'),
+            label: const SiteText('返回主舞台'),
           ),
         ),
         SiteCard(
@@ -1365,6 +1578,9 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 content: textOf(a, 'content'),
                 format: textOf(a, 'content_format', 'html'),
                 site: c.settings.siteUrl,
+                onNavigate: _go,
+                initialAnchor: Uri.parse(widget.path).fragment,
+                headers: {if (c.site.cookie != null) 'Cookie': c.site.cookie!},
               ),
               const SizedBox(height: 30),
               Wrap(
@@ -1403,16 +1619,14 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                     label: Text(bookmarked ? '已收藏' : '收藏'),
                   ),
                   TextButton.icon(
-                    onPressed: () {
-                      Clipboard.setData(
-                        ClipboardData(
-                          text: '${c.settings.siteUrl}/articles/$articleId',
-                        ),
-                      );
-                      _toast('文章链接已复制');
-                    },
+                    onPressed: _copying
+                        ? null
+                        : () => _copyLink(
+                            '/articles/${Uri.encodeComponent(articleId)}',
+                            '文章链接已复制',
+                          ),
                     icon: const Icon(CupertinoIcons.link),
-                    label: const Text('复制链接'),
+                    label: const SiteText('复制链接'),
                   ),
                 ],
               ),
@@ -1433,18 +1647,158 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       'inviteCode',
     );
     if (invite.isEmpty) return;
-    await Clipboard.setData(
-      ClipboardData(
-        text:
-            '${c.settings.siteUrl}/register?invite=${Uri.encodeQueryComponent(invite)}&redirect=%2Fgrowth',
-      ),
+    await _copyLink(
+      '/register?invite=${Uri.encodeQueryComponent(invite)}&redirect=%2Fgrowth',
+      '邀请链接已复制',
+      reloadGrowth: true,
     );
-    _toast('邀请链接已复制');
-    if (await _write('POST', '/api/growth/actions/share', {
-          'platform': 'copy',
-        }) !=
-        null) {
-      await _load();
+  }
+
+  Future<void> _captureGrowthInvite() async {
+    final origin = endpointUri(c.settings.siteUrl).origin;
+    final code = (Uri.parse(pagePath).queryParameters['invite'] ?? '')
+        .trim()
+        .toUpperCase();
+    if (!RegExp(r'^[A-F0-9]{10}$').hasMatch(code)) return;
+    final source = '$origin:$code';
+    if (_growthInviteSource == source) return;
+    await c.storage.saveDraft('pending-referral:$origin', code);
+    _growthInviteSource = source;
+  }
+
+  Future<Map<String, dynamic>?> _claimGrowthInvite() async {
+    if (c.loading || c.account == null || c.sessionExpired) return null;
+    final owner = repo.scope;
+    final key = 'pending-referral:${endpointUri(c.settings.siteUrl).origin}';
+    final code = await c.storage.draft(key);
+    if (!mounted ||
+        owner != repo.scope ||
+        c.sessionExpired ||
+        !RegExp(r'^[A-F0-9]{10}$').hasMatch(code)) {
+      return null;
+    }
+    try {
+      final result = await repo.write('POST', '/api/growth/referrals/claim', {
+        'code': code,
+      });
+      if (!mounted || owner != repo.scope || c.sessionExpired) return null;
+      if (await c.storage.draft(key) == code &&
+          mounted &&
+          owner == repo.scope) {
+        await c.storage.saveDraft(key, '');
+      }
+      final state = mapOf(mapOf(result['data'])['state']);
+      return state.isEmpty ? null : state;
+    } on ApiFailure catch (e) {
+      if (mounted &&
+          owner == repo.scope &&
+          e.status != null &&
+          e.status! >= 400 &&
+          e.status! < 500 &&
+          await c.storage.draft(key) == code) {
+        await c.storage.saveDraft(key, '');
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _checkGrowthIn() async {
+    if (_working || _loading) return;
+    final result = await _write('POST', '/api/growth/check-in');
+    if (result == null || !mounted) return;
+    final award = mapOf(mapOf(result['data'])['award']);
+    _toast(
+      award['awarded'] == true
+          ? '+${award['xp'] ?? 0} 经验${(award['bonusXp'] as num? ?? 0) > 0 ? '，连续七日 +${award['bonusXp']}' : ''}'
+          : '签到成功',
+    );
+    await _load();
+  }
+
+  Future<void> _shareInvite() async {
+    if (_copying || _working) return;
+    final invite = textOf(
+      mapOf(mapOf(_payload['data'])['referral']),
+      'inviteCode',
+    );
+    if (invite.isEmpty) return;
+    final url = endpointUri(c.settings.siteUrl)
+        .resolve(
+          '/register?invite=${Uri.encodeQueryComponent(invite)}&redirect=%2Fgrowth',
+        )
+        .toString();
+    final owner = repo.scope;
+    setState(() => _copying = true);
+    try {
+      final box = context.findRenderObject() as RenderBox?;
+      ShareResultStatus status;
+      try {
+        status = (await SharePlus.instance.share(
+          ShareParams(
+            title: siteTranslate(context, '邀请同行者'),
+            text:
+                '${siteTranslate(context, '好友首次和八千代完成一轮聊天后，双方获得成长经验。')}\n$url',
+            sharePositionOrigin: box == null
+                ? null
+                : box.localToGlobal(Offset.zero) & box.size,
+          ),
+        )).status;
+      } catch (_) {
+        status = ShareResultStatus.unavailable;
+      }
+      if (!mounted ||
+          owner != repo.scope ||
+          status == ShareResultStatus.dismissed) {
+        return;
+      }
+      var recorded = false;
+      if (status == ShareResultStatus.unavailable) {
+        final copied = await _shares.copyLink(
+          url,
+          onCopied: () => _toast('邀请链接已复制'),
+        );
+        recorded = copied.growthRecorded;
+      } else if (c.account != null && !c.sessionExpired) {
+        try {
+          await repo.write('POST', '/api/growth/actions/share', {
+            'platform': 'native',
+          });
+          recorded = true;
+        } catch (_) {
+          /* A share succeeds independently of the optional XP side effect. */
+        }
+      }
+      if (mounted && owner == repo.scope && recorded) await _load();
+    } catch (_) {
+      if (mounted && owner == repo.scope) _toast('分享失败，请重试');
+    } finally {
+      if (mounted) setState(() => _copying = false);
+    }
+  }
+
+  Future<void> _copyLink(
+    String path,
+    String message, {
+    bool reloadGrowth = false,
+    bool recordGrowth = true,
+  }) async {
+    if (_copying) return;
+    final owner = repo.scope;
+    setState(() => _copying = true);
+    try {
+      final result = await _shares.copyLink(
+        endpointUri(c.settings.siteUrl).resolve(path).toString(),
+        recordGrowth: recordGrowth,
+        onCopied: () {
+          if (mounted && owner == repo.scope) _toast(message);
+        },
+      );
+      if (!mounted || owner != repo.scope) return;
+      if (reloadGrowth && result.growthRecorded) await _load();
+    } catch (_) {
+      if (mounted && owner == repo.scope) _toast('复制失败，请重试');
+    } finally {
+      if (mounted) setState(() => _copying = false);
     }
   }
 
@@ -1491,18 +1845,8 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
               ),
               const SizedBox(height: 18),
               FilledButton(
-                onPressed: checked || _working
-                    ? null
-                    : () async {
-                        final result = await _write(
-                          'POST',
-                          '/api/growth/check-in',
-                        );
-                        if (result != null) {
-                          _toast('签到成功');
-                          await _load();
-                        }
-                      },
+                key: const Key('growth-check-in'),
+                onPressed: checked || _working ? null : _checkGrowthIn,
                 child: Text(checked ? '今日已领取' : '每日签到'),
               ),
             ],
@@ -1525,21 +1869,28 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                   title: Text(textOf(task, 'label')),
                   subtitle: Text('+${task['xp'] ?? 0} 经验'),
                   trailing: task['completed'] == true
-                      ? const Text('已完成')
+                      ? const SiteText('已完成')
                       : TextButton(
-                          onPressed: () {
-                            if (task['key'] == 'daily_share') {
-                              _copyInvite();
-                              return;
-                            }
-                            final path = textOf(task, 'path');
-                            if (siteDestinations.containsKey(path)) {
-                              _go(path);
-                            } else {
-                              openSiteLink(c.settings.siteUrl, path);
-                            }
-                          },
-                          child: const Text('去完成'),
+                          key: Key('growth-task-${task['key']}'),
+                          onPressed: _working || _copying
+                              ? null
+                              : () {
+                                  if (task['key'] == 'checkin') {
+                                    _checkGrowthIn();
+                                    return;
+                                  }
+                                  if (task['key'] == 'daily_share') {
+                                    _shareInvite();
+                                    return;
+                                  }
+                                  final path = textOf(task, 'path');
+                                  if (siteDestinations.containsKey(path)) {
+                                    _go(path);
+                                  } else {
+                                    openSiteLink(c.settings.siteUrl, path);
+                                  }
+                                },
+                          child: const SiteText('去完成'),
                         ),
                 ),
             ],
@@ -1556,8 +1907,13 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 '已完成 ${mapOf(state['referral'])['qualifiedCount'] ?? 0} · 待首次聊天 ${mapOf(state['referral'])['pendingCount'] ?? 0}',
               ),
               OutlinedButton(
-                onPressed: _working ? null : _copyInvite,
-                child: const Text('复制邀请链接'),
+                onPressed: _working || _copying ? null : _copyInvite,
+                child: const SiteText('复制邀请链接'),
+              ),
+              OutlinedButton(
+                key: const Key('growth-share-invite'),
+                onPressed: _working || _copying ? null : _shareInvite,
+                child: const SiteText('直接分享'),
               ),
             ],
           ),
@@ -1690,7 +2046,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                     await c.sync();
                     await _load();
                   },
-                  child: const Text('立即同步'),
+                  child: const SiteText('立即同步'),
                 ),
               ],
             ),
@@ -1728,7 +2084,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
               FilledButton.icon(
                 onPressed: _memoryEditor,
                 icon: const Icon(CupertinoIcons.add),
-                label: const Text('添加记忆'),
+                label: const SiteText('添加记忆'),
               ),
             ],
           ),
@@ -1756,7 +2112,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                       children: [
                         TextButton(
                           onPressed: () => _memoryEditor(m),
-                          child: const Text('编辑'),
+                          child: const SiteText('编辑'),
                         ),
                         TextButton(
                           onPressed: () async {
@@ -1770,7 +2126,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                               }
                             }
                           },
-                          child: const Text('删除'),
+                          child: const SiteText('删除'),
                         ),
                       ],
                     ),
@@ -1802,6 +2158,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                     ),
                     format: 'markdown',
                     site: c.settings.siteUrl,
+                    onNavigate: _go,
                   ),
                 ],
               ),
@@ -1815,7 +2172,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                     _diaryCursors.removeLast();
                     _load();
                   },
-                  child: const Text('上一页'),
+                  child: const SiteText('上一页'),
                 ),
               if (mapOf(data)['nextCursor'] != null &&
                   '${mapOf(data)['nextCursor']}'.isNotEmpty)
@@ -1824,7 +2181,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                     _diaryCursors.add('${mapOf(data)['nextCursor']}');
                     _load();
                   },
-                  child: const Text('下一页'),
+                  child: const SiteText('下一页'),
                 ),
             ],
           ),
@@ -1879,16 +2236,16 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                           }) !=
                           null,
                     ),
-                    child: const Text('编辑资料'),
+                    child: const SiteText('编辑资料'),
                   ),
                   OutlinedButton(
                     onPressed: () => showRoomSettings(context, c),
-                    child: const Text('模型与语音设置'),
+                    child: const SiteText('模型与语音设置'),
                   ),
                   OutlinedButton(
                     onPressed: () =>
                         Navigator.pushNamed(context, '/notifications'),
-                    child: const Text('通知'),
+                    child: const SiteText('通知'),
                   ),
                   TextButton(
                     onPressed: () async {
@@ -1897,7 +2254,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                         if (mounted) _go('/stage');
                       }
                     },
-                    child: const Text('退出登录'),
+                    child: const SiteText('退出登录'),
                   ),
                 ],
               ),
@@ -1921,7 +2278,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                const SiteText(
                   '个人资料',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
                 ),
@@ -1974,26 +2331,218 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
     );
   }
 
+  String _notificationPath(int page) =>
+      '/api/user/notifications?limit=12&page=$page';
+
+  List<SiteNotification> _notificationItems(Map<String, dynamic> payload) {
+    final data = payload['data'];
+    return rowsOf(data is List ? data : mapOf(data)['items'])
+        .map((item) => SiteNotification(Map<String, dynamic>.from(item)))
+        .toList();
+  }
+
+  Future<bool> _markNotificationRead(SiteNotification item) async {
+    if (!item.unread) return true;
+    if (_working || _notificationBusy || item.id.isEmpty) return false;
+    final owner = repo.scope;
+    setState(() => _notificationBusy = true);
+    try {
+      final result = await _write(
+        'POST',
+        '/api/user/notifications/${Uri.encodeComponent(item.id)}/read',
+      );
+      if (result == null || !mounted || owner != repo.scope) return false;
+      await _applyNotificationRead(result, owner: owner, item: item);
+      return mounted && owner == repo.scope;
+    } finally {
+      if (mounted && owner == repo.scope) {
+        setState(() => _notificationBusy = false);
+      }
+    }
+  }
+
+  Future<void> _openNotification(SiteNotification item) async {
+    final owner = repo.scope;
+    if (await _markNotificationRead(item) &&
+        mounted &&
+        owner == repo.scope &&
+        ModalRoute.of(context)?.isCurrent == true &&
+        item.link.isNotEmpty) {
+      _go(item.link);
+    }
+  }
+
+  Future<void> _markAllNotificationsRead() async {
+    if (_working || _notificationBusy) return;
+    final owner = repo.scope;
+    setState(() => _notificationBusy = true);
+    try {
+      final result = await _write('POST', '/api/user/notifications/read-all');
+      if (result == null || !mounted || owner != repo.scope) return;
+      await _applyNotificationRead(result, owner: owner);
+    } finally {
+      if (mounted && owner == repo.scope) {
+        setState(() => _notificationBusy = false);
+      }
+    }
+  }
+
+  Future<void> _applyNotificationRead(
+    Map<String, dynamic> result, {
+    required String owner,
+    SiteNotification? item,
+  }) async {
+    final items = _notificationItems(_payload);
+    final all = item == null;
+    final unread = all
+        ? notificationUnreadCount(mapOf(result['data'])['count'] ?? 0, [])
+        : notificationUnreadCount(
+            result['unread'] ??
+                (notificationUnreadCount(_payload['unread'], items) - 1),
+            [],
+          );
+    publishSiteUnread(context, unread);
+    Map<String, dynamic> update(Map<String, dynamic> payload) => {
+      ...payload,
+      'unread': unread,
+      'data': [
+        for (final row in _notificationItems(payload))
+          if (all || row.id == item.id)
+            row.read(response: all ? null : mapOf(result['data']))
+          else
+            row.data,
+      ],
+    };
+    // Ignore a GET started before the mutation; it can contain the old state.
+    _request++;
+    setState(() {
+      _payload = update(_payload);
+      _loading = false;
+    });
+    final snapshot = Map<String, dynamic>.from(_payload), page = _page;
+    final totalPages =
+        (mapOf(snapshot['pagination'])['totalPages'] as num? ?? 1).toInt();
+    try {
+      await c.storage.saveDraft(
+        'site-cache:$owner:${_notificationPath(page)}',
+        jsonEncode(snapshot),
+      );
+      // Keep already visited pages consistent if a later refresh is offline.
+      for (var otherPage = 1; otherPage <= totalPages; otherPage++) {
+        if (owner != repo.scope) return;
+        if (otherPage == page) continue;
+        final path = _notificationPath(otherPage);
+        final saved = await repo.cached(path, private: true);
+        if (saved == null || owner != repo.scope) continue;
+        await c.storage.saveDraft(
+          'site-cache:$owner:$path',
+          jsonEncode(update(saved.payload)),
+        );
+      }
+    } catch (_) {
+      if (mounted && owner == repo.scope) {
+        setState(() => _notice = '已读状态已同步，本机缓存暂未保存');
+      }
+    }
+  }
+
   Widget _notifications() {
-    final data = _payload['data'];
-    final rows = rowsOf(data is List ? data : mapOf(data)['items']);
+    final rows = _notificationItems(_payload);
+    final unread = notificationUnreadCount(_payload['unread'], rows);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _heading('通知', '来自月读空间的最新消息'),
+        _heading('站内信', '这里会收纳你收到的回复、点赞和互动提醒。'),
+        Wrap(
+          spacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('未读 $unread', key: const ValueKey('notification-count')),
+            OutlinedButton(
+              onPressed: unread > 0 && !_working && !_notificationBusy
+                  ? _markAllNotificationsRead
+                  : null,
+              child: const SiteText('全部已读'),
+            ),
+            TextButton(
+              onPressed: _loading || _working || _notificationBusy
+                  ? null
+                  : _load,
+              child: const SiteText('刷新'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
         for (final item in rows)
-          ListTile(
-            title: Text(textOf(item, 'title')),
-            subtitle: Text(textOf(item, 'content')),
-            trailing: item['is_read'] == 1 || item['is_read'] == true
-                ? null
-                : const Icon(CupertinoIcons.circle_fill, size: 8),
-            onTap: () async {
-              await _write(
-                'POST',
-                '/api/user/notifications/${item['id']}/read',
-              );
-              if (mounted) await _load();
-            },
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: SiteCard(
+              child: InkWell(
+                key: ValueKey('notification-${item.id}'),
+                onTap: _working || _notificationBusy
+                    ? null
+                    : () => _openNotification(item),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (item.unread)
+                          Semantics(
+                            label: '未读',
+                            child: Icon(
+                              CupertinoIcons.circle_fill,
+                              key: ValueKey('notification-unread-${item.id}'),
+                              size: 8,
+                              color: RoomStyle(context).accent,
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (item.data['created_at'] != null)
+                      Text(
+                        dateText(item.data['created_at']),
+                        style: TextStyle(color: RoomStyle(context).muted),
+                      ),
+                    const SizedBox(height: 8),
+                    Text(item.content),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (item.link.isNotEmpty)
+                          TextButton(
+                            onPressed: _working || _notificationBusy
+                                ? null
+                                : () => _openNotification(item),
+                            child: const SiteText('查看'),
+                          ),
+                        if (item.unread)
+                          TextButton(
+                            key: ValueKey('notification-mark-${item.id}'),
+                            onPressed: _working || _notificationBusy
+                                ? null
+                                : () => _markNotificationRead(item),
+                            child: const SiteText('标为已读'),
+                          )
+                        else
+                          const SiteText('已读'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         _pager(
           (mapOf(_payload['pagination'])['totalPages'] as num? ?? 1).toInt(),
@@ -2031,6 +2580,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                   child: SiteHeader(
                     title: title,
                     username: c.account?.username,
+                    role: c.sessionExpired ? null : c.account?.role,
                     onGo: _go,
                     onTheme: widget.onTheme,
                     onLogin: () {
@@ -2044,9 +2594,12 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 ),
                 if (c.sessionExpired)
                   MaterialBanner(
-                    content: const Text('登录已过期，草稿和缓存仍在。重新登录后继续同步。'),
+                    content: const SiteText('登录已过期，草稿和缓存仍在。重新登录后继续同步。'),
                     actions: [
-                      TextButton(onPressed: _login, child: const Text('重新登录')),
+                      TextButton(
+                        onPressed: _login,
+                        child: const SiteText('重新登录'),
+                      ),
                     ],
                   ),
                 if (_notice.isNotEmpty)
@@ -2060,7 +2613,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                         Expanded(child: Text(_notice)),
                         TextButton(
                           onPressed: _loading ? null : _load,
-                          child: const Text('重试'),
+                          child: const SiteText('重试'),
                         ),
                       ],
                     ),
@@ -2070,6 +2623,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                   child: RefreshIndicator(
                     onRefresh: _load,
                     child: SingleChildScrollView(
+                      controller: _scroll,
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: EdgeInsets.fromLTRB(
                         MediaQuery.sizeOf(context).width < 650 ? 14 : 20,
@@ -2100,12 +2654,12 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                                         children: [
                                           FilledButton(
                                             onPressed: _load,
-                                            child: const Text('重试'),
+                                            child: const SiteText('重试'),
                                           ),
                                           if (privatePage || c.sessionExpired)
                                             OutlinedButton(
                                               onPressed: _login,
-                                              child: const Text('登录'),
+                                              child: const SiteText('登录'),
                                             ),
                                         ],
                                       ),
@@ -2123,6 +2677,8 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                                         '/notifications' => _notifications(),
                                         _ => _articles(),
                                       },
+                              const SizedBox(height: 24),
+                              SiteBeianFooter(path: widget.path),
                             ],
                           ),
                         ),

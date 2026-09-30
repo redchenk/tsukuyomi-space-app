@@ -1,7 +1,9 @@
 name: Flutter prototype
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,7 +23,7 @@ jobs:
       - run: flutter pub get
       - run: dart format --output=none --set-exit-if-changed lib test packages/tsukuyomi_live2d/lib packages/tsukuyomi_live2d/hook
       - run: flutter analyze
-      - run: flutter test
+      - run: flutter test --concurrency=1
       - run: flutter build web
   native-shells:
     needs: quality
@@ -50,11 +52,19 @@ jobs:
           channel: stable
           cache: true
       - if: matrix.target == 'linux'
-        run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsecret-1-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+        run: bash tool/release/setup_linux.sh
+      - if: matrix.target == 'windows'
+        uses: NuGet/setup-nuget@v2
+      - if: matrix.target == 'macos'
+        run: |
+          if ! command -v pod >/dev/null; then brew install cocoapods; fi
+          pod --version
       - if: matrix.target == 'android'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+      - if: matrix.target == 'android'
+        run: bash tool/release/setup_android.sh
       - run: flutter pub get
       - run: ${{ matrix.command }}

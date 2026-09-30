@@ -7,7 +7,8 @@ from pathlib import Path
 
 SYSTEM_LIBS = {'libc.so', 'libm.so', 'libdl.so', 'liblog.so', 'libandroid.so',
                'libz.so', 'libEGL.so', 'libGLESv2.so', 'libGLESv3.so',
-               'libOpenSLES.so', 'libvulkan.so', 'libjnigraphics.so'}
+               'libOpenSLES.so', 'libvulkan.so', 'libjnigraphics.so',
+               'libmediandk.so', 'libaaudio.so', 'libOpenMAXAL.so'}
 
 def needed(data):
     if data[:4] != b'\x7fELF':

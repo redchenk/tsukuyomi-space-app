@@ -1,3 +1,5 @@
+import '../../core/site_localization.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -9,6 +11,15 @@ import '../../core/models.dart';
 import '../../core/room_reference.dart';
 import 'room_controller.dart';
 
+class SiteMusicScope extends InheritedWidget {
+  const SiteMusicScope({super.key, required this.music, required super.child});
+  final RoomMusic music;
+  static RoomMusic? maybeOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<SiteMusicScope>()?.music;
+  @override
+  bool updateShouldNotify(SiteMusicScope oldWidget) => oldWidget.music != music;
+}
+
 class RoomMusic extends ChangeNotifier {
   RoomMusic(this.c);
   final RoomController c;
@@ -17,9 +28,27 @@ class RoomMusic extends ChangeNotifier {
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   bool playing = false, loading = false, _disposed = false;
   int index = 0;
-  double volume = .35;
+  double volume = .72;
   Duration position = Duration.zero, duration = Duration.zero;
   String error = '';
+  bool _suspended = false, _resumeAfterSuspend = false;
+  Future<void> suspend(bool value) async {
+    if (_disposed || value == _suspended) return;
+    _suspended = value;
+    try {
+      if (value) {
+        _resumeAfterSuspend = playing || loading;
+        await _player?.pause();
+      } else if (_resumeAfterSuspend) {
+        _resumeAfterSuspend = false;
+        await _player?.resume();
+      }
+    } catch (_) {
+      error = '音乐暂停或恢复失败，请点击播放重试';
+    }
+    _changed();
+  }
+
   void _changed() {
     if (!_disposed) notifyListeners();
   }
@@ -30,7 +59,7 @@ class RoomMusic extends ChangeNotifier {
       if (saved.isNotEmpty) {
         final value = jsonDecode(saved) as Map;
         index = (value['index'] as int? ?? 0).clamp(0, tracks.length - 1);
-        volume = (value['volume'] as num? ?? .35).toDouble().clamp(0, 1);
+        volume = (value['volume'] as num? ?? .72).toDouble().clamp(0, 1);
       }
     } catch (_) {
       error = '音乐偏好读取失败，使用默认设置';
@@ -63,7 +92,7 @@ class RoomMusic extends ChangeNotifier {
     return p;
   }
 
-  Future<void> select(int value) async {
+  Future<void> select(int value, {bool play = true}) async {
     if (loading || _disposed) return;
     loading = true;
     error = '';
@@ -75,9 +104,20 @@ class RoomMusic extends ChangeNotifier {
         '/assets/music/${Uri.encodeComponent('${tracks[index]['file']}')}',
       );
       await player.stop();
-      await player
-          .play(UrlSource(uri.toString()), volume: volume)
-          .timeout(const Duration(seconds: 30));
+      if (play) {
+        await player
+            .play(UrlSource(uri.toString()), volume: volume)
+            .timeout(const Duration(seconds: 30));
+      } else {
+        await player
+            .setSourceUrl(uri.toString())
+            .timeout(const Duration(seconds: 30));
+        await player.setVolume(volume);
+      }
+      if (_suspended) {
+        _resumeAfterSuspend = play;
+        await player.pause();
+      }
       await _persist();
     } catch (_) {
       error = '音乐加载失败，检查网络后点击播放重试';
@@ -153,7 +193,7 @@ Future<void> showRoomMusic(
               Row(
                 children: [
                   const Expanded(
-                    child: Text('房间音乐', style: TextStyle(fontSize: 22)),
+                    child: SiteText('房间音乐', style: TextStyle(fontSize: 22)),
                   ),
                   IconButton(
                     tooltip: '关闭音乐面板',
@@ -186,7 +226,10 @@ Future<void> showRoomMusic(
                     tooltip: '上一曲',
                     onPressed: music.loading
                         ? null
-                        : () => music.select(music.index - 1),
+                        : () => music.select(
+                            music.index - 1,
+                            play: music.playing,
+                          ),
                     icon: const Icon(CupertinoIcons.backward_end),
                   ),
                   IconButton(
@@ -208,7 +251,10 @@ Future<void> showRoomMusic(
                     tooltip: '下一曲',
                     onPressed: music.loading
                         ? null
-                        : () => music.select(music.index + 1),
+                        : () => music.select(
+                            music.index + 1,
+                            play: music.playing,
+                          ),
                     icon: const Icon(CupertinoIcons.forward_end),
                   ),
                 ],

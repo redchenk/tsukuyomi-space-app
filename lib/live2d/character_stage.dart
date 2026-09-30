@@ -56,16 +56,21 @@ class _CharacterStageState extends State<CharacterStage>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   Live2DModel? _model;
   final _captureKey = GlobalKey(), _fullCaptureKey = GlobalKey();
+  final _sceneRevision = ValueNotifier<int>(0);
   String? _failure;
   late final Ticker _ticker;
   Duration _last = Duration.zero;
   double _seconds = 0, _x = 0, _y = 0;
   bool _paused = false;
+  bool _visible = true;
   String _expression = 'neutral';
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _visible =
+        WidgetsBinding.instance.lifecycleState == null ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     _ticker = createTicker((elapsed) {
       if (_last == Duration.zero) {
         _last = elapsed;
@@ -92,46 +97,64 @@ class _CharacterStageState extends State<CharacterStage>
   }
 
   Future<void> _load() async {
-    setState(() => _failure = null);
+    if (!mounted) return;
+    _updateScene(() => _failure = null);
     try {
       final model = await (widget.modelLoader ?? loadLive2D)();
       if (!mounted) {
         model.dispose();
         return;
       }
-      setState(() => _model = model);
+      _updateScene(() => _model = model);
       if (widget.animation != null) widget.animation!.ready = true;
       widget.onReady?.call(true);
-      _ticker.start();
+      _syncTicker();
     } catch (e) {
-      if (mounted) setState(() => _failure = e.toString());
+      if (mounted) _updateScene(() => _failure = e.toString());
     }
   }
 
   void _toggleMotion() {
-    setState(() => _paused = !_paused);
-    if (_paused) {
-      _ticker.stop();
-    } else if (_model != null) {
+    _updateScene(() => _paused = !_paused);
+    _syncTicker();
+  }
+
+  void _updateScene(VoidCallback update) {
+    if (!mounted) return;
+    setState(update);
+    _sceneRevision.value++;
+  }
+
+  void _syncTicker() {
+    if (!mounted) return;
+    if (_visible && !_paused && _model != null) {
       _last = Duration.zero;
-      _ticker.start();
+      if (!_ticker.isActive) _ticker.start();
+    } else {
+      _ticker.stop();
     }
   }
 
   @override
+  void didUpdateWidget(covariant CharacterStage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // The fullscreen route is outside this widget's subtree.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _sceneRevision.value++;
+    });
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && !_paused && _model != null) {
-      _last = Duration.zero;
-      if (!_ticker.isActive) _ticker.start();
-    } else if (state != AppLifecycleState.resumed) {
-      _ticker.stop();
-    }
+    _visible = state == AppLifecycleState.resumed;
+    _syncTicker();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _ticker.dispose();
+    _sceneRevision.dispose();
     if (widget.animation != null) widget.animation!.ready = false;
     _model?.dispose();
     super.dispose();
@@ -566,7 +589,7 @@ class _CharacterStageState extends State<CharacterStage>
                     'durationMs': 5000,
                   });
                 } else {
-                  setState(() => _expression = v);
+                  _updateScene(() => _expression = v);
                 }
               },
               itemBuilder: (_) => [
@@ -638,10 +661,13 @@ class _CharacterStageState extends State<CharacterStage>
                   ? () => Navigator.pop(context)
                   : () => showDialog<void>(
                       context: context,
-                      builder: (_) => Dialog.fullscreen(
-                        child: RepaintBoundary(
-                          key: _fullCaptureKey,
-                          child: _scene(expanded: true),
+                      builder: (_) => AnimatedBuilder(
+                        animation: _sceneRevision,
+                        builder: (_, _) => Dialog.fullscreen(
+                          child: RepaintBoundary(
+                            key: _fullCaptureKey,
+                            child: _scene(expanded: true),
+                          ),
                         ),
                       ),
                     ),

@@ -40,10 +40,13 @@ void main() {
       await tester.tap(find.text('验证码登录'));
       await tester.pumpAndSettle();
       expect(find.text('发送验证码'), findsOneWidget);
-      await tester.ensureVisible(find.text('注册'));
-      await tester.tap(find.text('注册'));
+      await tester.ensureVisible(find.text('还没有账号，去注册'));
+      await tester.tap(find.text('还没有账号，去注册'));
       await tester.pumpAndSettle();
-      expect(find.text('加入月读空间'), findsOneWidget);
+      expect(find.byKey(const Key('auth-confirm')), findsOneWidget);
+      await tester.ensureVisible(find.text('已有账号，去登录'));
+      await tester.tap(find.text('已有账号，去登录'));
+      await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('忘记密码'));
       await tester.tap(find.text('忘记密码'));
       await tester.pumpAndSettle();

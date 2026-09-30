@@ -2,6 +2,12 @@ name: Mobile native model smoke
 on:
   workflow_dispatch:
   workflow_call:
+    inputs:
+      ref:
+        description: Exact source commit chosen by the release workflow
+        required: false
+        type: string
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -10,10 +16,13 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+      - run: bash tool/release/setup_android.sh
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.47.5'
@@ -25,8 +34,10 @@ jobs:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" && test -n "$ANDROID_KEYSTORE_PASSWORD"
           export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/release.jks"
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
+          chmod 600 "$ANDROID_KEYSTORE_PATH"
           trap 'rm -f "$ANDROID_KEYSTORE_PATH"' EXIT
           flutter build apk --release --target-platform android-x64 -t tool/verify_mobile_live2d.dart
       - name: Release build daemon memory

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../core/models.dart';
 import '../core/room_archive.dart';
 import '../core/room_reference.dart';
+import 'live2d_semantics.dart';
 
 class RoomAnimation extends ChangeNotifier {
   final List<Map<String, dynamic>> queue = [], history = [];
@@ -13,6 +14,8 @@ class RoomAnimation extends ChangeNotifier {
   bool ready = false;
   String expression = 'neutral', status = 'idle';
   final Map<String, double> parameters = {};
+  Map<String, double> _blendFrom = {};
+  bool _started = false;
   Map<String, dynamic> get debug => {
     'status': status,
     'ready': ready,
@@ -23,8 +26,31 @@ class RoomAnimation extends ChangeNotifier {
     'history': history,
   };
   void enqueue(Map<String, dynamic> intent) {
-    final duration = (intent['durationMs'] as num? ?? 5000).clamp(800, 12000);
-    queue.add({...intent, 'durationMs': duration});
+    final step = Live2DSemantics.step(intent);
+    if (step == null) return;
+    if (current != null) {
+      final next = jsonMap(step['interruptPolicy']),
+          previous = jsonMap(current!['interruptPolicy']);
+      final mode = next['mode'];
+      final interrupt =
+          mode == 'replace' ||
+          (mode != 'queue' &&
+              mode != 'ignore' &&
+              !(previous['mode'] == 'protect' &&
+                  elapsed < (previous['minHoldMs'] as num)) &&
+              (elapsed >= (current!['durationMs'] as num) * .58 ||
+                  (step['priority'] as num) >= (current!['priority'] as num)));
+      if (interrupt) {
+        _blendFrom = Map.of(parameters);
+        current = null;
+        queue.insert(0, step);
+      } else if (mode != 'ignore') {
+        queue.add(step);
+      }
+    } else {
+      queue.add(step);
+    }
+    if (queue.length > 32) queue.removeLast();
     status = ready ? 'queued' : 'pending';
     notifyListeners();
   }
@@ -33,6 +59,8 @@ class RoomAnimation extends ChangeNotifier {
     queue.clear();
     current = null;
     elapsed = 0;
+    _started = false;
+    _blendFrom = {};
     parameters.clear();
     expression = 'neutral';
     x = y = rotation = 0;
@@ -42,31 +70,23 @@ class RoomAnimation extends ChangeNotifier {
   }
 
   void react(String text) {
-    final emotion = RegExp(r'难过|哭|泪|伤心').hasMatch(text)
-        ? 'tears'
-        : RegExp(r'害羞|脸红|不好意思').hasMatch(text)
-        ? 'bsmile'
-        : RegExp(r'开心|哈哈|太好了|嘿嘿|～|♪').hasMatch(text)
-        ? 'smile'
-        : 'neutral';
-    enqueue({
-      'expression': emotion,
-      'motion': emotion == 'tears'
-          ? 'lean_in'
-          : emotion == 'smile'
-          ? 'nod'
-          : 'sway',
-      'durationMs': 3200,
-    });
+    enqueue(Live2DSemantics.infer(text));
   }
 
   void advance(double delta) {
     if (!ready) return;
     if (current == null && queue.isNotEmpty) {
       current = queue.removeAt(0);
-      elapsed = 0;
-      expression = '${current!['expression'] ?? 'neutral'}';
+      elapsed = -(current!['delayMs'] as num).toDouble();
+      _started = false;
       status = 'playing';
+    }
+    if (current == null) return;
+    elapsed += delta * 1000;
+    if (elapsed < 0) return;
+    if (!_started) {
+      _started = true;
+      expression = '${current!['expression'] ?? 'neutral'}';
       history.insert(0, {
         ...current!,
         'startedAt': DateTime.now().toIso8601String(),
@@ -74,8 +94,6 @@ class RoomAnimation extends ChangeNotifier {
       if (history.length > 20) history.removeLast();
       notifyListeners();
     }
-    if (current == null) return;
-    elapsed += delta * 1000;
     final duration = (current!['durationMs'] as num).toDouble();
     final t = (elapsed / duration).clamp(0.0, 1.0);
     double ease(double value) {
@@ -88,25 +106,70 @@ class RoomAnimation extends ChangeNotifier {
         : t > .84
         ? ease((1 - t) / .16)
         : 1.0;
-    final e =
-            envelope *
-            (current!['intensity'] as num? ?? 1).toDouble().clamp(.5, 1),
-        fast = math.sin(t * math.pi * 4),
-        slow = math.sin(t * math.pi * 2),
-        beat = math.sin(t * math.pi * 2).abs();
     parameters.clear();
-    final preset = RoomReference.rows('expressions')
-        .where((v) => v['id'] == expression)
-        .firstOrNull;
-    for (final p in jsonRows(preset?['cubism'])) {
-      parameters['${p['id']}'] = (p['value'] as num).toDouble();
+    for (final layer in jsonRows(current!['expressionMix'])) {
+      final definition = RoomReference.rows('expressions')
+          .where((e) => e['id'] == layer['expression'])
+          .firstOrNull;
+      for (final p in jsonRows(definition?['cubism'])) {
+        final id = '${p['id']}';
+        parameters[id] =
+            (parameters[id] ?? 0) +
+            (p['value'] as num).toDouble() *
+                (layer['weight'] as num).toDouble();
+      }
     }
     // Semantic expressions that have no separate .exp3 file are applied through the rig.
     if (['closed_smile', 'closed_eyes'].contains(expression)) {
       parameters.addAll({'ParamEyeLOpen': 0, 'ParamEyeROpen': 0});
     }
     if (expression.contains('wink')) parameters['ParamEyeROpen'] = 0;
-    final motion = '${current!['motion'] ?? current!['bodyPose'] ?? ''}';
+    final active = jsonRows(current!['behaviorActions'])
+        .where(
+          (a) =>
+              elapsed >= (a['delayMs'] as num) &&
+              elapsed <= (a['delayMs'] as num) + (a['durationMs'] as num),
+        )
+        .toList();
+    final body =
+        active
+            .where(
+              (a) => Live2DSemantics.definition(a['type'])?['bodyPose'] != null,
+            )
+            .toList()
+          ..sort(
+            (a, b) =>
+                ((Live2DSemantics.definition(b['type'])?['vtsPriority']
+                                as num? ??
+                            0) *
+                        (b['intensity'] as num))
+                    .compareTo(
+                      (Live2DSemantics.definition(a['type'])?['vtsPriority']
+                                  as num? ??
+                              0) *
+                          (a['intensity'] as num),
+                    ),
+          );
+    final dominant = body.firstOrNull;
+    final phase = dominant == null
+        ? t
+        : ((elapsed - (dominant['delayMs'] as num)) /
+                  (dominant['durationMs'] as num))
+              .clamp(0.0, 1.0);
+    final bodyEnvelope = phase < .28
+        ? ease(phase / .28)
+        : phase > .76
+        ? ease((1 - phase) / .24)
+        : 1.0;
+    final e =
+        (dominant == null ? envelope : bodyEnvelope) *
+        (dominant?['intensity'] as num? ?? current!['intensity'] as num)
+            .toDouble();
+    final fast = math.sin(phase * math.pi * 4),
+        slow = math.sin(phase * math.pi * 2),
+        beat = math.sin(phase * math.pi * 2).abs();
+    final motion =
+        '${dominant == null ? current!['bodyPose'] ?? '' : Live2DSemantics.definition(dominant['type'])?['bodyPose']}';
     x = y = rotation = 0;
     scale = 1;
     switch (motion) {
@@ -150,32 +213,24 @@ class RoomAnimation extends ChangeNotifier {
         rotation = -1.2 * slow * e;
         scale = 1 + .012 * math.sin(t * math.pi).abs() * e;
     }
-    for (final action in [
-      ...jsonRows(preset?['actions']),
-      ...jsonRows(current!['actions']),
-    ]) {
-      final definition = RoomReference.rows('actions')
-          .where((v) => v['id'] == action['type'])
-          .firstOrNull;
-      for (final p in jsonRows(definition?['parameters'])) {
-        final delay = (action['delay'] as num? ?? 0) * 1000;
-        final duration =
-            (action['duration'] as num? ??
-                (definition?['defaultDurationMs'] as num? ?? 1600) / 1000) *
-            1000;
-        final progress = ((elapsed - delay) / duration).clamp(0.0, 1.0);
-        if (elapsed < delay || progress >= 1) continue;
-        final amount = math.sin(progress * math.pi);
-        parameters['${p['id']}'] =
-            (p['value'] as num? ?? p['min'] as num? ?? 0).toDouble() * amount;
+    for (final action in active) {
+      for (final p in Live2DSemantics.targets(action)) {
+        _applyTarget(p, ease);
       }
     }
     for (final p in jsonRows(current!['parameters'])) {
-      final id = '${p['id']}';
-      final value = p['value'];
-      if (value is num && value.isFinite) {
-        parameters[id] = value.toDouble().clamp(-100, 100);
+      _applyTarget(p, ease);
+    }
+    if (_blendFrom.isNotEmpty) {
+      final blendMs = (jsonMap(current!['interruptPolicy'])['blendInMs'] as num)
+          .toDouble();
+      final weight = blendMs <= 0 ? 1.0 : ease(elapsed / blendMs);
+      for (final id in {..._blendFrom.keys, ...parameters.keys}) {
+        parameters[id] =
+            (_blendFrom[id] ?? 0) * (1 - weight) +
+            (parameters[id] ?? 0) * weight;
       }
+      if (weight >= 1) _blendFrom = {};
     }
     if (t >= 1) {
       current = null;
@@ -190,12 +245,36 @@ class RoomAnimation extends ChangeNotifier {
 
   void custom(dynamic value) {
     if (value is! Map) throw const ApiFailure('Live2D 指令必须是 JSON 对象');
-    if (value['sequence'] is List) {
-      for (final item in jsonRows(value['sequence']).take(30)) {
-        enqueue(item);
-      }
-    } else {
-      enqueue(jsonMap(value));
+    final sequence = Live2DSemantics.sequence(jsonMap(value));
+    if (sequence.isEmpty) throw const ApiFailure('没有可执行的 Live2D 表情、语义动作或参数');
+    for (var i = 0; i < sequence.length; i++) {
+      final step = sequence[i];
+      enqueue({
+        ...step,
+        if (i > 0)
+          'interruptPolicy': {
+            ...jsonMap(step['interruptPolicy']),
+            'mode': 'queue',
+          },
+      });
     }
+  }
+
+  void _applyTarget(Map<String, dynamic> p, double Function(double) ease) {
+    final delay = (p['delayMs'] as num).toDouble(),
+        duration = (p['durationMs'] as num).toDouble();
+    if (elapsed < delay || elapsed > delay + duration) return;
+    final progress = ((elapsed - delay) / duration).clamp(0.0, 1.0);
+    final envelope = progress < .28
+        ? ease(progress / .28)
+        : progress > .76
+        ? ease((1 - progress) / .24)
+        : 1.0;
+    final id = '${p['id']}', value = (p['value'] as num).toDouble();
+    final baseline =
+        parameters[id] ??
+        (id == 'ParamEyeLOpen' || id == 'ParamEyeROpen' ? 1 : 0);
+    final weight = (p['weight'] as num? ?? 1).toDouble().clamp(0, 1) * envelope;
+    parameters[id] = (baseline + (value - baseline) * weight).clamp(-100, 100);
   }
 }

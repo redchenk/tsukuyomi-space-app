@@ -1,3 +1,5 @@
+import '../../core/site_localization.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -6,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/models.dart';
+import '../../core/site_routes.dart';
 import '../../core/llm_client.dart';
 import '../../core/room_protocol.dart';
 import '../../core/room_reference.dart';
@@ -17,6 +20,7 @@ import '../room/room_navigation.dart';
 import '../room/room_search.dart';
 import '../room/room_diary_panel.dart';
 import '../site/site_widgets.dart';
+import '../site/site_navigation.dart';
 import '../site/login_dialog.dart';
 import 'room_memory_manager.dart';
 
@@ -79,16 +83,21 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     c.addListener(_controllerChanged);
   }
 
-  void _go(String path) {
-    if (path == '/room') {
-      _leave();
+  Future<void> _go(String path) async {
+    if (busy) return;
+    final target = resolveSiteTarget(c.settings.siteUrl, path);
+    if (target.nativePath != null &&
+        Uri.parse(target.nativePath!).path == '/room') {
+      await _leave(returnToRoom: true);
       return;
     }
-    if (path == '/wiki' || path == '/hub') {
-      openSiteLink(c.settings.siteUrl, path);
-      return;
+    // A later Room shortcut can remove this settings route from the stack.
+    // Resolve unsaved edits before navigating to another native page.
+    if (target.nativePath != null && dirty) {
+      if (!await _confirmLeave() || !mounted) return;
+      setState(_restore);
     }
-    Navigator.of(context).pushNamed(path);
+    if (mounted) await navigateSite(context, c, path);
   }
 
   void _controllerChanged() {
@@ -245,31 +254,39 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     }
   }
 
-  Future<void> _leave() async {
-    if (busy) return;
+  Future<bool> _confirmLeave() async {
     if (dirty) {
       final result = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('设置尚未保存'),
-          content: const Text('离开会丢失尚未保存的修改。'),
+          title: const SiteText('设置尚未保存'),
+          content: const SiteText('离开会丢失尚未保存的修改。'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('继续编辑'),
+              child: const SiteText('继续编辑'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('放弃并离开'),
+              child: const SiteText('放弃并离开'),
             ),
           ],
         ),
       );
-      if (result != true) return;
+      if (result != true) return false;
     }
+    return true;
+  }
+
+  Future<void> _leave({bool returnToRoom = false}) async {
+    if (busy || !await _confirmLeave()) return;
     if (mounted) {
       setState(() => allowPop = true);
-      Navigator.pop(context);
+      if (returnToRoom) {
+        Navigator.popUntil(context, (route) => route.isFirst);
+      } else {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -496,7 +513,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           ],
         ),
         const SizedBox(height: 24),
-        const Text('服务商', style: TextStyle(fontWeight: FontWeight.w600)),
+        const SiteText('服务商', style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 12),
         LayoutBuilder(
           builder: (context, box) {
@@ -518,8 +535,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 ),
               DropdownButtonFormField<String>(
                 isExpanded: true,
-                decoration: const InputDecoration(
-                  hintText: '更多服务商',
+                decoration: InputDecoration(
+                  hintText: siteTranslate(context, '更多服务商'),
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: 14,
@@ -563,12 +580,15 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         Row(
           children: [
             const Expanded(
-              child: Text('模型', style: TextStyle(fontWeight: FontWeight.w600)),
+              child: SiteText(
+                '模型',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
             TextButton.icon(
               onPressed: busy ? null : () => _run(_catalog),
               icon: const Icon(CupertinoIcons.refresh, size: 15),
-              label: const Text('刷新模型'),
+              label: const SiteText('刷新模型'),
             ),
           ],
         ),
@@ -576,7 +596,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         if (catalog.isNotEmpty)
           DropdownButtonFormField<String>(
             isExpanded: true,
-            decoration: const InputDecoration(labelText: '同步模型目录'),
+            decoration: InputDecoration(
+              labelText: siteTranslate(context, '同步模型目录'),
+            ),
             items: catalog
                 .where(
                   (v) => '${v['id']}'.toLowerCase().contains(
@@ -595,8 +617,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           ),
         ExpansionTile(
           tilePadding: EdgeInsets.zero,
-          title: const Text('高级连接设置'),
-          subtitle: const Text(
+          title: const SiteText('高级连接设置'),
+          subtitle: const SiteText(
             'API 端点 · 图片理解 · 代理 · 补充指令',
             style: TextStyle(fontSize: 11),
           ),
@@ -617,7 +639,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             _field('siteUrl', '月读空间站点'),
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
-              title: const Text('离线演示'),
+              title: const SiteText('离线演示'),
               value: demo,
               onChanged: (v) => setState(() => demo = v),
             ),
@@ -717,8 +739,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       children: [
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
-          title: const Text('开启语音回复'),
-          subtitle: const Text('让八千代把回复读给你听。'),
+          title: const SiteText('开启语音回复'),
+          subtitle: const SiteText('让八千代把回复读给你听。'),
           value: speak,
           onChanged: (v) => setState(() => speak = v),
         ),
@@ -773,10 +795,12 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           _toggle('ttsProxy', '通过网站代理生成语音'),
         DropdownButtonFormField<String>(
           initialValue: fields['ttsFormat']!.text,
-          decoration: const InputDecoration(labelText: 'OpenAI 兼容音频格式'),
+          decoration: InputDecoration(
+            labelText: siteTranslate(context, 'OpenAI 兼容音频格式'),
+          ),
           items: const [
-            DropdownMenuItem(value: 'wav', child: Text('WAV · 支持音量口型')),
-            DropdownMenuItem(value: 'mp3', child: Text('MP3')),
+            DropdownMenuItem(value: 'wav', child: SiteText('WAV · 支持音量口型')),
+            DropdownMenuItem(value: 'mp3', child: SiteText('MP3')),
           ],
           onChanged: (v) => setState(() => fields['ttsFormat']!.text = v!),
         ),
@@ -794,7 +818,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
               onPressed: () async {
                 await testVoice?.stop();
               },
-              child: const Text('停止试听'),
+              child: const SiteText('停止试听'),
             ),
           ],
         ),
@@ -940,7 +964,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                       onPressed: busy
                           ? null
                           : () => _run(() => _editKnowledge(item)),
-                      child: const Text('编辑'),
+                      child: const SiteText('编辑'),
                     ),
                     TextButton(
                       onPressed: busy
@@ -960,7 +984,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                 await _saveKnowledge();
                               }
                             }),
-                      child: const Text('删除'),
+                      child: const SiteText('删除'),
                     ),
                   ],
                 ),
@@ -1035,7 +1059,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         _hint('测试指令加入队列，返回房间后由原生 Live2D 播放。'),
         TextField(
           controller: debugInput,
-          decoration: const InputDecoration(labelText: '自定义 Live2D JSON'),
+          decoration: InputDecoration(
+            labelText: siteTranslate(context, '自定义 Live2D JSON'),
+          ),
           minLines: 3,
           maxLines: 8,
         ),
@@ -1046,7 +1072,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         DropdownButtonFormField<String>(
           initialValue: expression,
           isExpanded: true,
-          decoration: const InputDecoration(labelText: '表情'),
+          decoration: InputDecoration(labelText: siteTranslate(context, '表情')),
           items: jsonRows(RoomReference.map('live2d')['expressions'])
               .map(
                 (v) => DropdownMenuItem(
@@ -1064,9 +1090,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         DropdownButtonFormField<String>(
           initialValue: motion,
           isExpanded: true,
-          decoration: const InputDecoration(labelText: '动作'),
+          decoration: InputDecoration(labelText: siteTranslate(context, '动作')),
           items: [
-            const DropdownMenuItem(value: '', child: Text('不触发动作')),
+            const DropdownMenuItem(value: '', child: SiteText('不触发动作')),
             ...jsonRows(RoomReference.map('live2d')['motions']).map(
               (v) => DropdownMenuItem(
                 value: '${v['id']}',
@@ -1158,8 +1184,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         TextField(
-          decoration: const InputDecoration(
-            hintText: '搜索设置',
+          decoration: InputDecoration(
+            hintText: siteTranslate(context, '搜索设置'),
             prefixIcon: Icon(CupertinoIcons.search, size: 16),
             isDense: true,
           ),
@@ -1191,7 +1217,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         ],
         TextButton(
           onPressed: () => setState(() => guide = true),
-          child: const Text('查看配置指引'),
+          child: const SiteText('查看配置指引'),
         ),
       ],
     ),
@@ -1202,12 +1228,15 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('当前房间', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SiteText(
+              '当前房间',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 20),
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(CupertinoIcons.chat_bubble, size: 20),
-              title: const Text('聊天模型', style: TextStyle(fontSize: 12)),
+              title: const SiteText('聊天模型', style: TextStyle(fontSize: 12)),
               subtitle: Text(
                 c.settings.model.isEmpty ? '待配置' : c.settings.model,
                 style: const TextStyle(fontSize: 11),
@@ -1216,7 +1245,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(CupertinoIcons.waveform, size: 20),
-              title: const Text('语音朗读', style: TextStyle(fontSize: 12)),
+              title: const SiteText('语音朗读', style: TextStyle(fontSize: 12)),
               subtitle: Text(
                 c.settings.speak ? c.settings.voice : '先用文字，也很好',
                 style: const TextStyle(fontSize: 11),
@@ -1225,9 +1254,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(CupertinoIcons.bookmark, size: 20),
-              title: const Text('长期记忆', style: TextStyle(fontSize: 12)),
+              title: const SiteText('长期记忆', style: TextStyle(fontSize: 12)),
               subtitle: Text(
-                c.account == null ? '本机记忆' : '账号私有记忆',
+                c.workspace.usesLocalMemory ? '本机记忆' : '账号私有记忆',
                 style: const TextStyle(fontSize: 11),
               ),
             ),
@@ -1239,12 +1268,12 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            const SiteText(
               'A LITTLE REMINDER',
               style: TextStyle(fontSize: 10, letterSpacing: 1.5),
             ),
             const SizedBox(height: 18),
-            const Text(
+            const SiteText(
               '先聊起来，\n再慢慢变成你的房间。',
               style: TextStyle(
                 fontSize: 22,
@@ -1262,7 +1291,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('数据存在哪里？'),
+            const SiteText('数据存在哪里？'),
             const SizedBox(height: 15),
             _hint('密钥保存在系统安全存储；接口与知识库保存在此设备。记忆、日记和日记人设在登录后使用网站账号数据。'),
           ],
@@ -1320,7 +1349,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                 ),
                               ),
                               SizedBox(height: mobile ? 26 : 38),
-                              const Text(
+                              const SiteText(
                                 '私人居所  ›  房间设置',
                                 style: TextStyle(fontSize: 12),
                               ),
@@ -1328,7 +1357,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                               Row(
                                 children: [
                                   const Expanded(
-                                    child: Text(
+                                    child: SiteText(
                                       '房间设置',
                                       style: TextStyle(
                                         fontSize: 28,
@@ -1338,7 +1367,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                     ),
                                   ),
                                   TextButton.icon(
-                                    onPressed: _leave,
+                                    onPressed: () => _leave(returnToRoom: true),
                                     style: TextButton.styleFrom(
                                       minimumSize: const Size(0, 40),
                                       tapTargetSize:
@@ -1354,12 +1383,13 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                       CupertinoIcons.arrow_left,
                                       size: 16,
                                     ),
-                                    label: const Text('返回房间'),
+                                    label: const SiteText('返回房间'),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 12),
                               _hint('先连接聊天模型，其他功能可以稍后设置。'),
+                              RoomMemorySourcePanel(controller: c),
                               if (guide)
                                 Padding(
                                   padding: const EdgeInsets.only(
@@ -1392,7 +1422,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              const Text(
+                                              const SiteText(
                                                 '只需连接一个模型，就能开始聊天',
                                                 style: TextStyle(
                                                   fontSize: 14,
@@ -1400,7 +1430,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                                 ),
                                               ),
                                               const SizedBox(height: 7),
-                                              Text(
+                                              SiteText(
                                                 '语音、记忆和外观按需调整，不必一次填完所有设置。',
                                                 style: TextStyle(
                                                   fontSize: 12,
@@ -1414,7 +1444,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                         if (!mobile)
                                           const Padding(
                                             padding: EdgeInsets.all(12),
-                                            child: Text(
+                                            child: SiteText(
                                               '① 选择服务    ② 填写密钥    ③ 测试连接',
                                               style: TextStyle(fontSize: 11),
                                             ),
@@ -1425,7 +1455,10 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                             minHeight: 24,
                                           ),
                                           padding: EdgeInsets.zero,
-                                          tooltip: '收起配置提示',
+                                          tooltip: siteTranslate(
+                                            context,
+                                            '收起配置提示',
+                                          ),
                                           onPressed: () =>
                                               setState(() => guide = false),
                                           icon: const Icon(
@@ -1448,7 +1481,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                       current.$1,
                                       style: const TextStyle(fontSize: 13),
                                     ),
-                                    trailing: const Text(
+                                    trailing: const SiteText(
                                       '全部设置 ﹀',
                                       style: TextStyle(fontSize: 12),
                                     ),
@@ -1554,7 +1587,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                           _content(),
                                           const SizedBox(height: 30),
                                           Center(
-                                            child: Text(
+                                            child: SiteText(
                                               'TSUKUYOMI SPACE · ROOM SETTINGS',
                                               style: TextStyle(
                                                 fontSize: 9,
@@ -1600,7 +1633,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                               ),
                             if (mobile && !dirty)
                               Expanded(
-                                child: Text(
+                                child: SiteText(
                                   '所有修改已保存',
                                   style: TextStyle(
                                     fontSize: 11,
@@ -1620,7 +1653,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                         setState(_restore);
                                       }
                                     },
-                              child: const Text('放弃修改'),
+                              child: const SiteText('放弃修改'),
                             ),
                             if (mobile && dirty) const Spacer(),
                             if (dirty)
@@ -1630,7 +1663,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                     : () => _run(() async {
                                         await _save();
                                       }),
-                                child: const Text('保存全部'),
+                                child: const SiteText('保存全部'),
                               ),
                             const SizedBox(width: 8),
                             FilledButton.icon(
@@ -1639,7 +1672,10 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                   : () => _run(() async {
                                       if (await _save() && context.mounted) {
                                         setState(() => allowPop = true);
-                                        Navigator.pop(context);
+                                        Navigator.popUntil(
+                                          context,
+                                          (route) => route.isFirst,
+                                        );
                                       }
                                     }),
                               icon: const Icon(
