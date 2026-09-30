@@ -477,10 +477,14 @@ void main() {
       } on ApiFailure catch (error) {
         // Windows Server 2022 lacks PSEC. Only this explicit capability refusal
         // is accepted; other failures still fail the integration test.
+        final detail = error.toString();
         if (!Platform.isWindows ||
-            !error.toString().contains(
-              'native MXC is unavailable on this Windows build',
-            )) {
+            !(detail.contains(
+                  'native MXC is unavailable on this Windows build',
+                ) ||
+                detail.contains(
+                  'native MXC is unavailable on this executor',
+                ))) {
           rethrow;
         }
         expect(await File('${workspace.path}/inside.txt').exists(), false);
