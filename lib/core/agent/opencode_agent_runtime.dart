@@ -447,7 +447,16 @@ class OpenCodeAgentRuntime implements AgentRuntime {
     final process = _process;
     _process = null;
     if (process != null) {
-      process.kill();
+      if (Platform.isWindows && _exitCode == null) {
+        await Process.run('taskkill', [
+          '/PID',
+          process.pid.toString(),
+          '/T',
+          '/F',
+        ]);
+      } else if (!Platform.isWindows) {
+        process.kill();
+      }
       try {
         await process.exitCode.timeout(const Duration(seconds: 3));
       } on TimeoutException {
@@ -456,8 +465,6 @@ class OpenCodeAgentRuntime implements AgentRuntime {
       }
     }
     await _bridge?.dispose();
-    if (_private != null && await _private!.exists()) {
-      await _private!.delete(recursive: true);
-    }
+    if (_private != null) await deleteAgentTemporaryDirectory(_private!);
   }
 }

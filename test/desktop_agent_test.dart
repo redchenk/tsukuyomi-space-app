@@ -79,6 +79,70 @@ void main() {
     await temporary.delete(recursive: true);
   });
 
+  test('runtime cleanup retries transient Windows sharing locks', () async {
+    final private = await Directory('${temporary.path}/locked').create();
+    await File('${private.path}/state').writeAsString('temporary');
+    var attempts = 0;
+    await deleteAgentTemporaryDirectory(
+      private,
+      retryWindowsSharingViolations: true,
+      deleteDirectory: (directory) async {
+        if (++attempts <= 2) {
+          throw PathAccessException(
+            directory.path,
+            const OSError('File is in use', 32),
+            'Sharing violation',
+          );
+        }
+        await directory.delete(recursive: true);
+      },
+    );
+    expect(attempts, 3);
+    expect(await private.exists(), false);
+  });
+
+  test('runtime cleanup surfaces unrelated filesystem errors', () async {
+    var attempts = 0;
+    await expectLater(
+      deleteAgentTemporaryDirectory(
+        workspace,
+        retryWindowsSharingViolations: true,
+        deleteDirectory: (directory) async {
+          attempts++;
+          throw FileSystemException(
+            'Unrelated failure',
+            directory.path,
+            const OSError('Invalid argument', 87),
+          );
+        },
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(attempts, 1);
+    expect(await workspace.exists(), true);
+  });
+
+  test('runtime cleanup surfaces a persistent sharing lock', () async {
+    var attempts = 0;
+    await expectLater(
+      deleteAgentTemporaryDirectory(
+        workspace,
+        retryWindowsSharingViolations: true,
+        deleteDirectory: (directory) async {
+          attempts++;
+          throw PathAccessException(
+            directory.path,
+            const OSError('File remains in use', 32),
+            'Persistent lock',
+          );
+        },
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(attempts, 7);
+    expect(await workspace.exists(), true);
+  });
+
   test('real file roundtrip is scoped and emits an actual diff', () async {
     await gateway.call('fs_write', {
       'path': 'notes/test.md',

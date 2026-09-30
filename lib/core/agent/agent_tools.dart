@@ -568,7 +568,36 @@ class SandboxCommandRunner {
       };
     } finally {
       _process = null;
-      if (await private.exists()) await private.delete(recursive: true);
+      await deleteAgentTemporaryDirectory(private);
+    }
+  }
+}
+
+/// Windows can retain a sharing lock briefly after a process has exited.
+/// Retry only known filesystem locking/access codes; persistent errors surface.
+Future<void> deleteAgentTemporaryDirectory(
+  Directory directory, {
+  bool? retryWindowsSharingViolations,
+  Future<void> Function(Directory)? deleteDirectory,
+}) async {
+  final retry = retryWindowsSharingViolations ?? Platform.isWindows;
+  for (var attempt = 0; ; attempt++) {
+    try {
+      if (await directory.exists()) {
+        if (deleteDirectory == null) {
+          await directory.delete(recursive: true);
+        } else {
+          await deleteDirectory(directory);
+        }
+      }
+      return;
+    } on FileSystemException catch (error) {
+      if (!retry ||
+          ![5, 32, 33].contains(error.osError?.errorCode) ||
+          attempt >= 6) {
+        rethrow;
+      }
+      await Future<void>.delayed(Duration(milliseconds: 100 * (attempt + 1)));
     }
   }
 }
