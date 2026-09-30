@@ -77,12 +77,12 @@ void main(List<String> args) async {
       flags: os == OS.windows
           ? ['/std:c++17', '/MD']
           : ['-std=c++17', if (os == OS.android) '-Wl,--no-undefined'],
-      libraries: enabled
-          ? [
-              os == OS.windows ? 'Live2DCubismCore_MD' : 'Live2DCubismCore',
-              if (os == OS.android) ...['m', 'log'],
-            ]
-          : [],
+      libraries: [
+        if (enabled)
+          os == OS.windows ? 'Live2DCubismCore_MD' : 'Live2DCubismCore',
+        // PCM decoding needs libm even in development builds without Cubism.
+        if (os == OS.android) ...['m', 'log'],
+      ],
       libraryDirectories: enabled
           ? [sdk.resolve(core).resolve('.').toFilePath()]
           : [],

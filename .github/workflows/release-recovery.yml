@@ -1,0 +1,70 @@
+name: Recover verified release
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Completed release run whose only failed job is publication
+        type: string
+        required: true
+      tag:
+        description: Existing draft release tag to publish
+        type: string
+        required: true
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+jobs:
+  recover:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify recovery and publication gates
+        run: |
+          python -m unittest discover -s tool/release -p 'test_release_recovery.py'
+          python -m unittest discover -s tool/release -p 'test_release_publisher.py'
+      - name: Gate recovery on the complete verified source run
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > "$RUNNER_TEMP/source-run.json"
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/jobs?filter=latest&per_page=100" > "$RUNNER_TEMP/source-jobs.json"
+          gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100" > "$RUNNER_TEMP/source-artifacts.json"
+          python tool/release/validate_release_run.py --run "$RUNNER_TEMP/source-run.json" --jobs "$RUNNER_TEMP/source-jobs.json" --artifacts "$RUNNER_TEMP/source-artifacts.json" --tag "$RELEASE_TAG"
+      - name: Download the five verified installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.run_id }}
+          pattern: installers-*
+          path: dist
+          merge-multiple: true
+      - name: Restore installation instructions and release notes from the source commit
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.source_sha }}
+        run: |
+          git show "$SOURCE_SHA:docs/release-guide.md" > dist/INSTALL.md
+          git show "$SOURCE_SHA:THIRD_PARTY_NOTICES.md" > dist/THIRD_PARTY_NOTICES.md
+          git show "$SOURCE_SHA:docs/release-notes.md" > "$RUNNER_TEMP/source-release-notes.md"
+      - name: Verify existing draft downloads and publish by numeric release ID
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_COMMIT: ${{ steps.source.outputs.source_sha }}
+          APP_VERSION: ${{ steps.source.outputs.version }}
+          PRERELEASE: ${{ steps.source.outputs.prerelease }}
+          REQUIRE_EXISTING_DRAFT: 'true'
+          RELEASE_NOTES: ${{ runner.temp }}/source-release-notes.md
+        run: bash tool/release/publish.sh

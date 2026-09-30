@@ -270,17 +270,5 @@ jobs:
           RELEASE_TAG: ${{ needs.metadata.outputs.tag }}
           PRERELEASE: ${{ needs.metadata.outputs.prerelease }}
           RELEASE_COMMIT: ${{ needs.metadata.outputs.ref }}
-        run: |
-          if git ls-remote --exit-code origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-            git fetch origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
-            [[ "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" == "$RELEASE_COMMIT" ]] || { echo 'Release tag changed since validation.'; exit 1; }
-          fi
-          if draft=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft 2>/dev/null); then
-            [[ "$draft" == true ]] || { echo 'A published release cannot be replaced.'; exit 1; }
-          else
-            gh release create "$RELEASE_TAG" --target "$RELEASE_COMMIT" --draft --title "月读空间 $RELEASE_TAG" --notes-file docs/release-notes.md
-          fi
-          gh release upload "$RELEASE_TAG" dist/* --clobber
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.assets | map({name,size,digest})' > "$RUNNER_TEMP/release-assets.json"
-          python tool/release/verify_dist.py dist --remote-manifest "$RUNNER_TEMP/release-assets.json"
-          gh release edit "$RELEASE_TAG" --draft=false --prerelease="$PRERELEASE" --title "月读空间 $RELEASE_TAG" --notes-file docs/release-notes.md
+          APP_VERSION: ${{ needs.metadata.outputs.version }}
+        run: bash tool/release/publish.sh
