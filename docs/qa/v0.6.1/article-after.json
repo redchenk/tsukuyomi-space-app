@@ -1,0 +1,33 @@
+{
+  "label": "after",
+  "scene": "macOS Profile 1280x820; 60 headings, 600 paragraphs, 20 code blocks, 20 tables, 20 image fixtures; 180 scroll steps; three runs",
+  "runs": [
+    {
+      "run": 1,
+      "frames": 360,
+      "ui_p95_ms": 0.153,
+      "raster_p95_ms": 0.407,
+      "frames_over_16_7_ms": 0,
+      "rss_bytes": 225099776
+    },
+    {
+      "run": 2,
+      "frames": 361,
+      "ui_p95_ms": 0.157,
+      "raster_p95_ms": 0.409,
+      "frames_over_16_7_ms": 0,
+      "rss_bytes": 246120448
+    },
+    {
+      "run": 3,
+      "frames": 366,
+      "ui_p95_ms": 0.146,
+      "raster_p95_ms": 0.383,
+      "frames_over_16_7_ms": 0,
+      "rss_bytes": 229343232
+    }
+  ],
+  "reference_device": "Apple M5 / 16GB / macOS; Flutter 3.47.5 Profile",
+  "baseline_commit": "2a1c269590c32cd9135803ea478a9f32ff84d5c6",
+  "fixture_network": "No remote network; fixed raster image data URLs"
+}

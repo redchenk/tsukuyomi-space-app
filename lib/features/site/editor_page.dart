@@ -13,6 +13,7 @@ import 'content_page_shell.dart';
 import 'login_dialog.dart';
 import 'native_article_editor.dart';
 import 'native_article_document.dart';
+import 'native_rich_text.dart';
 import 'native_asset_service.dart';
 import 'site_widgets.dart';
 
@@ -42,7 +43,17 @@ class _EditorPageState extends State<EditorPage> {
   };
   final bodyFocus = FocusNode();
   final _formatScroll = ScrollController();
-  String view = 'write';
+  String? _view;
+  String get view =>
+      _view ?? (MediaQuery.sizeOf(context).width > 760 ? 'split' : 'write');
+  final _preview = ValueNotifier((
+    content: '',
+    format: 'markdown',
+    site: 'https://yachiyo.hk',
+    cookie: null as String?,
+  ));
+  Widget? _previewPane;
+  Timer? _previewTimer;
   bool leaving = false;
   @override
   void initState() {
@@ -51,6 +62,23 @@ class _EditorPageState extends State<EditorPage> {
         widget.editor ?? NativeArticleEditor(widget.controller, widget.path);
     editor.addListener(changed);
     editor.initialize();
+  }
+
+  void _updatePreview({bool immediately = false}) {
+    _previewTimer?.cancel();
+    final next = (
+      content: '${editor.fields['content'] ?? ''}',
+      format: '${editor.fields['content_format'] ?? 'markdown'}',
+      site: widget.controller.settings.siteUrl,
+      cookie: widget.controller.site.cookie,
+    );
+    if (immediately) {
+      _preview.value = next;
+    } else if (_preview.value != next) {
+      _previewTimer = Timer(const Duration(milliseconds: 180), () {
+        if (mounted) _preview.value = next;
+      });
+    }
   }
 
   void changed() {
@@ -70,6 +98,7 @@ class _EditorPageState extends State<EditorPage> {
         );
       }
     }
+    _updatePreview();
     setState(() {});
   }
 
@@ -95,6 +124,8 @@ class _EditorPageState extends State<EditorPage> {
     }
     bodyFocus.dispose();
     _formatScroll.dispose();
+    _previewTimer?.cancel();
+    _preview.dispose();
     super.dispose();
   }
 
@@ -158,7 +189,7 @@ class _EditorPageState extends State<EditorPage> {
           : TextSelection.collapsed(offset: start + insertion.length),
     );
     editor.change('content', input.text);
-    setState(() => view = 'write');
+    if (view == 'preview') setState(() => _view = 'write');
     bodyFocus.requestFocus();
   }
 
@@ -406,7 +437,10 @@ class _EditorPageState extends State<EditorPage> {
                 ChoiceChip(
                   label: SiteText(entry.value),
                   selected: view == entry.key,
-                  onSelected: (_) => setState(() => view = entry.key),
+                  onSelected: (_) {
+                    _updatePreview(immediately: true);
+                    setState(() => _view = entry.key);
+                  },
                 ),
             ],
           ),
@@ -507,12 +541,35 @@ class _EditorPageState extends State<EditorPage> {
       },
       child: input('content', '文章正文', lines: 22),
     );
-    final preview = SiteCard(
-      child: ArticleBody(
-        content: '${editor.fields['content']}',
-        format: '${editor.fields['content_format']}',
-        site: widget.controller.settings.siteUrl,
-        onNavigate: go,
+    final preview = _previewPane ??= RepaintBoundary(
+      key: const Key('article-editor-preview'),
+      child: SiteCard(
+        child: ValueListenableBuilder(
+          valueListenable: _preview,
+          builder: (context, value, _) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.visibility_outlined, size: 18),
+                  SizedBox(width: 8),
+                  SiteText('预览'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              NativeRichText(
+                content: value.content,
+                format: value.format,
+                site: value.site,
+                onNavigate: go,
+                trackReading: false,
+                headers: value.cookie == null
+                    ? null
+                    : {'Cookie': value.cookie!},
+              ),
+            ],
+          ),
+        ),
       ),
     );
     final cover = '${editor.fields['cover_image'] ?? ''}';

@@ -26,10 +26,12 @@ class NativeRichText extends StatefulWidget {
     this.onNavigate,
     this.initialAnchor = '',
     this.headers,
+    this.trackReading = true,
   });
   final String content, format, site, initialAnchor;
   final ValueChanged<String>? onNavigate;
   final Map<String, String>? headers;
+  final bool trackReading;
   @override
   State<NativeRichText> createState() => _NativeRichTextState();
 }
@@ -40,8 +42,9 @@ class _NativeRichTextState extends State<NativeRichText> {
   final openedDetails = <String>{};
   final detailAncestors = <String, List<String>>{};
   ScrollPosition? position;
-  String activeHeading = '';
-  double progress = 0;
+  final readingProgress = ValueNotifier(0.0);
+  final activeHeading = ValueNotifier('');
+  bool measurementScheduled = false;
   int revision = 0;
   @override
   void initState() {
@@ -80,25 +83,34 @@ class _NativeRichTextState extends State<NativeRichText> {
       document.headings,
       document.anchorIds,
     );
-    activeHeading = document.headings.firstOrNull?.id ?? '';
-    progress = 0;
+    readingProgress.value = 0;
+    activeHeading.value = document.headings.firstOrNull?.id ?? '';
     if (widget.initialAnchor.isNotEmpty) scheduleAnchor(widget.initialAnchor);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final next = Scrollable.maybeOf(context)?.position;
+    final next = widget.trackReading
+        ? Scrollable.maybeOf(context)?.position
+        : null;
     if (next != position) {
-      position?.removeListener(measure);
+      position?.removeListener(scheduleMeasurement);
       position = next;
-      position?.addListener(measure);
+      position?.addListener(scheduleMeasurement);
     }
   }
 
   @override
   void didUpdateWidget(covariant NativeRichText oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.trackReading != widget.trackReading) {
+      position?.removeListener(scheduleMeasurement);
+      position = widget.trackReading
+          ? Scrollable.maybeOf(context)?.position
+          : null;
+      position?.addListener(scheduleMeasurement);
+    }
     if (oldWidget.content != widget.content ||
         oldWidget.format != widget.format ||
         oldWidget.site != widget.site ||
@@ -113,7 +125,9 @@ class _NativeRichTextState extends State<NativeRichText> {
   @override
   void dispose() {
     revision++;
-    position?.removeListener(measure);
+    position?.removeListener(scheduleMeasurement);
+    readingProgress.dispose();
+    activeHeading.dispose();
     super.dispose();
   }
 
@@ -142,7 +156,7 @@ class _NativeRichTextState extends State<NativeRichText> {
     final target = anchors[id]?.currentContext;
     if (target == null || !target.mounted) return false;
     if (document.headings.any((heading) => heading.id == id)) {
-      setState(() => activeHeading = id);
+      activeHeading.value = id;
     }
     await Scrollable.ensureVisible(
       target,
@@ -152,6 +166,15 @@ class _NativeRichTextState extends State<NativeRichText> {
           : const Duration(milliseconds: 250),
     );
     return true;
+  }
+
+  void scheduleMeasurement() {
+    if (measurementScheduled) return;
+    measurementScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      measurementScheduled = false;
+      if (mounted) measure();
+    });
   }
 
   void measure() {
@@ -173,13 +196,10 @@ class _NativeRichTextState extends State<NativeRichText> {
         nextHeading = heading.id;
       }
     }
-    if ((nextProgress - progress).abs() > .005 ||
-        nextHeading != activeHeading) {
-      setState(() {
-        progress = nextProgress;
-        activeHeading = nextHeading;
-      });
+    if ((nextProgress - readingProgress.value).abs() > .005) {
+      readingProgress.value = nextProgress;
     }
+    if (nextHeading != activeHeading.value) activeHeading.value = nextHeading;
   }
 
   Uri? target(String value, {bool image = false}) {
@@ -213,22 +233,27 @@ class _NativeRichTextState extends State<NativeRichText> {
         return Text(alt);
       }
     }
-    Widget picture({bool expand = false}) => bytes != null
-        ? Image.memory(
-            bytes,
-            fit: BoxFit.contain,
-            semanticLabel: alt,
-            errorBuilder: (_, _, _) =>
-                Text('$alt（${siteTranslate(context, '图片暂不可用')}）'),
-          )
-        : Image.network(
-            '$uri',
-            headers: imageHeaders(uri),
-            fit: BoxFit.contain,
-            semanticLabel: alt,
-            errorBuilder: (_, _, _) =>
-                Text('$alt（${siteTranslate(context, '图片暂不可用')}）'),
-          );
+    final decodeWidth =
+        (MediaQuery.sizeOf(context).width *
+                MediaQuery.devicePixelRatioOf(context))
+            .ceil()
+            .clamp(1, 1600);
+    final ImageProvider<Object> provider = bytes != null
+        ? MemoryImage(bytes)
+        : NetworkImage('$uri', headers: imageHeaders(uri));
+    Widget picture({bool expand = false}) => Image(
+      image: expand
+          ? provider
+          : ResizeImage(
+              provider,
+              width: decodeWidth,
+              policy: ResizeImagePolicy.fit,
+            ),
+      fit: BoxFit.contain,
+      semanticLabel: alt,
+      errorBuilder: (_, _, _) =>
+          Text('$alt（${siteTranslate(context, '图片暂不可用')}）'),
+    );
     return Semantics(
       button: true,
       label: '查看$alt',
@@ -572,28 +597,39 @@ class _NativeRichTextState extends State<NativeRichText> {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      if (document.headings.length > 1)
+      if (widget.trackReading && document.headings.length > 1)
         Card(
           child: ExpansionTile(
             initiallyExpanded: MediaQuery.sizeOf(context).width >= 1100,
             title: const SiteText('文章目录'),
             children: [
-              LinearProgressIndicator(value: progress),
-              for (final heading in document.headings)
-                ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.only(
-                    left: heading.level == 3 ? 32 : 16,
-                    right: 16,
-                  ),
-                  selected: heading.id == activeHeading,
-                  title: Text(heading.text),
-                  onTap: () => jump(heading.id),
+              ValueListenableBuilder(
+                valueListenable: readingProgress,
+                builder: (context, value, _) =>
+                    LinearProgressIndicator(value: value),
+              ),
+              ValueListenableBuilder(
+                valueListenable: activeHeading,
+                builder: (context, value, _) => Column(
+                  children: [
+                    for (final heading in document.headings)
+                      ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.only(
+                          left: heading.level == 3 ? 32 : 16,
+                          right: 16,
+                        ),
+                        selected: heading.id == value,
+                        title: Text(heading.text),
+                        onTap: () => jump(heading.id),
+                      ),
+                  ],
                 ),
+              ),
             ],
           ),
         ),
-      SelectionArea(child: htmlWidget(document.html)),
+      RepaintBoundary(child: SelectionArea(child: htmlWidget(document.html))),
     ],
   );
 }

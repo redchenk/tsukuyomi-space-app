@@ -38,6 +38,11 @@ Iterable<NetworkImage> get _pictureKeys sync* {
   }
 }
 
+Iterable<ImageProvider<Object>> _fixtureProviders(NetworkImage key) sync* {
+  yield key;
+  yield ResizeImage(key, width: 88, height: 88, policy: ResizeImagePolicy.fit);
+}
+
 const _categories = [
   {'id': 1, 'name': '公告'},
   {'id': 2, 'name': '其他'},
@@ -267,13 +272,16 @@ Future<void> _cacheFixtureImages() async {
         for (final key in _pictureKeys.where(
           (key) => key.url == '$_origin${entry.key}',
         )) {
-          PaintingBinding.instance.imageCache.evict(key);
-          PaintingBinding.instance.imageCache.putIfAbsent(
-            key,
-            () => OneFrameImageStreamCompleter(
-              Future.value(ImageInfo(image: frame.image.clone())),
-            ),
-          );
+          for (final provider in _fixtureProviders(key)) {
+            final cacheKey = await provider.obtainKey(ImageConfiguration.empty);
+            PaintingBinding.instance.imageCache.evict(cacheKey);
+            PaintingBinding.instance.imageCache.putIfAbsent(
+              cacheKey,
+              () => OneFrameImageStreamCompleter(
+                Future.value(ImageInfo(image: frame.image.clone())),
+              ),
+            );
+          }
         }
       } finally {
         frame.image.dispose();
@@ -292,9 +300,13 @@ void main() {
     'capture native site routes with system fonts at desktop and mobile sizes',
     (tester) async {
       await tester.runAsync(_loadSystemFonts);
-      addTearDown(() {
+      addTearDown(() async {
         for (final key in _pictureKeys) {
-          PaintingBinding.instance.imageCache.evict(key);
+          for (final provider in _fixtureProviders(key)) {
+            PaintingBinding.instance.imageCache.evict(
+              await provider.obtainKey(ImageConfiguration.empty),
+            );
+          }
         }
       });
       tester.view.devicePixelRatio = 1;
@@ -345,12 +357,11 @@ void main() {
             expect(site.unhandled, isEmpty, reason: '$path ($form)');
             if (const ['/gallery', '/friend-links', '/user'].contains(path)) {
               final fixtureImages = find.byWidgetPredicate((widget) {
-                if (widget is! Image || widget.image is! NetworkImage) {
-                  return false;
-                }
-                return (widget.image as NetworkImage).url.startsWith(
-                  '$_origin/fixtures/',
-                );
+                if (widget is! Image) return false;
+                var provider = widget.image;
+                if (provider is ResizeImage) provider = provider.imageProvider;
+                if (provider is! NetworkImage) return false;
+                return provider.url.startsWith('$_origin/fixtures/');
               });
               expect(
                 find.descendant(

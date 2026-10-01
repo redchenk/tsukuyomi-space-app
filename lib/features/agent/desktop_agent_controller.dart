@@ -329,12 +329,14 @@ class DesktopAgentController extends ChangeNotifier {
         await _runtime!.send(session!, text, room.settings, taskEmit);
       } catch (failure) {
         if (epoch != _epoch ||
+            _runtime is! OpenCodeAgentRuntime ||
             _gateway!.calls > 0 ||
             engine != 'auto' ||
-            !RegExp(
-              r'tools unsupported|does not support tools|function.*unsupported',
-              caseSensitive: false,
-            ).hasMatch(failure.toString())) {
+            !(failure is ApiFailure && [400, 422].contains(failure.status)) &&
+                !RegExp(
+                  r'tools unsupported|does not support tools|function.*unsupported',
+                  caseSensitive: false,
+                ).hasMatch(failure.toString())) {
           rethrow;
         }
         await _runtime!.dispose();

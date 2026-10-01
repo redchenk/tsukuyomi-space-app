@@ -9,6 +9,7 @@ import 'package:tsukuyomi_space_app/core/agent/agent_types.dart';
 import 'package:tsukuyomi_space_app/core/agent/agent_tools.dart';
 import 'package:tsukuyomi_space_app/core/agent/agent_binaries.dart';
 import 'package:tsukuyomi_space_app/core/agent/agent_provider.dart';
+import 'package:tsukuyomi_space_app/core/agent/agent_bridge.dart';
 import 'package:tsukuyomi_space_app/core/agent/opencode_agent_runtime.dart';
 import 'package:tsukuyomi_space_app/core/agent/structured_agent_runtime.dart';
 import 'package:tsukuyomi_space_app/core/models.dart';
@@ -158,6 +159,43 @@ void main() {
     );
     expect(events.where((e) => e.type == 'diff').single.data['before'], '');
   });
+  for (final status in [400, 401, 429, 500]) {
+    test(
+      'local model bridge preserves HTTP $status with a nonempty error body',
+      () async {
+        final bridge = AgentBridge(
+          gateway,
+          AgentProviderBridge(
+            const RoomSettings(model: 'fixture'),
+            clientFactory: () =>
+                MockClient((_) async => http.Response('', status)),
+          ),
+        );
+        await bridge.start();
+        try {
+          final response = await http.post(
+            bridge.uri.resolve('/model/v1/chat/completions'),
+            headers: {
+              'Authorization': 'Bearer ${bridge.token}',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'messages': [
+                {'role': 'user', 'content': 'hello'},
+              ],
+            }),
+          );
+          expect(response.statusCode, status);
+          expect(
+            jsonDecode(response.body)['error']['message'],
+            contains('HTTP $status'),
+          );
+        } finally {
+          await bridge.dispose();
+        }
+      },
+    );
+  }
   test('traversal and symlink escapes require approval', () async {
     final outside = File('${temporary.path}/outside.txt');
     await outside.writeAsString('private');
@@ -816,91 +854,160 @@ void main() {
       timeout: const Timeout(Duration(seconds: 90)),
     );
   }
-  test(
-    'desktop mode warms up without a model call and auto-falls back before executing tools',
-    () async {
-      var requests = 0, structured = 0;
-      final provider = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      provider.listen((request) async {
-        final body = jsonDecode(await utf8.decoder.bind(request).join()) as Map;
-        requests++;
-        request.response.headers.contentType = ContentType.json;
-        if ((body['tools'] as List? ?? []).isNotEmpty) {
-          request.response.statusCode = 400;
-          request.response.write(
-            jsonEncode({
-              'error': {'message': 'tools unsupported'},
-            }),
-          );
-        } else {
-          final action = structured++ == 0
-              ? {
-                  'type': 'tool',
-                  'name': 'fs_write',
-                  'arguments': {'path': 'auto.txt', 'content': 'auto fallback'},
-                }
-              : {'type': 'final', 'text': 'Finished'};
-          request.response.write(
-            jsonEncode({
-              'choices': [
-                {
-                  'message': {
-                    'role': 'assistant',
-                    'content': jsonEncode(action),
+  for (final responseKind in [
+    'unsupported',
+    'empty400',
+    'empty422',
+    'unauthorized',
+    'aftertool400',
+  ]) {
+    test(
+      'desktop automatic mode safely handles $responseKind before executing tools',
+      () async {
+        var requests = 0, structured = 0;
+        final provider = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        provider.listen((request) async {
+          final body =
+              jsonDecode(await utf8.decoder.bind(request).join()) as Map;
+          requests++;
+          request.response.headers.contentType = ContentType.json;
+          if ((body['tools'] as List? ?? []).isNotEmpty) {
+            request.response.statusCode = responseKind == 'unauthorized'
+                ? 401
+                : responseKind == 'empty422'
+                ? 422
+                : 400;
+            if (responseKind == 'aftertool400' && requests == 1) {
+              request.response.statusCode = 200;
+              final tool = (body['tools'] as List).firstWhere(
+                (tool) =>
+                    (tool['function']['name'] as String).endsWith('fs_write'),
+              );
+              request.response.write(
+                jsonEncode({
+                  'choices': [
+                    {
+                      'message': {
+                        'role': 'assistant',
+                        'content': '',
+                        'tool_calls': [
+                          {
+                            'id': 'single-write',
+                            'type': 'function',
+                            'function': {
+                              'name': tool['function']['name'],
+                              'arguments': jsonEncode({
+                                'path': 'auto.txt',
+                                'content': 'exactly once',
+                              }),
+                            },
+                          },
+                        ],
+                      },
+                      'finish_reason': 'tool_calls',
+                    },
+                  ],
+                }),
+              );
+            }
+            if (responseKind == 'unsupported') {
+              request.response.write(
+                jsonEncode({
+                  'error': {'message': 'tools unsupported'},
+                }),
+              );
+            }
+          } else {
+            final action = structured++ == 0
+                ? {
+                    'type': 'tool',
+                    'name': 'fs_write',
+                    'arguments': {
+                      'path': 'auto.txt',
+                      'content': 'auto fallback',
+                    },
+                  }
+                : {'type': 'final', 'text': 'Finished'};
+            request.response.write(
+              jsonEncode({
+                'choices': [
+                  {
+                    'message': {
+                      'role': 'assistant',
+                      'content': jsonEncode(action),
+                    },
+                    'finish_reason': 'stop',
                   },
-                  'finish_reason': 'stop',
-                },
-              ],
-            }),
+                ],
+              }),
+            );
+          }
+          await request.response.close();
+        });
+        final store = MemoryStorage()
+          ..value = RoomSettings(
+            model: 'fixture',
+            llmUrl: 'http://127.0.0.1:${provider.port}/v1/chat/completions',
           );
+        final room = RoomController(
+          storage: store,
+          chat: FakeChat(),
+          site: FakeSite(),
+          voice: SilentVoice(),
+        );
+        await room.initialize();
+        final agent = DesktopAgentController(
+          room,
+          runtimeDataDirectory: '${temporary.path}/controller-runtime',
+        );
+        try {
+          await agent.selectWorkspace(workspace.path);
+          expect(agent.error, isEmpty);
+          expect(requests, 0);
+          await agent.send('Save auto.txt');
+          if (responseKind == 'unauthorized') {
+            expect(agent.error, contains('HTTP 401'));
+            expect(structured, 0);
+            expect(requests, 1);
+            expect(await File('${workspace.path}/auto.txt').exists(), false);
+            return;
+          }
+          if (responseKind == 'aftertool400') {
+            expect(agent.error, contains('HTTP 400'));
+            expect(structured, 0);
+            expect(requests, 2);
+            expect(
+              await File('${workspace.path}/auto.txt').readAsString(),
+              'exactly once',
+            );
+            expect(agent.status, 'OpenCode');
+            return;
+          }
+          expect(agent.error, isEmpty);
+          expect(agent.status, '结构化兼容模式');
+          expect(structured, 2);
+          expect(
+            await File('${workspace.path}/auto.txt').readAsString(),
+            'auto fallback',
+          );
+          await agent.shutdown();
+          final completedRequests = requests;
+          await agent.send('This task must never run after shutdown');
+          expect(requests, completedRequests);
+          expect(
+            store.drafts.keys.any((key) => key.startsWith('agent-session:')),
+            true,
+          );
+          await agent.shutdown();
+        } finally {
+          await agent.shutdown();
+          agent.dispose();
+          room.dispose();
+          await provider.close(force: true);
         }
-        await request.response.close();
-      });
-      final store = MemoryStorage()
-        ..value = RoomSettings(
-          model: 'fixture',
-          llmUrl: 'http://127.0.0.1:${provider.port}/v1/chat/completions',
-        );
-      final room = RoomController(
-        storage: store,
-        chat: FakeChat(),
-        site: FakeSite(),
-        voice: SilentVoice(),
-      );
-      await room.initialize();
-      final agent = DesktopAgentController(
-        room,
-        runtimeDataDirectory: '${temporary.path}/controller-runtime',
-      );
-      try {
-        await agent.selectWorkspace(workspace.path);
-        expect(agent.error, isEmpty);
-        expect(requests, 0);
-        await agent.send('Save auto.txt');
-        expect(agent.error, isEmpty);
-        expect(agent.status, '结构化兼容模式');
-        expect(structured, 2);
-        expect(
-          await File('${workspace.path}/auto.txt').readAsString(),
-          'auto fallback',
-        );
-        await agent.shutdown();
-        final completedRequests = requests;
-        await agent.send('This task must never run after shutdown');
-        expect(requests, completedRequests);
-        expect(
-          store.drafts.keys.any((key) => key.startsWith('agent-session:')),
-          true,
-        );
-        await agent.shutdown();
-      } finally {
-        await agent.shutdown();
-        agent.dispose();
-        room.dispose();
-        await provider.close(force: true);
-      }
-    },
-    skip: !native,
-    timeout: const Timeout(Duration(seconds: 90)),
-  );
+      },
+      skip: !native,
+      timeout: const Timeout(Duration(seconds: 90)),
+    );
+  }
 }

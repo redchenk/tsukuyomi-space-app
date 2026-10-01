@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:html/parser.dart' as html;
 import 'package:tsukuyomi_space_app/features/site/native_article_document.dart';
 import 'package:tsukuyomi_space_app/features/site/native_article_embed.dart';
@@ -412,6 +413,40 @@ void main() {
       );
       expect(find.text(r'\invalid{x}'), findsOneWidget);
       expect(find.byType(SelectableText), findsAtLeastNWidgets(2));
+      expect(tester.takeException(), isNull);
+    },
+  );
+  testWidgets(
+    'scrolling updates reading progress without rebuilding the article body',
+    (tester) async {
+      await reader(
+        tester,
+        '## First\n\n${List.filled(80, 'Long paragraph for reading progress.\n').join('\n')}\n\n## Last',
+      );
+      await tester.tap(find.text('文章目录'));
+      await tester.pumpAndSettle();
+      final before = tester.widget<HtmlWidget>(find.byType(HtmlWidget).first);
+      final scroll = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
+      scroll.position.jumpTo(400);
+      await tester.pump();
+      await tester.pump();
+      expect(
+        identical(
+          before,
+          tester.widget<HtmlWidget>(find.byType(HtmlWidget).first),
+        ),
+        true,
+      );
+      expect(
+        tester
+            .widget<LinearProgressIndicator>(
+              find.byType(LinearProgressIndicator).first,
+            )
+            .value,
+        greaterThan(0),
+      );
       expect(tester.takeException(), isNull);
     },
   );

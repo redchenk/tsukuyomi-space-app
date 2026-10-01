@@ -15,6 +15,8 @@ class AgentProviderBridge {
   final RoomSettings settings;
   final http.Client Function() _factory;
   final _active = <http.Client>{};
+  ApiFailure? lastFailure;
+  void clearFailure() => lastFailure = null;
   void cancel() {
     for (final client in _active) {
       client.close();
@@ -143,6 +145,12 @@ class AgentProviderBridge {
       default:
         body.addAll({...input, 'model': settings.model, 'stream': false});
         body.remove('stream_options');
+        if (RegExp(
+          'moonshot|kimi',
+          caseSensitive: false,
+        ).hasMatch('${settings.llmUrl} ${settings.model}')) {
+          body['temperature'] = 1;
+        }
     }
     final client = _factory();
     _active.add(client);
@@ -169,7 +177,10 @@ class AgentProviderBridge {
             RegExp(r'tool|function').hasMatch(reason) &&
             RegExp(r'unsupported|not support|not allowed|unknown|unexpected')
                 .hasMatch(reason)) {
-          throw const ApiFailure('tools unsupported: 请使用结构化兼容模式');
+          throw ApiFailure(
+            'tools unsupported: 请使用结构化兼容模式',
+            status: response.statusCode,
+          );
         }
         throw providerFailure('Agent 模型', response.statusCode);
       }
@@ -268,6 +279,9 @@ class AgentProviderBridge {
           'total_tokens': 0,
         },
       };
+    } catch (error) {
+      if (error is ApiFailure) lastFailure = error;
+      rethrow;
     } finally {
       client.close();
       _active.remove(client);

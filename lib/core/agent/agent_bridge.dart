@@ -5,6 +5,7 @@ import 'dart:math';
 
 import 'agent_tools.dart';
 import 'agent_provider.dart';
+import '../models.dart';
 
 class AgentBridge {
   AgentBridge(this.gateway, this.provider);
@@ -33,6 +34,7 @@ class AgentBridge {
       return;
     }
     dynamic id;
+    var forwardingModel = false;
     try {
       final bytes = <int>[];
       await for (final chunk in request.timeout(const Duration(seconds: 15))) {
@@ -43,6 +45,7 @@ class AgentBridge {
       }
       final body = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
       if (request.uri.path == '/model/v1/chat/completions') {
+        forwardingModel = true;
         await provider.handle(request, body);
         return;
       }
@@ -62,7 +65,7 @@ class AgentBridge {
         'initialize' => {
           'protocolVersion': '2024-11-05',
           'capabilities': {'tools': {}},
-          'serverInfo': {'name': 'tsukuyomi', 'version': '0.6.0'},
+          'serverInfo': {'name': 'tsukuyomi', 'version': '0.6.1'},
         },
         'ping' => {},
         'tools/list' => {
@@ -89,7 +92,15 @@ class AgentBridge {
       );
     } catch (error) {
       if (request.uri.path.startsWith('/model/')) {
-        request.response.statusCode = 400;
+        final status = error is ApiFailure ? error.status : null;
+        request.response.statusCode =
+            status != null && status >= 400 && status < 600
+            ? status
+            : error is TimeoutException
+            ? 504
+            : forwardingModel
+            ? 502
+            : 400;
         request.response.headers.contentType = ContentType.json;
         request.response.write(
           jsonEncode({

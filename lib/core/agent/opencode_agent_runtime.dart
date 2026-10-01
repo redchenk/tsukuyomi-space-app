@@ -305,6 +305,7 @@ class OpenCodeAgentRuntime implements AgentRuntime {
     _cancelled = false;
     await start(session);
     if (_cancelled) throw const ApiFailure('Agent 已停止');
+    _bridge?.provider.clearFailure();
     final done = Completer<void>();
     unawaited(
       done.future.then<void>(
@@ -354,9 +355,7 @@ class OpenCodeAgentRuntime implements AgentRuntime {
                 }
               } else if (event['type'] == 'session.error' &&
                   !done.isCompleted) {
-                done.completeError(
-                  ApiFailure(_sanitize(jsonEncode(prop['error']))),
-                );
+                done.completeError(_modelFailure(prop['error']));
               } else if (event['type'] == 'session.status' &&
                   prop['status']?['type'] == 'idle' &&
                   !done.isCompleted) {
@@ -392,7 +391,7 @@ class OpenCodeAgentRuntime implements AgentRuntime {
         orElse: () => {},
       );
       if (assistant['info']?['error'] != null) {
-        throw ApiFailure(_sanitize(jsonEncode(assistant['info']['error'])));
+        throw _modelFailure(assistant['info']['error']);
       }
       for (final part in assistant['parts'] as List? ?? []) {
         if (part['type'] == 'text') {
@@ -422,6 +421,17 @@ class OpenCodeAgentRuntime implements AgentRuntime {
       if (key.isNotEmpty) text = text.replaceAll(key, '[redacted]');
     }
     return text;
+  }
+
+  ApiFailure _modelFailure(dynamic error) {
+    final upstream = _bridge?.provider.lastFailure;
+    if (upstream != null) return upstream;
+    final data = error is Map ? error['data'] : null;
+    final status = data is Map ? data['statusCode'] : null;
+    if (status is int) {
+      return providerFailure('Agent 模型接口', status);
+    }
+    return ApiFailure(_sanitize(jsonEncode(error)));
   }
 
   @override

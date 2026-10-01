@@ -117,18 +117,31 @@ class SiteAvatar extends StatelessWidget {
       ),
     );
     Widget picture = fallback;
+    final decodeSize = (size * MediaQuery.devicePixelRatioOf(context))
+        .ceil()
+        .clamp(1, 512);
     try {
       if (value.startsWith('data:image/') && value.contains(';base64,')) {
-        picture = Image.memory(
-          base64Decode(value.split(';base64,').last),
+        picture = Image(
+          image: ResizeImage(
+            MemoryImage(base64Decode(value.split(';base64,').last)),
+            width: decodeSize,
+            height: decodeSize,
+            policy: ResizeImagePolicy.fit,
+          ),
           fit: BoxFit.cover,
           errorBuilder: (_, _, _) => fallback,
         );
       } else if (value.isNotEmpty) {
         final uri = endpointUri(site).resolve(value);
         if (['https', 'http'].contains(uri.scheme)) {
-          picture = Image.network(
-            '$uri',
+          picture = Image(
+            image: ResizeImage(
+              NetworkImage('$uri'),
+              width: decodeSize,
+              height: decodeSize,
+              policy: ResizeImagePolicy.fit,
+            ),
             fit: BoxFit.cover,
             errorBuilder: (_, _, _) => fallback,
           );

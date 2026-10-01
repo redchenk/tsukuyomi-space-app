@@ -14,6 +14,7 @@ import 'package:tsukuyomi_space_app/features/site/asset_library_page.dart';
 import 'package:tsukuyomi_space_app/features/site/editor_page.dart';
 import 'package:tsukuyomi_space_app/features/site/native_article_editor.dart';
 import 'package:tsukuyomi_space_app/features/site/native_asset_service.dart';
+import 'package:tsukuyomi_space_app/features/site/native_rich_text.dart';
 
 import 'support/fakes.dart';
 
@@ -707,6 +708,91 @@ void main() {
       expect(publish.method, 'POST');
       expect(publish.path, '/api/articles');
       expect(publish.body!['content'], '## 标题\n\n正文');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'desktop editor starts with live preview and keeps it during formatting',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final room = await _room(_Site());
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox());
+        room.dispose();
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: EditorPage(controller: room, path: '/editor', onGo: (_) {}),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final preview = find.byKey(const Key('article-editor-preview'));
+      final body = find.byKey(const ValueKey('editor-content'));
+      expect(preview, findsOneWidget);
+      expect(body, findsOneWidget);
+      await tester.enterText(body, '## 中文预览\n\n实时正文');
+      await tester.pump(const Duration(milliseconds: 100));
+      final rich = find.descendant(
+        of: preview,
+        matching: find.byType(NativeRichText),
+      );
+      expect(tester.widget<NativeRichText>(rich).content, '');
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump();
+      expect(tester.widget<NativeRichText>(rich).content, contains('中文预览'));
+      expect(tester.widget<NativeRichText>(rich).trackReading, false);
+      expect(tester.widget<NativeRichText>(rich).headers, {
+        'Cookie': room.site.cookie,
+      });
+      final input = tester.widget<TextField>(body).controller!;
+      input.selection = const TextSelection(baseOffset: 0, extentOffset: 7);
+      await tester.tap(find.widgetWithText(TextButton, '加粗'));
+      await tester.pumpAndSettle();
+      expect(preview, findsOneWidget);
+      expect(body, findsOneWidget);
+      expect(tester.widget<NativeRichText>(rich).content, input.text);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'mobile preview is always available and flushes pending Chinese input',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final room = await _room(_Site());
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox());
+        room.dispose();
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: EditorPage(controller: room, path: '/editor', onGo: (_) {}),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final body = find.byKey(const ValueKey('editor-content'));
+      await tester.enterText(body, '## 中文输入\n\n未等待的正文');
+      await tester.tap(find.widgetWithText(ChoiceChip, '预览'));
+      await tester.pump();
+      expect(body, findsNothing);
+      final rich = find.descendant(
+        of: find.byKey(const Key('article-editor-preview')),
+        matching: find.byType(NativeRichText),
+      );
+      expect(tester.widget<NativeRichText>(rich).content, contains('未等待的正文'));
+      await tester.tap(find.widgetWithText(ChoiceChip, '撰写'));
+      await tester.pump();
+      expect(
+        tester.widget<TextField>(body).controller!.text,
+        '## 中文输入\n\n未等待的正文',
+      );
       expect(tester.takeException(), isNull);
     },
   );
