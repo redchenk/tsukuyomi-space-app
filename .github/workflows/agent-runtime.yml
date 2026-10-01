@@ -8,6 +8,7 @@ on:
       - 'lib/features/agent/**'
       - 'tool/agent/**'
       - 'test/desktop_agent_test.dart'
+      - 'test/deepseek_agent_runtime_test.dart'
       - '.github/workflows/agent-runtime.yml'
 permissions:
   contents: read
@@ -45,4 +46,4 @@ jobs:
       - run: flutter pub get
       - run: python tool/agent/prepare_runtime.py --target '${{ matrix.target }}'
       - name: Exercise fixed runtime, permissions and recovery
-        run: flutter test --no-pub test/desktop_agent_test.dart --dart-define=RUN_AGENT_TESTS=true --dart-define=AGENT_BUNDLE_PATH=build/agent-runtime
+        run: flutter test --no-pub test/desktop_agent_test.dart test/deepseek_agent_runtime_test.dart --dart-define=RUN_AGENT_TESTS=true --dart-define=AGENT_BUNDLE_PATH=build/agent-runtime

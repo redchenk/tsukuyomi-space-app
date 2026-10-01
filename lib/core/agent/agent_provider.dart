@@ -6,6 +6,8 @@ import 'package:http/http.dart' as http;
 
 import '../models.dart';
 import '../room_protocol.dart';
+import 'agent_types.dart';
+import 'agent_progress.dart';
 
 /// Keeps Room's exact endpoints/headers/keys out of the sidecar configuration.
 /// OpenCode sees an OpenAI-compatible API; all four Room protocols retain tools.
@@ -16,6 +18,7 @@ class AgentProviderBridge {
   final http.Client Function() _factory;
   final _active = <http.Client>{};
   ApiFailure? lastFailure;
+  AgentEmit? onProgress;
   void clearFailure() => lastFailure = null;
   void cancel() {
     for (final client in _active) {
@@ -24,7 +27,10 @@ class AgentProviderBridge {
     _active.clear();
   }
 
-  Future<Map<String, dynamic>> complete(Map<String, dynamic> input) async {
+  Map<String, dynamic> _requestBody(
+    Map<String, dynamic> input, {
+    bool stream = false,
+  }) {
     final endpoint = roomChatEndpoint(settings.llmUrl);
     final protocol = roomProtocol(endpoint);
     final messages = (input['messages'] as List).cast<Map>();
@@ -34,7 +40,7 @@ class AgentProviderBridge {
       case 'responses':
         body.addAll({
           'model': settings.model,
-          'stream': false,
+          'stream': stream,
           'instructions': messages
               .where((m) => m['role'] == 'system')
               .map((m) => m['content'])
@@ -100,7 +106,7 @@ class AgentProviderBridge {
         }
         body.addAll({
           'model': settings.model,
-          'stream': false,
+          'stream': stream,
           'max_tokens': 8192,
           'system': messages
               .where((m) => m['role'] == 'system')
@@ -120,7 +126,7 @@ class AgentProviderBridge {
       case 'ollama':
         body.addAll({
           'model': settings.model,
-          'stream': false,
+          'stream': stream,
           'messages': [
             for (final m in messages)
               {
@@ -143,8 +149,8 @@ class AgentProviderBridge {
           if (tools.isNotEmpty) 'tools': tools,
         });
       default:
-        body.addAll({...input, 'model': settings.model, 'stream': false});
-        body.remove('stream_options');
+        body.addAll({...input, 'model': settings.model, 'stream': stream});
+        if (!stream) body.remove('stream_options');
         if (RegExp(
           'moonshot|kimi',
           caseSensitive: false,
@@ -152,6 +158,14 @@ class AgentProviderBridge {
           body['temperature'] = 1;
         }
     }
+    return body;
+  }
+
+  Future<Map<String, dynamic>> complete(Map<String, dynamic> input) async {
+    final endpoint = roomChatEndpoint(settings.llmUrl);
+    final protocol = roomProtocol(endpoint);
+    final messages = (input['messages'] as List).cast<Map>();
+    final body = _requestBody(input);
     final client = _factory();
     _active.add(client);
     try {
@@ -289,12 +303,23 @@ class AgentProviderBridge {
   }
 
   Future<void> handle(HttpRequest request, Map<String, dynamic> input) async {
+    if (input['stream'] == true &&
+        roomProtocol(roomChatEndpoint(settings.llmUrl)) == 'openai') {
+      return _forwardOpenAiStream(request, input);
+    }
+    onProgress?.call(AgentEvent('modelProgress', '正在连接模型'));
     final data = await complete(input);
+    onProgress?.call(
+      AgentEvent('modelProgress', '模型已返回回复', data: {'activity': true}),
+    );
     if (input['stream'] != true) {
       request.response.headers.contentType = ContentType.json;
       request.response.write(jsonEncode(data));
     } else {
-      request.response.headers.set('Content-Type', 'text/event-stream');
+      request.response.headers.set(
+        'Content-Type',
+        'text/event-stream; charset=utf-8',
+      );
       final choice = (data['choices'] as List).first as Map;
       final message = choice['message'] as Map;
       final chunks = [
@@ -337,5 +362,207 @@ class AgentProviderBridge {
       );
     }
     await request.response.close();
+  }
+
+  Future<void> _forwardOpenAiStream(
+    HttpRequest incoming,
+    Map<String, dynamic> input,
+  ) async {
+    final endpoint = roomChatEndpoint(settings.llmUrl), client = _factory();
+    _active.add(client);
+    var opened = false;
+    var expired = false;
+    final deadline = Timer(const Duration(seconds: 180), () {
+      expired = true;
+      client.close();
+    });
+    String phase = '';
+    void progress(Map delta) {
+      final next =
+          (delta['content'] is String &&
+              (delta['content'] as String).isNotEmpty)
+          ? 'answer'
+          : (delta['reasoning_content'] as String? ?? '').isNotEmpty
+          ? 'reasoning'
+          : (delta['tool_calls'] as List? ?? []).isNotEmpty
+          ? 'tools'
+          : '';
+      if (next.isEmpty) return;
+      onProgress?.call(
+        AgentEvent(
+          'modelProgress',
+          switch (next) {
+            'reasoning' => '模型正在整理任务',
+            'tools' => '正在准备工具操作',
+            _ => '正在生成回复',
+          },
+          data: {'activity': true, 'phase': next, 'transition': next != phase},
+        ),
+      );
+      phase = next;
+    }
+
+    Future<void> write(Map<String, dynamic> chunk) async {
+      if (!opened) {
+        incoming.response.headers.set(
+          'Content-Type',
+          'text/event-stream; charset=utf-8',
+        );
+        incoming.response.headers.set('Cache-Control', 'no-cache');
+        incoming.response.bufferOutput = false;
+        opened = true;
+      }
+      incoming.response.write('data: ${jsonEncode(chunk)}\n\n');
+      await incoming.response.flush();
+    }
+
+    Future<List<int>> read(http.StreamedResponse response) async {
+      final bytes = <int>[];
+      await for (final chunk in response.stream.timeout(
+        const Duration(seconds: 45),
+      )) {
+        bytes.addAll(chunk);
+        if (bytes.length > 2 * 1024 * 1024) {
+          throw const ApiFailure('Agent 模型返回内容过大');
+        }
+      }
+      return bytes;
+    }
+
+    try {
+      onProgress?.call(AgentEvent('modelProgress', '正在连接模型'));
+      Future<http.StreamedResponse> send(Map<String, dynamic> body) => client
+          .send(
+            http.Request('POST', endpoint)
+              ..followRedirects = false
+              ..headers.addAll(roomChatHeaders(settings, endpoint))
+              ..body = jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 30));
+      final body = _requestBody(input, stream: true);
+      var response = await send(body);
+      if (response.statusCode != 200) {
+        final reason = utf8
+            .decode(await read(response), allowMalformed: true)
+            .toLowerCase();
+        if ([400, 422].contains(response.statusCode) &&
+            RegExp(r'stream').hasMatch(reason) &&
+            RegExp(r'unsupported|not support|not allowed|must be false')
+                .hasMatch(reason)) {
+          final nonStreaming = {...body, 'stream': false}
+            ..remove('stream_options');
+          response = await send(nonStreaming);
+        } else {
+          if ([400, 422].contains(response.statusCode) &&
+              RegExp(r'tool|function').hasMatch(reason) &&
+              RegExp(r'unsupported|not support|not allowed|unknown|unexpected')
+                  .hasMatch(reason)) {
+            throw ApiFailure(
+              'tools unsupported: 请使用结构化兼容模式',
+              status: response.statusCode,
+            );
+          }
+          throw providerFailure('Agent 模型', response.statusCode);
+        }
+      }
+      if (response.statusCode != 200) {
+        throw providerFailure('Agent 模型', response.statusCode);
+      }
+      if (!(response.headers['content-type'] ?? '').contains(
+        'text/event-stream',
+      )) {
+        final value = jsonDecode(utf8.decode(await read(response))) as Map;
+        if (value['error'] != null) throw const ApiFailure('Agent 模型服务返回错误');
+        final choice = (value['choices'] as List).first as Map;
+        final message = choice['message'] as Map;
+        progress(message);
+        final calls = message['tool_calls'] as List? ?? [];
+        await write({
+          'id': value['id'] ?? 'chatcmpl-room',
+          'object': 'chat.completion.chunk',
+          'model': settings.model,
+          'created': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          'choices': [
+            {
+              'index': 0,
+              'delta': {
+                ...message,
+                if (calls.isNotEmpty)
+                  'tool_calls': [
+                    for (var i = 0; i < calls.length; i++)
+                      {
+                        'index': i,
+                        ...Map<String, dynamic>.from(calls[i] as Map),
+                      },
+                  ],
+              },
+              'finish_reason': null,
+            },
+          ],
+        });
+        await write({
+          'id': value['id'] ?? 'chatcmpl-room',
+          'object': 'chat.completion.chunk',
+          'model': settings.model,
+          'choices': [
+            {
+              'index': 0,
+              'delta': {},
+              'finish_reason':
+                  choice['finish_reason'] ??
+                  (calls.isEmpty ? 'stop' : 'tool_calls'),
+            },
+          ],
+        });
+      } else {
+        var size = 0, finished = false;
+        final bytes = response.stream.timeout(const Duration(seconds: 45)).map((
+          chunk,
+        ) {
+          size += chunk.length;
+          if (size > 2 * 1024 * 1024) throw const ApiFailure('Agent 模型返回内容过大');
+          return chunk;
+        });
+        await for (final chunk in decodeAgentSse(bytes)) {
+          if (chunk['agentStreamDone'] == true) break;
+          if (chunk['error'] != null) throw const ApiFailure('Agent 模型流式回复失败');
+          for (final raw in chunk['choices'] as List? ?? []) {
+            final choice = raw as Map;
+            if (choice['index'] != null && choice['index'] != 0) continue;
+            progress(choice['delta'] as Map? ?? {});
+            final finish = choice['finish_reason'];
+            if (finish != null) {
+              if (!['stop', 'tool_calls', 'function_call'].contains(finish)) {
+                throw const ApiFailure('Agent 模型回复未完整结束');
+              }
+              finished = true;
+            }
+          }
+          await write(chunk);
+        }
+        if (!finished) throw const ApiFailure('Agent 模型连接中断，回复未完成');
+      }
+      incoming.response.write('data: [DONE]\n\n');
+      await incoming.response.flush();
+    } catch (error) {
+      final failure = error is ApiFailure
+          ? error
+          : expired || error is TimeoutException
+          ? const ApiFailure('Agent 模型响应超时', status: 504)
+          : const ApiFailure('Agent 模型连接或流式协议异常', status: 502);
+      lastFailure = failure;
+      if (!opened) throw failure;
+      try {
+        await write({
+          'error': {'message': failure.message},
+        });
+      } catch (_) {
+        // Cancellation closes the streaming connection before this error reply.
+      }
+    } finally {
+      deadline.cancel();
+      client.close();
+      _active.remove(client);
+    }
   }
 }

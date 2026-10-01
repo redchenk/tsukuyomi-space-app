@@ -152,11 +152,53 @@ class ToolGateway {
       return {'declined': true};
     }
     _check(epoch);
-    emit(AgentEvent('toolStart', name, data: {'arguments': arguments}));
-    final result = await tool.execute(arguments);
-    _check(epoch);
-    emit(AgentEvent('toolResult', name, data: {'result': result}));
-    return result;
+    final id = newTurnId(), started = DateTime.now();
+    emit(
+      AgentEvent(
+        'toolStart',
+        name,
+        id: id,
+        data: {'arguments': arguments, 'state': 'running'},
+      ),
+    );
+    try {
+      final result = await tool.execute(arguments);
+      _check(epoch);
+      emit(
+        AgentEvent(
+          'toolResult',
+          name,
+          id: id,
+          data: {
+            'result': result,
+            'state': result is Map && result['declined'] == true
+                ? 'declined'
+                : result is Map &&
+                      (result['error'] != null ||
+                          result['exitCode'] is int && result['exitCode'] != 0)
+                ? 'failed'
+                : 'completed',
+            'elapsedMs': DateTime.now().difference(started).inMilliseconds,
+          },
+        ),
+      );
+      return result;
+    } catch (error) {
+      _check(epoch);
+      emit(
+        AgentEvent(
+          'toolResult',
+          name,
+          id: id,
+          data: {
+            'error': error.toString(),
+            'state': 'failed',
+            'elapsedMs': DateTime.now().difference(started).inMilliseconds,
+          },
+        ),
+      );
+      rethrow;
+    }
   }
 
   Future<String> resolvePath(String input, {required bool write}) =>

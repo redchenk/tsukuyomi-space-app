@@ -25,6 +25,10 @@ class AgentEvent {
 
 typedef AgentEmit = void Function(AgentEvent event);
 
+class AgentResponseTimeout extends ApiFailure {
+  const AgentResponseTimeout() : super('自动模式长时间未收到模型输出');
+}
+
 class AgentSession {
   AgentSession({
     required this.id,

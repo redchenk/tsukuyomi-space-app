@@ -301,7 +301,11 @@ void main() {
         ),
         throwsA(isA<ApiFailure>()),
       );
-      expect(events, isEmpty);
+      expect(
+        events.where((e) => e.type == 'toolStart' || e.type == 'toolResult'),
+        isEmpty,
+      );
+      expect(events.where((e) => e.type == 'info'), hasLength(1));
     },
   );
 

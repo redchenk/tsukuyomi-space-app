@@ -19,14 +19,21 @@ bool get desktopAgentSupported =>
     !kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux);
 
 class DesktopAgentController extends ChangeNotifier {
-  DesktopAgentController(this.room, {this.runtimeDataDirectory}) {
+  DesktopAgentController(
+    this.room, {
+    this.runtimeDataDirectory,
+    this.nativeResponseTimeout = const Duration(seconds: 30),
+  }) {
     _owner = owner;
     _configuration = configuration;
     room.addListener(_accountChanged);
   }
   final RoomController room;
   final String? runtimeDataDirectory;
+  final Duration nativeResponseTimeout;
   String workspace = '', error = '', engine = 'auto', status = '';
+  String activity = '';
+  DateTime? activityAt;
   AgentSession? session;
   AgentRuntime? _runtime;
   ToolGateway? _gateway;
@@ -37,6 +44,7 @@ class DesktopAgentController extends ChangeNotifier {
   final _pending = <({AgentApproval request, Completer<bool> answer})>[];
   Future<void> _saving = Future.value();
   Future<void>? _shutdown;
+  Timer? _nativeResponseTimer, _streamRefresh;
   AgentApproval? get approval => _pending.firstOrNull?.request;
   String get owner =>
       '${endpointUri(room.settings.siteUrl).origin}:${room.account?.id ?? 'guest'}:${room.sessionExpired}';
@@ -53,6 +61,8 @@ class DesktopAgentController extends ChangeNotifier {
   String _sessionKey(String path) =>
       'agent-session:$owner:${sha256.convert(utf8.encode(path))}';
   void _changed() {
+    _streamRefresh?.cancel();
+    _streamRefresh = null;
     if (!_disposed) notifyListeners();
   }
 
@@ -120,6 +130,23 @@ class DesktopAgentController extends ChangeNotifier {
 
   void emit(AgentEvent event) {
     if (_disposed || session?.owner != owner) return;
+    if ((event.type == 'modelProgress' && event.data['activity'] == true) ||
+        event.type == 'toolStart' ||
+        (event.type == 'assistant' && event.text.isNotEmpty)) {
+      _nativeResponseTimer?.cancel();
+    }
+    if (event.type == 'modelProgress') {
+      if (activity != event.text) {
+        activity = event.text;
+        activityAt = DateTime.now();
+        _changed();
+      }
+      return;
+    }
+    if (event.type == 'toolStart' || event.type == 'toolResult') {
+      activity = event.type == 'toolStart' ? '正在执行工具' : '正在整理结果';
+      activityAt = DateTime.now();
+    }
     final events = session!.events;
     final index = event.id.isEmpty
         ? -1
@@ -130,13 +157,23 @@ class DesktopAgentController extends ChangeNotifier {
       events[index] = event;
     }
     if (events.length > 2000) events.removeRange(0, events.length - 2000);
-    _changed();
+    if (event.data['streaming'] == true) {
+      _streamRefresh ??= Timer(const Duration(milliseconds: 32), () {
+        _streamRefresh = null;
+        if (!_disposed) notifyListeners();
+      });
+    } else {
+      _changed();
+    }
   }
 
   Future<bool> _approve(AgentApproval request) async {
     final epoch = _epoch;
     final pending = (request: request, answer: Completer<bool>());
     _pending.add(pending);
+    _nativeResponseTimer?.cancel();
+    activity = '等待你的确认';
+    activityAt = DateTime.now();
     _changed();
     try {
       final answer = await pending.answer.future.timeout(
@@ -165,6 +202,7 @@ class DesktopAgentController extends ChangeNotifier {
     for (final pending in _pending) {
       if (!pending.answer.isCompleted) pending.answer.complete(false);
     }
+    _interruptStreams();
     final saved = _save();
     final closing = _closeRuntime();
     session = null;
@@ -234,6 +272,7 @@ class DesktopAgentController extends ChangeNotifier {
   }
 
   Future<bool> _prepare(int epoch, AgentEmit taskEmit) async {
+    taskEmit(AgentEvent('modelProgress', '正在检查工作目录和工具'));
     final binaries = await AgentBinaries.locate();
     if (_disposed || epoch != _epoch) return false;
     _nativeTools ??= NativeAgentTools(room);
@@ -248,7 +287,14 @@ class DesktopAgentController extends ChangeNotifier {
     );
     _nativeTools!.gateway = _gateway;
     _gateway!.emit = taskEmit;
-    _runtime ??= engine == 'structured' || room.settings.flag('llmProxy')
+    final preference = await room.storage.draft(
+      'agent-engine:$owner:$configuration',
+    );
+    if (_disposed || epoch != _epoch) return false;
+    _runtime ??=
+        engine == 'structured' ||
+            room.settings.flag('llmProxy') ||
+            preference == 'structured'
         ? StructuredAgentRuntime(
             _gateway!,
             chat: LlmClient()..siteCookie = room.site.cookie,
@@ -273,6 +319,8 @@ class DesktopAgentController extends ChangeNotifier {
     busy = true;
     error = '';
     status = '正在启动 Agent';
+    activity = '正在启动 Agent';
+    activityAt = DateTime.now();
     _changed();
     try {
       if (!await _prepare(epoch, (event) {
@@ -314,6 +362,9 @@ class DesktopAgentController extends ChangeNotifier {
     busy = true;
     error = '';
     status = '正在启动 Agent';
+    activity = '正在准备任务';
+    activityAt = DateTime.now();
+    emit(AgentEvent('user', text));
     _changed();
     try {
       void taskEmit(AgentEvent event) {
@@ -322,24 +373,64 @@ class DesktopAgentController extends ChangeNotifier {
 
       if (!await _prepare(epoch, taskEmit)) return;
       _gateway!.begin();
-      emit(AgentEvent('user', text));
       status = _runtime is StructuredAgentRuntime ? '结构化兼容模式' : 'OpenCode';
       _changed();
       try {
-        await _runtime!.send(session!, text, room.settings, taskEmit);
+        if (_runtime is OpenCodeAgentRuntime && engine == 'auto') {
+          final timeout = Completer<void>();
+          final timer = Timer(nativeResponseTimeout, () {
+            if (epoch == _epoch &&
+                _gateway!.calls == 0 &&
+                !timeout.isCompleted) {
+              final upstream =
+                  (_runtime as OpenCodeAgentRuntime).lastModelFailure;
+              timeout.completeError(upstream ?? const AgentResponseTimeout());
+              _gateway!.cancel();
+              unawaited(_runtime!.cancel().catchError((Object _) {}));
+            }
+          });
+          _nativeResponseTimer = timer;
+          try {
+            await Future.any([
+              _runtime!.send(session!, text, room.settings, taskEmit),
+              timeout.future,
+            ]);
+          } finally {
+            timer.cancel();
+            if (identical(_nativeResponseTimer, timer)) {
+              _nativeResponseTimer = null;
+            }
+          }
+        } else {
+          await _runtime!.send(session!, text, room.settings, taskEmit);
+        }
       } catch (failure) {
         if (epoch != _epoch ||
             _runtime is! OpenCodeAgentRuntime ||
             _gateway!.calls > 0 ||
             engine != 'auto' ||
-            !(failure is ApiFailure && [400, 422].contains(failure.status)) &&
+            failure is! AgentResponseTimeout &&
+                !(failure is ApiFailure &&
+                    [400, 422].contains(failure.status)) &&
                 !RegExp(
                   r'tools unsupported|does not support tools|function.*unsupported',
                   caseSensitive: false,
                 ).hasMatch(failure.toString())) {
           rethrow;
         }
+        emit(
+          AgentEvent(
+            'info',
+            failure is AgentResponseTimeout
+                ? '自动模式等待过久，正在切换兼容模式'
+                : '模型工具协议不兼容，正在切换兼容模式',
+          ),
+        );
+        activity = '正在切换兼容模式';
+        activityAt = DateTime.now();
+        _changed();
         await _runtime!.dispose();
+        if (_disposed || epoch != _epoch) return;
         _gateway!.begin();
         _runtime = StructuredAgentRuntime(
           _gateway!,
@@ -348,8 +439,14 @@ class DesktopAgentController extends ChangeNotifier {
         status = '结构化兼容模式';
         _changed();
         await _runtime!.send(session!, text, room.settings, taskEmit);
+        if (epoch == _epoch) {
+          await room.storage.saveDraft(
+            'agent-engine:$owner:$configuration',
+            'structured',
+          );
+        }
       }
-      if (epoch == _epoch) emit(AgentEvent('done', '任务完成'));
+      if (epoch == _epoch) emit(AgentEvent('done', '本轮已结束'));
     } catch (failure) {
       if (!_disposed && epoch == _epoch) {
         error = failure.toString();
@@ -358,6 +455,7 @@ class DesktopAgentController extends ChangeNotifier {
     } finally {
       if (!_disposed && epoch == _epoch) {
         busy = false;
+        if (error.isNotEmpty) _interruptStreams();
         await _save();
         _changed();
       }
@@ -366,6 +464,8 @@ class DesktopAgentController extends ChangeNotifier {
 
   Future<void> stop() async {
     final epoch = ++_epoch;
+    _nativeResponseTimer?.cancel();
+    _streamRefresh?.cancel();
     for (final pending in _pending) {
       if (!pending.answer.isCompleted) pending.answer.complete(false);
     }
@@ -374,11 +474,27 @@ class DesktopAgentController extends ChangeNotifier {
     await _runtime?.cancel();
     if (_disposed || epoch != _epoch) return;
     busy = false;
+    _interruptStreams();
     await _save();
     _changed();
   }
 
+  void _interruptStreams() {
+    for (var i = 0; i < (session?.events.length ?? 0); i++) {
+      final event = session!.events[i];
+      if (event.data['streaming'] == true) {
+        session!.events[i] = AgentEvent(
+          event.type,
+          event.text,
+          id: event.id,
+          data: {...event.data, 'streaming': false, 'interrupted': true},
+        );
+      }
+    }
+  }
+
   Future<void> _closeRuntime() async {
+    _nativeResponseTimer?.cancel();
     final runtime = _runtime;
     final gateway = _gateway;
     _runtime = null;
@@ -396,6 +512,9 @@ class DesktopAgentController extends ChangeNotifier {
     if (_shutdown != null) return _shutdown!;
     _disposed = true;
     _epoch++;
+    _nativeResponseTimer?.cancel();
+    _streamRefresh?.cancel();
+    _interruptStreams();
     room.removeListener(_accountChanged);
     for (final pending in _pending) {
       if (!pending.answer.isCompleted) pending.answer.complete(false);

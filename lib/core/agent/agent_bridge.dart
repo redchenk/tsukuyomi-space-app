@@ -65,7 +65,7 @@ class AgentBridge {
         'initialize' => {
           'protocolVersion': '2024-11-05',
           'capabilities': {'tools': {}},
-          'serverInfo': {'name': 'tsukuyomi', 'version': '0.6.1'},
+          'serverInfo': {'name': 'tsukuyomi', 'version': '0.6.2'},
         },
         'ping' => {},
         'tools/list' => {
@@ -126,7 +126,13 @@ class AgentBridge {
         );
       }
     } finally {
-      await request.response.close();
+      try {
+        await request.response.close();
+      } on SocketException {
+        // Cancellation closes both loopback and provider clients.
+      } on HttpException {
+        // The caller has disconnected and cannot receive a response.
+      }
     }
   }
 

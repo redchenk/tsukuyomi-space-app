@@ -12,6 +12,7 @@ import 'agent_tools.dart';
 import 'agent_binaries.dart';
 import 'agent_bridge.dart';
 import 'agent_provider.dart';
+import 'agent_progress.dart';
 
 class OpenCodeAgentRuntime implements AgentRuntime {
   OpenCodeAgentRuntime(
@@ -37,6 +38,7 @@ class OpenCodeAgentRuntime implements AgentRuntime {
   int? _exitCode;
   AgentSession? _session;
   bool _cancelled = false, _disposed = false;
+  ApiFailure? get lastModelFailure => _bridge?.provider.lastFailure;
   static String _defaultDataDirectory() {
     final home =
         Platform.environment[Platform.isWindows ? 'LOCALAPPDATA' : 'HOME'] ??
@@ -159,7 +161,13 @@ class OpenCodeAgentRuntime implements AgentRuntime {
           },
           'models': {
             'room': {
+              'id': settings.model,
               'name': settings.model,
+              if (endpointUri(settings.llmUrl).host == 'api.deepseek.com' ||
+                  settings.model.toLowerCase().contains('deepseek')) ...{
+                'reasoning': true,
+                'interleaved': {'field': 'reasoning_content'},
+              },
               'limit': {'context': 32768, 'output': 8192},
             },
           },
@@ -192,7 +200,7 @@ class OpenCodeAgentRuntime implements AgentRuntime {
           'description': 'Native Room Agent',
           'steps': 20,
           'prompt':
-              'Use only tsukuyomi MCP tools. All tools are already routed through the native permission gateway. Do not retry declined operations by another tool. Work only on the user task and report actual results. The workspace is ${session.workspace}. Your process directory is private runtime storage.',
+              '$agentCommunicationPrompt Use only tsukuyomi MCP tools. All tools are already routed through the native permission gateway. Do not retry declined operations by another tool. Work only on the user task and report actual results. The workspace is ${session.workspace}. Your process directory is private runtime storage.',
         },
       },
       'default_agent': 'room',
@@ -303,9 +311,12 @@ class OpenCodeAgentRuntime implements AgentRuntime {
     AgentEmit emit,
   ) async {
     _cancelled = false;
+    _bridge?.provider.clearFailure();
+    emit(AgentEvent('modelProgress', '正在启动 Agent'));
     await start(session);
     if (_cancelled) throw const ApiFailure('Agent 已停止');
     _bridge?.provider.clearFailure();
+    _bridge?.provider.onProgress = emit;
     final done = Completer<void>();
     unawaited(
       done.future.then<void>(
@@ -316,6 +327,32 @@ class OpenCodeAgentRuntime implements AgentRuntime {
     final client = _factory();
     _eventsClient = client;
     final parts = <String, String>{};
+    final metadata = <String, Map>{};
+    final roles = <String, String>{}, finishes = <String, String>{};
+    var sawBusy = false;
+    void display(String id) {
+      final part = metadata[id];
+      if (part == null ||
+          part['type'] != 'text' ||
+          roles[part['messageID']] != 'assistant' ||
+          (parts[id] ?? '').isEmpty) {
+        return;
+      }
+      emit(
+        AgentEvent(
+          'assistant',
+          parts[id]!,
+          id: id,
+          data: {
+            'streaming': part['time']?['end'] == null,
+            'kind': finishes[part['messageID']] == 'tool-calls'
+                ? 'commentary'
+                : 'answer',
+          },
+        ),
+      );
+    }
+
     final eventRequest = http.Request('GET', _uri!.resolve('/event'))
       ..headers.addAll(_headers);
     final stream = await client
@@ -329,37 +366,60 @@ class OpenCodeAgentRuntime implements AgentRuntime {
           (line) {
             if (!line.startsWith('data: ')) return;
             try {
-              final event = jsonDecode(line.substring(6)) as Map;
+              final raw = jsonDecode(line.substring(6)) as Map;
+              final event = raw['payload'] is Map ? raw['payload'] as Map : raw;
               final prop = event['properties'] as Map? ?? {};
               if (prop['sessionID'] != session.nativeId &&
-                  (prop['part'] as Map?)?['sessionID'] != session.nativeId) {
+                  (prop['part'] as Map?)?['sessionID'] != session.nativeId &&
+                  (prop['info'] as Map?)?['sessionID'] != session.nativeId) {
                 return;
               }
-              if (event['type'] == 'message.part.updated') {
+              if (event['type'] == 'message.updated') {
+                final info = prop['info'] as Map;
+                roles[info['id'] as String] = info['role'] as String;
+                if (info['finish'] is String) {
+                  finishes[info['id'] as String] = info['finish'] as String;
+                }
+                for (final entry in metadata.entries) {
+                  if (entry.value['messageID'] == info['id']) {
+                    display(entry.key);
+                  }
+                }
+              } else if (event['type'] == 'message.part.updated') {
                 final part = prop['part'] as Map;
+                metadata[part['id'] as String] = part;
                 if (part['type'] == 'text' && part['text'] is String) {
                   parts[part['id'] as String] = part['text'] as String;
-                  emit(
-                    AgentEvent(
-                      'assistant',
-                      part['text'] as String,
-                      id: part['id'] as String,
-                    ),
-                  );
+                  display(part['id'] as String);
                 }
               } else if (event['type'] == 'message.part.delta') {
                 final id = prop['partID'] as String;
                 if (prop['field'] == 'text') {
                   parts[id] = (parts[id] ?? '') + (prop['delta'] as String);
-                  emit(AgentEvent('assistant', parts[id]!, id: id));
+                  display(id);
                 }
               } else if (event['type'] == 'session.error' &&
                   !done.isCompleted) {
                 done.completeError(_modelFailure(prop['error']));
-              } else if (event['type'] == 'session.status' &&
-                  prop['status']?['type'] == 'idle' &&
-                  !done.isCompleted) {
-                done.complete();
+              } else if (event['type'] == 'session.status') {
+                if (prop['status']?['type'] == 'busy') sawBusy = true;
+                if (prop['status']?['type'] == 'retry') {
+                  emit(
+                    AgentEvent(
+                      'modelProgress',
+                      '模型服务正在重试',
+                      data: {
+                        'phase': 'retry',
+                        'attempt': prop['status']?['attempt'],
+                      },
+                    ),
+                  );
+                }
+                if (prop['status']?['type'] == 'idle' &&
+                    sawBusy &&
+                    !done.isCompleted) {
+                  done.complete();
+                }
               }
             } catch (_) {}
           },
@@ -393,6 +453,14 @@ class OpenCodeAgentRuntime implements AgentRuntime {
       if (assistant['info']?['error'] != null) {
         throw _modelFailure(assistant['info']['error']);
       }
+      if ((assistant['parts'] as List? ?? []).every(
+            (part) =>
+                part['type'] != 'text' ||
+                (part['text'] as String? ?? '').trim().isEmpty,
+          ) &&
+          gateway.calls == 0) {
+        throw const AgentResponseTimeout();
+      }
       for (final part in assistant['parts'] as List? ?? []) {
         if (part['type'] == 'text') {
           emit(
@@ -400,6 +468,7 @@ class OpenCodeAgentRuntime implements AgentRuntime {
               'assistant',
               part['text'] as String,
               id: part['id'] as String,
+              data: {'streaming': false, 'kind': 'answer'},
             ),
           );
         }
@@ -407,6 +476,7 @@ class OpenCodeAgentRuntime implements AgentRuntime {
     } finally {
       await subscription.cancel();
       client.close();
+      _bridge?.provider.onProgress = null;
       if (identical(_eventsClient, client)) _eventsClient = null;
     }
   }
@@ -441,7 +511,12 @@ class OpenCodeAgentRuntime implements AgentRuntime {
     _bridge?.provider.cancel();
     if (_process != null && _session?.nativeId != null) {
       try {
-        await _request('POST', '/session/${_session!.nativeId!}/abort');
+        await _requestWith(
+          _client!,
+          'POST',
+          '/session/${_session!.nativeId!}/abort',
+          timeout: const Duration(seconds: 2),
+        );
       } catch (_) {}
     }
     _eventsClient?.close();
