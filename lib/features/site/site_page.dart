@@ -1664,9 +1664,32 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 textOf(a, 'category'),
                 style: TextStyle(color: RoomStyle(context).accent),
               ),
-              _heading(
-                textOf(a, 'title'),
-                '${userDisplayName(a, prefix: 'author', fallback: 'admin')} · ${dateText(a['published_at'] ?? a['created_at'] ?? a['publish_date'])} · ${a['views'] ?? a['view_count'] ?? 0} 阅读',
+              _heading(textOf(a, 'title'), ''),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  TextButton(
+                    key: const Key('article-author-profile'),
+                    onPressed: () => _go(
+                      '/users/${Uri.encodeComponent(textOf(a, 'author_username', 'admin'))}',
+                    ),
+                    child: Text(
+                      userDisplayName(a, prefix: 'author', fallback: 'admin'),
+                    ),
+                  ),
+                  Text(
+                    dateText(
+                      a['published_at'] ?? a['created_at'] ?? a['publish_date'],
+                    ),
+                  ),
+                  Text(
+                    '${a['views'] ?? a['view_count'] ?? 0} ${siteTranslate(context, '阅读')}',
+                  ),
+                  if (textOf(a, 'read_time').isNotEmpty)
+                    Text('${a['read_time']} ${siteTranslate(context, '分钟')}'),
+                ],
               ),
               if (textOf(a, 'excerpt').isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -1685,6 +1708,58 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                   ),
                 ),
               ],
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 10,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      if (await _write(
+                            liked ? 'DELETE' : 'POST',
+                            '/api/user/article-likes/$articleId',
+                          ) !=
+                          null) {
+                        await _load();
+                      }
+                    },
+                    icon: Icon(
+                      liked ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+                    ),
+                    label: Text(
+                      '${siteTranslate(context, liked ? '已点赞' : '点赞')} ${mapOf(_extra['like'])['count'] ?? a['like_count'] ?? 0}',
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      if (await _write(
+                            bookmarked ? 'DELETE' : 'POST',
+                            '/api/user/bookmarks/$articleId',
+                          ) !=
+                          null) {
+                        await _load();
+                      }
+                    },
+                    icon: Icon(
+                      bookmarked
+                          ? CupertinoIcons.bookmark_fill
+                          : CupertinoIcons.bookmark,
+                    ),
+                    label: Text(
+                      '${siteTranslate(context, bookmarked ? '已收藏' : '收藏')} ${mapOf(_extra['bookmark'])['count'] ?? a['bookmark_count'] ?? 0}',
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _copying
+                        ? null
+                        : () => _copyLink(
+                            '/articles/${Uri.encodeComponent(articleId)}',
+                            '文章链接已复制',
+                          ),
+                    icon: const Icon(CupertinoIcons.link),
+                    label: const SiteText('复制链接'),
+                  ),
+                ],
+              ),
               if (textOf(a, 'cover_image').isNotEmpty) ...[
                 const SizedBox(height: 20),
                 ClipRRect(
@@ -1705,54 +1780,6 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 onNavigate: _go,
                 initialAnchor: Uri.parse(widget.path).fragment,
                 headers: {if (c.site.cookie != null) 'Cookie': c.site.cookie!},
-              ),
-              const SizedBox(height: 30),
-              Wrap(
-                spacing: 10,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      if (await _write(
-                            liked ? 'DELETE' : 'POST',
-                            '/api/user/article-likes/$articleId',
-                          ) !=
-                          null) {
-                        await _load();
-                      }
-                    },
-                    icon: Icon(
-                      liked ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-                    ),
-                    label: Text(liked ? '已点赞' : '点赞'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      if (await _write(
-                            bookmarked ? 'DELETE' : 'POST',
-                            '/api/user/bookmarks/$articleId',
-                          ) !=
-                          null) {
-                        await _load();
-                      }
-                    },
-                    icon: Icon(
-                      bookmarked
-                          ? CupertinoIcons.bookmark_fill
-                          : CupertinoIcons.bookmark,
-                    ),
-                    label: Text(bookmarked ? '已收藏' : '收藏'),
-                  ),
-                  TextButton.icon(
-                    onPressed: _copying
-                        ? null
-                        : () => _copyLink(
-                            '/articles/${Uri.encodeComponent(articleId)}',
-                            '文章链接已复制',
-                          ),
-                    icon: const Icon(CupertinoIcons.link),
-                    label: const SiteText('复制链接'),
-                  ),
-                ],
               ),
             ],
           ),

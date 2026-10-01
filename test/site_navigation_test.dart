@@ -13,6 +13,7 @@ import 'package:tsukuyomi_space_app/features/site/friend_links_page.dart';
 import 'package:tsukuyomi_space_app/features/site/site_navigation.dart';
 import 'package:tsukuyomi_space_app/features/site/site_page.dart';
 import 'package:tsukuyomi_space_app/features/site/user_center_page.dart';
+import 'package:tsukuyomi_space_app/features/site/user_profile_page.dart';
 import 'package:tsukuyomi_space_app/main.dart';
 
 import 'support/fakes.dart';
@@ -28,7 +29,8 @@ class NavigationSite extends FakeSite implements SiteDataService {
     Map<String, dynamic>? body,
   ]) async {
     calls.add('$method $path');
-    if (fixtures.containsKey(path)) return fixtures[path]!;
+    final canonical = path.replaceFirst(RegExp(r'^/api/live/\d+'), '/api');
+    if (fixtures.containsKey(canonical)) return fixtures[canonical]!;
     if (path.endsWith('/articles/42')) {
       return {
         'success': true,
@@ -128,6 +130,38 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('article author and interaction totals match source navigation', (
+    tester,
+  ) async {
+    final (_, site) = await mount(tester);
+    site.fixtures['/api/articles/42'] = {
+      'success': true,
+      'data': {
+        'id': 42,
+        'title': '作者主页入口',
+        'author_username': 'alice',
+        'author_nickname': '月下创作者',
+        'content_format': 'markdown',
+        'content': '正文',
+        'like_count': 7,
+        'bookmark_count': 3,
+      },
+    };
+    Navigator.of(tester.element(find.byType(RoomPage)))
+        .pushNamed('/articles/42');
+    await tester.pumpAndSettle();
+    expect(find.text('点赞 7'), findsOneWidget);
+    expect(find.text('收藏 3'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('article-author-profile')));
+    await tester.pumpAndSettle();
+    expect(find.byType(UserProfilePage), findsOneWidget);
+    expect(
+      tester.widget<UserProfilePage>(find.byType(UserProfilePage)).path,
+      '/users/alice',
+    );
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Plaza friend-link entry stays native', (tester) async {
     await mount(tester);

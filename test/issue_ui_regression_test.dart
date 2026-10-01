@@ -133,7 +133,7 @@ void main() {
         );
         await tester.pumpAndSettle();
         final initialReads = articleReads;
-        final button = find.widgetWithText(OutlinedButton, action);
+        final button = find.widgetWithText(OutlinedButton, '$action 0');
         await tester.ensureVisible(button);
         await tester.tap(button);
         await tester.pump();
