@@ -8,17 +8,19 @@ import 'package:tsukuyomi_space_app/features/agent/desktop_agent_controller.dart
 import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
 
 import 'support/fakes.dart';
+import 'support/svg_fixture.dart';
 
 void main() {
   const native = bool.fromEnvironment('RUN_AGENT_TESTS');
   test(
-    'real OpenCode streams DeepSeek text, keeps reasoning for tool replay, and ignores user echoes',
+    'real OpenCode streams DeepSeek text, writes a large SVG once and keeps reasoning for tool replay',
     () async {
       final root = await Directory.systemTemp.createTemp('agent-deepseek-');
       final upstream = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       final finishFirst = Completer<void>();
       final firstText = Completer<void>();
       const privateState = 'PROVIDER_STATE_NOT_PUBLIC_PROGRESS';
+      final svg = pelicanSvgFixture();
       var nativeRequests = 0;
       var reasoningReplayed = false;
       Future<void> handle(HttpRequest request) async {
@@ -61,21 +63,28 @@ void main() {
                 'index': 0,
                 'id': 'once',
                 'type': 'function',
-                'function': {
-                  'name': tool['function']['name'],
-                  'arguments': '{"path":"deepseek.txt",',
+                'function': {'name': tool['function']['name'], 'arguments': ''},
+              },
+            ],
+          });
+          final arguments = jsonEncode({'path': 'pelican.svg', 'content': svg});
+          for (var offset = 0; offset < arguments.length; offset += 1024) {
+            await chunk({
+              'tool_calls': [
+                {
+                  'index': 0,
+                  'function': {
+                    'arguments': arguments.substring(
+                      offset,
+                      offset + 1024 < arguments.length
+                          ? offset + 1024
+                          : arguments.length,
+                    ),
+                  },
                 },
-              },
-            ],
-          });
-          await chunk({
-            'tool_calls': [
-              {
-                'index': 0,
-                'function': {'arguments': '"content":"一次写入"}'},
-              },
-            ],
-          });
+              ],
+            });
+          }
           await chunk({}, 'tool_calls');
         } else {
           final assistant = (body['messages'] as List)
@@ -83,6 +92,7 @@ void main() {
               .last;
           reasoningReplayed = assistant['reasoning_content'] == privateState;
           expect(reasoningReplayed, true);
+          expect(svg.length, greaterThan(65536));
           expect(
             (body['messages'] as List).any((m) => m['role'] == 'tool'),
             true,
@@ -91,7 +101,7 @@ void main() {
             'role': 'assistant',
             'reasoning_content': 'second provider state',
           });
-          await chunk({'content': '**已保存** deepseek.txt。'});
+          await chunk({'content': '**已保存** pelican.svg。'});
           await chunk({'content': '\n\n仅写入一次，没有运行命令。'}, 'stop');
         }
         request.response.write('data: [DONE]\n\n');
@@ -139,7 +149,7 @@ void main() {
       final result = agent.send(task);
       await firstText.future.timeout(const Duration(seconds: 15));
       expect(finishFirst.isCompleted, false);
-      expect(await File('${workspace.path}/deepseek.txt').exists(), false);
+      expect(await File('${workspace.path}/pelican.svg').exists(), false);
       await Future<void>.delayed(const Duration(seconds: 3));
       expect(agent.status, 'OpenCode');
       expect(nativeRequests, 1);
@@ -149,10 +159,8 @@ void main() {
       expect(agent.status, 'OpenCode');
       expect(nativeRequests, 2);
       expect(reasoningReplayed, true);
-      expect(
-        await File('${workspace.path}/deepseek.txt').readAsString(),
-        '一次写入',
-      );
+      expect(svg.length, greaterThan(65536));
+      expect(await File('${workspace.path}/pelican.svg').readAsString(), svg);
       final events = agent.session!.events;
       expect(events.where((e) => e.type == 'toolStart'), hasLength(1));
       expect(

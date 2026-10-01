@@ -44,6 +44,7 @@ Map<String, dynamic> roomChatBody(
   String text, {
   Map<String, dynamic>? image,
   bool stream = true,
+  bool jsonObject = false,
 }) {
   final protocol = roomProtocol(roomChatEndpoint(s.llmUrl));
   final dataUrl = image?['dataUrl'] as String?;
@@ -65,12 +66,17 @@ Map<String, dynamic> roomChatBody(
         },
       ],
       'stream': stream,
+      if (jsonObject)
+        'text': {
+          'format': {'type': 'json_object'},
+        },
     };
   }
   if (protocol == 'ollama') {
     return {
       'model': s.model,
       'stream': stream,
+      if (jsonObject) 'format': 'json',
       'options': {'temperature': 0.4},
       'messages': [
         {'role': 'system', 'content': system},
@@ -112,6 +118,7 @@ Map<String, dynamic> roomChatBody(
   return {
     'model': s.model,
     'stream': stream,
+    if (jsonObject) 'response_format': {'type': 'json_object'},
     if (RegExp(
       'moonshot|kimi',
       caseSensitive: false,
@@ -181,15 +188,17 @@ void validateCompletion(Map p) {
       ) ||
       ['response.failed', 'response.incomplete'].contains(p['type']) ||
       ['failed', 'incomplete'].contains(p['status'])) {
-    throw const ApiFailure('模型回复未完整结束，请重试');
+    throw const ModelIncompleteFailure('模型回复未完整结束，请重试');
   }
 }
 
 /// Byte boundaries, CRLF and UTF-8 are decoded before interpreting protocol events.
 Stream<String> decodeRoomStream(
   Stream<List<int>> bytes,
-  String protocol,
-) async* {
+  String protocol, {
+  int maxChars = 200000,
+  int maxEventChars = 1024 * 1024,
+}) async* {
   final lines = bytes.transform(utf8.decoder).transform(const LineSplitter());
   var completed = false, event = 'message', received = '', size = 0;
   final data = <String>[];
@@ -242,13 +251,13 @@ Stream<String> decodeRoomStream(
     }
     if (finalText.isNotEmpty && received.isEmpty) delta = finalText;
     received += delta;
-    if (received.length > 200000) throw const ApiFailure('回复过长，请缩短请求');
+    if (received.length > maxChars) throw const ApiFailure('回复过长，请缩短请求');
     return delta;
   }
 
   await for (final line in lines) {
     if (protocol == 'ollama') {
-      if (line.length > 1024 * 1024) throw const ApiFailure('模型事件过大');
+      if (line.length > maxEventChars) throw const ApiFailure('模型事件过大');
       final delta = consume(line);
       if (delta.isNotEmpty) yield delta;
     } else if (line.isEmpty) {
@@ -262,7 +271,7 @@ Stream<String> decodeRoomStream(
     } else if (line.startsWith('data:')) {
       final v = line.substring(5).trimLeft();
       size += v.length;
-      if (size > 1024 * 1024) throw const ApiFailure('模型事件过大');
+      if (size > maxEventChars) throw const ApiFailure('模型事件过大');
       data.add(v);
     } else if (line.startsWith('event:')) {
       event = line.substring(6).trim();
@@ -273,5 +282,5 @@ Stream<String> decodeRoomStream(
     final delta = consume(data.join('\n'));
     if (delta.isNotEmpty) yield delta;
   }
-  if (!completed) throw const ApiFailure('连接中断，未完成的回复没有保存');
+  if (!completed) throw const ModelIncompleteFailure('连接中断，未完成的回复没有保存');
 }

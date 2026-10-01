@@ -1,6 +1,6 @@
 # 月读空间 · Flutter 原生客户端
 
-Tsukuyomi Space 的独立 Flutter 客户端。0.6.2 Room / 桌面 Agent 测试版提供原生 Room、统一认证、内容阅读与创作、社区、游戏和管理页面，直接连接原网站 API。
+Tsukuyomi Space 的独立 Flutter 客户端。0.6.3 Room / 桌面 Agent 测试版提供原生 Room、统一认证、内容阅读与创作、社区、游戏和管理页面，直接连接原网站 API。
 
 整站原生页面包含入口、Hub、Wiki、图库、附件库、编辑器、像素工坊、辉夜跑酷、友链、公开主页、管理后台和 Live2D 工作台，支持跨设备事件、中文／日语／英语、全站搜索及八千代导览。后台只向有效登录的 admin／super_admin 显示和开放；本地、合并与云端记忆来源跟进原站最新逻辑。实现与验收边界见 [整站迁移记录](docs/native-full-site-implementation-2026-09-30.md)。
 
@@ -39,7 +39,7 @@ Windows/macOS/Linux 在 Room 的 Agent 标签选择工作目录并输入任务�
 
 文件、命令、MCP、文章草稿修改/撤销和发布统一经工具网关。越界、MCP 和服务器写入展示具体内容确认；命令仅在系统沙箱运行，默认 120 秒超时、20 次工具上限，缺失沙箱则停止。提权当前不支持。账号、站点或模型配置切换会取消任务和审批。恢复会话不会重放已完成操作。
 
-开发环境先执行 `python3 tool/agent/prepare_runtime.py --target macos`（或 windows/linux）。桌面发布构建后执行 `package_runtime.py` 将运行时复制到安装目录；二进制不提交到 Git。DeepSeek 自动模式、实时输出及任务进度修复见 [0.6.2 验证](docs/native-agent-progress-v0.6.2.md)，文章预览与滚动修复见 [0.6.1 验证](docs/native-fixes-v0.6.1.md)，完整功能核对表和限制见 [0.6 验收](docs/native-room-agent-v0.6.md)。
+开发环境先执行 `python3 tool/agent/prepare_runtime.py --target macos`（或 windows/linux）。桌面发布构建后执行 `package_runtime.py` 将运行时复制到安装目录；二进制不提交到 Git。SVG 生成及原站图标修复见 [0.6.3 验证](docs/native-svg-icons-v0.6.3.md)，DeepSeek 自动模式、实时输出及任务进度修复见 [0.6.2 验证](docs/native-agent-progress-v0.6.2.md)，文章预览与滚动修复见 [0.6.1 验证](docs/native-fixes-v0.6.1.md)，完整功能核对表和限制见 [0.6 验收](docs/native-room-agent-v0.6.md)。
 
 ## 启用真实 Live2D
 

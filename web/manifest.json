@@ -1,11 +1,11 @@
 {
-    "name": "tsukuyomi_space_app",
-    "short_name": "tsukuyomi_space_app",
+    "name": "Tsukuyomi Space",
+    "short_name": "月读空间",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#f8f6fc",
+    "theme_color": "#6e5ab5",
+    "description": "月读空间原生 Room、创作与社区客户端",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -220,6 +220,10 @@ class Account {
   bool get isAdministrator => role == 'admin' || role == 'super_admin';
 }
 
+class ModelIncompleteFailure extends ApiFailure {
+  const ModelIncompleteFailure(super.message);
+}
+
 class ApiFailure implements Exception {
   const ApiFailure(this.message, {this.status});
   final String message;

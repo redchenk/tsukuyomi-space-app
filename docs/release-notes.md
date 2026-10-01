@@ -1,11 +1,13 @@
-0.6.2+8 / v0.6.2-beta.1，修复 DeepSeek 自动模式等待无反馈，补齐 Agent 实时输出与任务进度。
+0.6.3+9 / v0.6.3-beta.1，修复长 SVG 生成失败，应用图标统一使用原站月读空间图标。
 
-- **DeepSeek 原生流式输出**：Chat Completions 桥接即时转发 SSE，不再等完整回复后伪装成流式；修复中文 SSE 默认 Latin1 导致输出失败。保留 DeepSeek 工具续轮要求的 `reasoning_content`，界面只显示公开阶段说明。
-- **自动模式恢复**：30 秒内没有有效模型输出且未执行工具时，取消原生请求并切换结构化兼容模式；成功后记住该账号和模型配置可用的模式。角色占位和保活不算有效输出，401/429/5xx 不触发兼容重试，已执行的操作不重放。
-- **任务过程**：提交后立即显示任务、当前阶段和耗时；结构化模式边收边显示公开说明与最终正文，完整动作严格校验后才执行。工具操作合并为一行，展示文件／命令与执行状态，详情可展开。结果使用 Markdown，滚动离开底部时保持位置。
-- **适度说明与响应性能**：复杂任务给简短计划和阶段更新，简单任务简洁回复；隐藏原始协议 JSON 与内部推理。流式界面更新最多每 32ms 一次，覆盖五种宽度、深浅主题、三种语言和放大字体。
+- **自动模式长回复**：区分实际文字／工具参数与重复的 SSE 协议开销，修复不足 2MB 的作品被原始流量限制打断。正文 8MiB、传输 64MiB、JSON 16MiB 分别有界；原生只读取最近四条消息核对最终结果。
+- **结构化 SVG**：支持的接口启用 JSON 输出模式，明确 SVG/XML 字符串转义和保存工具；一次修复会附具体校验错误及有界的出错内容。截断或空 JSON 也可修复一次；完整动作仍严格校验后才执行。401/429/5xx 不因格式约束重复请求，明确拒绝 JSON 模式的接口按提示词兼容并记住选择。
+- **作品文件**：文件读写从 64KiB 调整到 1MiB UTF-8；超限写入保留原文件。生成动作与文件内容分离记录，避免把完整 SVG 重复塞进下一步提示。官方 DeepSeek 地址的输出预算为 32K tokens。
+- **应用图标**：Android、iOS、macOS、Windows、Web 使用原站角色图标；Windows 安装器与 Linux 窗口、DEB、便携包入口一并处理，iOS 图标无透明通道，Web 提供安全区域图标。
 
-本地完整回归 **503 项通过、无跳过**，静态分析无问题，发布与打包校验 40 项通过。使用固定 OpenCode 1.18.33 的真实进程、DeepSeek 协议 fixture、原站临时后端及原生 Cubism。真实 DeepSeek 账号尚未接入；原生 Responses／Anthropic／Ollama 桥接仍按完整回复返回，结构化模式沿用四协议流式聊天。具体用例、结果与限制见 [0.6.2 验证记录](https://github.com/redchenk/tsukuyomi-space-app/blob/v0.6.2-beta.1/docs/native-agent-progress-v0.6.2.md)。
+本地完整回归 **517 项通过、无跳过**，静态分析无问题；发布与打包校验 40 项通过。本轮包含约 180KB 鹈鹕骑自行车 SVG 的真实 OpenCode 写入、超过旧 2MB 原始流量的分片回复、四协议结构化流程、转义／截断／空动作修复，以及越界写入和错误状态不重试。未接入用户 DeepSeek 在线账号。具体用例与限制见 [0.6.3 验证记录](https://github.com/redchenk/tsukuyomi-space-app/blob/v0.6.3-beta.1/docs/native-svg-icons-v0.6.3.md)。
+
+保留 0.6.2 的公开阶段说明、32ms 合并的实时正文、工具状态与耗时、取消、无有效输出时的安全兼容切换和模式记忆；原生 Responses／Anthropic／Ollama 桥接仍按完整回复返回，结构化模式支持四协议流式聊天。[0.6.2 验证](https://github.com/redchenk/tsukuyomi-space-app/blob/v0.6.2-beta.1/docs/native-agent-progress-v0.6.2.md)。
 
 延续 0.6.1 的文章分栏预览、180ms 合并刷新和滚动正文隔离；此前文章滚动受控场景的三次性能数据见 [0.6.1 验证记录](https://github.com/redchenk/tsukuyomi-space-app/blob/v0.6.1-beta.1/docs/native-fixes-v0.6.1.md)。
 

@@ -115,6 +115,10 @@ install(DIRECTORY "${NATIVE_ASSETS_DIR}"
 # Fully re-copy the assets directory on each build to avoid having stale files
 # from a previous install.
 set(FLUTTER_ASSET_DIR_NAME "flutter_assets")
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/../assets/branding/app-icon.png"
+  DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
+  RENAME "tsukuyomi-space.png"
+  COMPONENT Runtime)
 install(CODE "
   file(REMOVE_RECURSE \"${INSTALL_BUNDLE_DATA_DIR}/${FLUTTER_ASSET_DIR_NAME}\")
   " COMPONENT Runtime)

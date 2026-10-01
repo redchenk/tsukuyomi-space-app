@@ -13,6 +13,7 @@ import 'agent_binaries.dart';
 import 'agent_bridge.dart';
 import 'agent_provider.dart';
 import 'agent_progress.dart';
+import 'agent_limits.dart';
 
 class OpenCodeAgentRuntime implements AgentRuntime {
   OpenCodeAgentRuntime(
@@ -77,7 +78,7 @@ class OpenCodeAgentRuntime implements AgentRuntime {
     final bytes = <int>[];
     await for (final chunk in response.stream.timeout(timeout)) {
       bytes.addAll(chunk);
-      if (bytes.length > 2 * 1024 * 1024) {
+      if (bytes.length > agentMaxJsonBytes) {
         throw const ApiFailure('Agent 服务返回内容过大');
       }
     }
@@ -168,7 +169,9 @@ class OpenCodeAgentRuntime implements AgentRuntime {
                 'reasoning': true,
                 'interleaved': {'field': 'reasoning_content'},
               },
-              'limit': {'context': 32768, 'output': 8192},
+              'limit': endpointUri(settings.llmUrl).host == 'api.deepseek.com'
+                  ? {'context': 131072, 'output': 32768}
+                  : {'context': 32768, 'output': 8192},
             },
           },
         },
@@ -444,7 +447,7 @@ class OpenCodeAgentRuntime implements AgentRuntime {
       if (_cancelled) throw const ApiFailure('Agent 已停止');
       final messages = await _request(
         'GET',
-        '/session/${session.nativeId!}/message?limit=20',
+        '/session/${session.nativeId!}/message?limit=4',
       ) as List;
       final assistant = messages.reversed.cast<Map>().firstWhere(
         (m) => m['info']?['role'] == 'assistant',

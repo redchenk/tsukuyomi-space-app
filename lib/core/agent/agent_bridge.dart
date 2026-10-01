@@ -6,6 +6,7 @@ import 'dart:math';
 import 'agent_tools.dart';
 import 'agent_provider.dart';
 import '../models.dart';
+import 'agent_limits.dart';
 
 class AgentBridge {
   AgentBridge(this.gateway, this.provider);
@@ -39,7 +40,7 @@ class AgentBridge {
       final bytes = <int>[];
       await for (final chunk in request.timeout(const Duration(seconds: 15))) {
         bytes.addAll(chunk);
-        if (bytes.length > 2 * 1024 * 1024) {
+        if (bytes.length > agentMaxJsonBytes) {
           throw const FormatException('Request too large');
         }
       }
@@ -65,7 +66,7 @@ class AgentBridge {
         'initialize' => {
           'protocolVersion': '2024-11-05',
           'capabilities': {'tools': {}},
-          'serverInfo': {'name': 'tsukuyomi', 'version': '0.6.2'},
+          'serverInfo': {'name': 'tsukuyomi', 'version': '0.6.3'},
         },
         'ping' => {},
         'tools/list' => {

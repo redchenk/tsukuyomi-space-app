@@ -8,6 +8,7 @@ import '../models.dart';
 import '../room_protocol.dart';
 import 'agent_types.dart';
 import 'agent_progress.dart';
+import 'agent_limits.dart';
 
 /// Keeps Room's exact endpoints/headers/keys out of the sidecar configuration.
 /// OpenCode sees an OpenAI-compatible API; all four Room protocols retain tools.
@@ -181,7 +182,7 @@ class AgentProviderBridge {
         const Duration(seconds: 45),
       )) {
         bytes.addAll(chunk);
-        if (bytes.length > 2 * 1024 * 1024) {
+        if (bytes.length > agentMaxJsonBytes) {
           throw const ApiFailure('Agent 模型返回内容过大');
         }
       }
@@ -422,7 +423,7 @@ class AgentProviderBridge {
         const Duration(seconds: 45),
       )) {
         bytes.addAll(chunk);
-        if (bytes.length > 2 * 1024 * 1024) {
+        if (bytes.length > agentMaxJsonBytes) {
           throw const ApiFailure('Agent 模型返回内容过大');
         }
       }
@@ -515,12 +516,14 @@ class AgentProviderBridge {
           ],
         });
       } else {
-        var size = 0, finished = false;
+        var size = 0, payloadBytes = 0, finished = false;
         final bytes = response.stream.timeout(const Duration(seconds: 45)).map((
           chunk,
         ) {
           size += chunk.length;
-          if (size > 2 * 1024 * 1024) throw const ApiFailure('Agent 模型返回内容过大');
+          if (size > agentMaxStreamBytes) {
+            throw const ApiFailure('Agent 模型流量超过安全上限');
+          }
           return chunk;
         });
         await for (final chunk in decodeAgentSse(bytes)) {
@@ -529,7 +532,19 @@ class AgentProviderBridge {
           for (final raw in chunk['choices'] as List? ?? []) {
             final choice = raw as Map;
             if (choice['index'] != null && choice['index'] != 0) continue;
-            progress(choice['delta'] as Map? ?? {});
+            final delta = choice['delta'] as Map? ?? {};
+            for (final text in [
+              delta['content'],
+              delta['reasoning_content'],
+              for (final call in delta['tool_calls'] as List? ?? [])
+                call['function']?['arguments'],
+            ]) {
+              if (text is String) payloadBytes += utf8.encode(text).length;
+            }
+            if (payloadBytes > agentMaxModelBytes) {
+              throw const ApiFailure('Agent 模型正文超过 8 MiB');
+            }
+            progress(delta);
             final finish = choice['finish_reason'];
             if (finish != null) {
               if (!['stop', 'tool_calls', 'function_call'].contains(finish)) {

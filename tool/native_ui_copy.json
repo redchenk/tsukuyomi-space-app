@@ -2489,39 +2489,209 @@
     "公開 GPT-SoVITS が音声を返しませんでした。/tts URL を確認してください",
     "Remote GPT-SoVITS did not return audio; check the /tts URL"
   ],
-  ["正在规划下一步", "次の操作を準備しています", "Planning the next step"],
-  ["正在修复动作格式", "操作の形式を修正しています", "Repairing the action format"],
-  ["模型正在生成回复", "モデルが応答を生成しています", "The model is generating a response"],
-  ["模型正在整理任务", "モデルがタスクを整理しています", "The model is preparing the task"],
-  ["正在准备工具操作", "ツール操作を準備しています", "Preparing a tool operation"],
-  ["正在生成回复", "応答を生成しています", "Generating a response"],
-  ["正在连接模型", "モデルに接続しています", "Connecting to the model"],
-  ["模型已返回回复", "モデルの応答を受信しました", "Model response received"],
-  ["正在检查工作目录和工具", "作業フォルダーとツールを確認しています", "Checking the workspace and tools"],
-  ["正在执行工具", "ツールを実行しています", "Running a tool"],
-  ["正在整理结果", "結果をまとめています", "Reviewing the results"],
-  ["等待你的确认", "確認を待っています", "Waiting for your approval"],
-  ["正在准备任务", "タスクを準備しています", "Preparing the task"],
-  ["正在切换兼容模式", "互換モードに切り替えています", "Switching to compatibility mode"],
-  ["模型服务正在重试", "モデルサービスが再試行しています", "The model service is retrying"],
-  ["本轮已结束", "このターンは終了しました", "This turn has ended"],
-  ["自动模式等待过久，正在切换兼容模式", "自動モードの応答が遅いため、互換モードに切り替えています", "Automatic mode has not responded; switching to compatibility mode"],
-  ["模型工具协议不兼容，正在切换兼容模式", "ツールのプロトコルが非対応のため、互換モードに切り替えています", "The model's tool protocol is incompatible; switching to compatibility mode"],
-  ["动作格式不完整，正在修复一次", "操作の形式が不完全なため、一度修正します", "The action format is incomplete; making one repair attempt"],
-  ["动作参数不符合要求，正在修复一次", "操作の引数が不正なため、一度修正します", "The action arguments are invalid; making one repair attempt"],
-  ["查看最新进展", "最新の進捗を表示", "View latest progress"],
-  ["查看目录", "フォルダーを確認", "Inspect directory"],
-  ["读取文件", "ファイルを読み取り", "Read file"],
-  ["修改文件", "ファイルを変更", "Edit file"],
-  ["运行命令", "コマンドを実行", "Run command"],
-  ["读取文章草稿", "記事の下書きを読み取り", "Read article draft"],
-  ["修改文章草稿", "記事の下書きを変更", "Edit article draft"],
-  ["调用 MCP 工具", "MCP ツールを呼び出し", "Call MCP tool"],
-  ["执行站内操作", "サイト操作を実行", "Perform site operation"],
-  ["正在执行", "実行中", "Running"],
-  ["操作失败", "操作に失敗しました", "Operation failed"],
-  ["操作完成", "操作が完了しました", "Operation completed"],
-  ["操作已停止", "操作を停止しました", "Operation stopped"],
-  ["回复已中断", "応答が中断されました", "Response interrupted"],
-  ["原生工具模式", "ネイティブツールモード", "Native tool mode"]
+  [
+    "正在规划下一步",
+    "次の操作を準備しています",
+    "Planning the next step"
+  ],
+  [
+    "正在修复动作格式",
+    "操作の形式を修正しています",
+    "Repairing the action format"
+  ],
+  [
+    "模型正在生成回复",
+    "モデルが応答を生成しています",
+    "The model is generating a response"
+  ],
+  [
+    "模型正在整理任务",
+    "モデルがタスクを整理しています",
+    "The model is preparing the task"
+  ],
+  [
+    "正在准备工具操作",
+    "ツール操作を準備しています",
+    "Preparing a tool operation"
+  ],
+  [
+    "正在生成回复",
+    "応答を生成しています",
+    "Generating a response"
+  ],
+  [
+    "正在连接模型",
+    "モデルに接続しています",
+    "Connecting to the model"
+  ],
+  [
+    "模型已返回回复",
+    "モデルの応答を受信しました",
+    "Model response received"
+  ],
+  [
+    "正在检查工作目录和工具",
+    "作業フォルダーとツールを確認しています",
+    "Checking the workspace and tools"
+  ],
+  [
+    "正在执行工具",
+    "ツールを実行しています",
+    "Running a tool"
+  ],
+  [
+    "正在整理结果",
+    "結果をまとめています",
+    "Reviewing the results"
+  ],
+  [
+    "等待你的确认",
+    "確認を待っています",
+    "Waiting for your approval"
+  ],
+  [
+    "正在准备任务",
+    "タスクを準備しています",
+    "Preparing the task"
+  ],
+  [
+    "正在切换兼容模式",
+    "互換モードに切り替えています",
+    "Switching to compatibility mode"
+  ],
+  [
+    "模型服务正在重试",
+    "モデルサービスが再試行しています",
+    "The model service is retrying"
+  ],
+  [
+    "本轮已结束",
+    "このターンは終了しました",
+    "This turn has ended"
+  ],
+  [
+    "自动模式等待过久，正在切换兼容模式",
+    "自動モードの応答が遅いため、互換モードに切り替えています",
+    "Automatic mode has not responded; switching to compatibility mode"
+  ],
+  [
+    "模型工具协议不兼容，正在切换兼容模式",
+    "ツールのプロトコルが非対応のため、互換モードに切り替えています",
+    "The model's tool protocol is incompatible; switching to compatibility mode"
+  ],
+  [
+    "动作格式不完整，正在修复一次",
+    "操作の形式が不完全なため、一度修正します",
+    "The action format is incomplete; making one repair attempt"
+  ],
+  [
+    "动作参数不符合要求，正在修复一次",
+    "操作の引数が不正なため、一度修正します",
+    "The action arguments are invalid; making one repair attempt"
+  ],
+  [
+    "查看最新进展",
+    "最新の進捗を表示",
+    "View latest progress"
+  ],
+  [
+    "查看目录",
+    "フォルダーを確認",
+    "Inspect directory"
+  ],
+  [
+    "读取文件",
+    "ファイルを読み取り",
+    "Read file"
+  ],
+  [
+    "修改文件",
+    "ファイルを変更",
+    "Edit file"
+  ],
+  [
+    "运行命令",
+    "コマンドを実行",
+    "Run command"
+  ],
+  [
+    "读取文章草稿",
+    "記事の下書きを読み取り",
+    "Read article draft"
+  ],
+  [
+    "修改文章草稿",
+    "記事の下書きを変更",
+    "Edit article draft"
+  ],
+  [
+    "调用 MCP 工具",
+    "MCP ツールを呼び出し",
+    "Call MCP tool"
+  ],
+  [
+    "执行站内操作",
+    "サイト操作を実行",
+    "Perform site operation"
+  ],
+  [
+    "正在执行",
+    "実行中",
+    "Running"
+  ],
+  [
+    "操作失败",
+    "操作に失敗しました",
+    "Operation failed"
+  ],
+  [
+    "操作完成",
+    "操作が完了しました",
+    "Operation completed"
+  ],
+  [
+    "操作已停止",
+    "操作を停止しました",
+    "Operation stopped"
+  ],
+  [
+    "回复已中断",
+    "応答が中断されました",
+    "Response interrupted"
+  ],
+  [
+    "原生工具模式",
+    "ネイティブツールモード",
+    "Native tool mode"
+  ],
+  [
+    "文件超过 1 MiB，请缩小读取范围",
+    "ファイルが1 MiBを超えています。読み取る範囲を小さくしてください。",
+    "File exceeds 1 MiB. Read a smaller range."
+  ],
+  [
+    "文件写入超过 1 MiB，请分成较小文件",
+    "書き込みが1 MiBを超えています。小さいファイルに分割してください。",
+    "Write exceeds 1 MiB. Split it into smaller files."
+  ],
+  [
+    "Agent 动作超过安全上限，请缩小任务",
+    "Agentアクションが上限を超えています。タスクを小さくしてください。",
+    "Agent action exceeds the limit. Use a smaller task."
+  ],
+  [
+    "Agent 模型正文超过 8 MiB",
+    "Agentのモデル応答本文が8 MiBを超えています。",
+    "Agent model content exceeds 8 MiB."
+  ],
+  [
+    "Agent 模型流量超过安全上限",
+    "Agentのモデル応答通信量が上限を超えています。",
+    "Agent model stream exceeds the transfer limit."
+  ],
+  [
+    "模型没有返回 JSON 动作",
+    "モデルがJSONアクションを返しませんでした。",
+    "The model returned no JSON action."
+  ]
 ]

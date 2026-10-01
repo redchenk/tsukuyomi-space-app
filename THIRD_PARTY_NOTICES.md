@@ -9,7 +9,7 @@ Copyright (c) Live2D Inc. All rights reserved.
 
 The SDK source archive is downloaded from Live2D during builds and is not redistributed here. The application embeds the runtime components required to display the character.
 
-The character model, expressions, textures and room artwork are from the owner's tsukuyomi-space project:
+The character model, expressions, textures, room artwork and application launcher icon are from the owner's tsukuyomi-space project:
 https://github.com/redchenk/tsukuyomi-space
 The original artwork and character rights remain with their respective owners. This preview release does not grant permission to reuse those assets in other products.
 

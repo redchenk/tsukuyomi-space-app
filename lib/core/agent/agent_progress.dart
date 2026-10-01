@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'agent_limits.dart';
+
 /// Public task updates, separate from provider reasoning and executable actions.
 const agentCommunicationPrompt =
     'Communicate in the user\'s language. For a multi-step task, give a short '
@@ -139,7 +141,7 @@ Stream<Map<String, dynamic>> decodeAgentSse(Stream<List<int>> bytes) async* {
     } else if (line.startsWith('data:')) {
       final value = line.substring(5).trimLeft();
       size += value.length;
-      if (size > 1024 * 1024) {
+      if (size > agentMaxModelBytes) {
         throw const FormatException('Model event too large');
       }
       data.add(value);

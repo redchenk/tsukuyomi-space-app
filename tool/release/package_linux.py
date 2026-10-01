@@ -59,7 +59,7 @@ Description: Tsukuyomi Space native site and Live2D client
 ''', encoding='utf-8')
 applications = pkg / 'usr/share/applications'
 applications.mkdir(parents=True, exist_ok=True)
-(applications / 'tsukuyomi-space.desktop').write_text('''[Desktop Entry]
+(applications / 'space.tsukuyomi.tsukuyomi_space_app.desktop').write_text('''[Desktop Entry]
 Name=Tsukuyomi Space
 Name[zh_CN]=月读空间
 Comment=Live2D companion with OpenAI-compatible chat and voice

@@ -30,6 +30,9 @@ class LlmClient implements ChatService {
   String referenceContext = '', systemOverride = '';
   String? siteCookie;
   Map<String, dynamic>? image;
+  bool jsonObject = false;
+  int maxReplyChars = 200000;
+  final _plainJsonEndpoints = <String>{};
   int _generation = 0;
   @override
   void cancel() {
@@ -91,6 +94,8 @@ class LlmClient implements ChatService {
         for (final item in selected)
           {'role': item['role'], 'content': item['content']},
       ];
+      final jsonKey = '$direct:${settings.model}';
+      final useJson = jsonObject && !_plainJsonEndpoints.contains(jsonKey);
       final body = proxy
           ? {
               'message': message,
@@ -101,7 +106,20 @@ class LlmClient implements ChatService {
               'systemPrompt': system,
               'image': image,
             }
-          : roomChatBody(settings, system, conversation, message, image: image);
+          : roomChatBody(
+              settings,
+              system,
+              conversation,
+              message,
+              image: image,
+              jsonObject: useJson,
+            );
+      if (jsonObject && !proxy && direct.host == 'api.deepseek.com') {
+        body[roomProtocol(direct) == 'responses'
+                ? 'max_output_tokens'
+                : 'max_tokens'] =
+            32768;
+      }
       http.Request requestFor(Map<String, dynamic> value) =>
           http.Request('POST', uri)
             ..followRedirects = false
@@ -120,7 +138,11 @@ class LlmClient implements ChatService {
       var response = await client
           .send(requestFor(body))
           .timeout(const Duration(seconds: 30));
-      if (!proxy && [400, 422].contains(response.statusCode)) {
+      for (
+        var retry = 0;
+        !proxy && retry < 2 && [400, 422].contains(response.statusCode);
+        retry++
+      ) {
         final failed = <int>[];
         await for (final part in response.stream.timeout(
           const Duration(seconds: 10),
@@ -129,14 +151,33 @@ class LlmClient implements ChatService {
           if (failed.length > 65536) break;
         }
         final reason = utf8.decode(failed, allowMalformed: true).toLowerCase();
-        if (RegExp(r'stream').hasMatch(reason) &&
+        final unsupported = RegExp(
+          r'unsupported|not support|not available|not allowed|unknown|unexpected|does not support',
+        ).hasMatch(reason);
+        if (useJson &&
+            (body.containsKey('response_format') ||
+                body.containsKey('format') ||
+                body.containsKey('text')) &&
+            unsupported &&
+            RegExp(r'response_format|json_object|json mode|format')
+                .hasMatch(reason)) {
+          body.remove('response_format');
+          body.remove('format');
+          body.remove('text');
+          _plainJsonEndpoints.add(jsonKey);
+        } else if (body['stream'] == true &&
+            RegExp(r'stream').hasMatch(reason) &&
             RegExp(
               r'unsupported|not support|not available|not allowed|must be false|does not support',
             ).hasMatch(reason)) {
-          response = await client
-              .send(requestFor({...body, 'stream': false}))
-              .timeout(const Duration(seconds: 30));
+          body['stream'] = false;
+          body.remove('stream_options');
+        } else {
+          break;
         }
+        response = await client
+            .send(requestFor(body))
+            .timeout(const Duration(seconds: 30));
       }
       if (response.statusCode != 200) {
         throw providerFailure('模型请求', response.statusCode);
@@ -149,13 +190,23 @@ class LlmClient implements ChatService {
           const Duration(seconds: 45),
         )) {
           body.addAll(chunk);
-          if (body.length > 1024 * 1024) throw const ApiFailure('模型回复过大');
+          if (body.length > (jsonObject ? 16 * 1024 * 1024 : 1024 * 1024)) {
+            throw const ApiFailure('模型回复过大');
+          }
         }
         if (generation != _generation) return;
         final value = jsonDecode(utf8.decode(body)) as Map<String, dynamic>;
         validateCompletion(value);
         final content = payloadText(value);
-        if (content.trim().isEmpty) throw const ApiFailure('模型服务没有返回可用的文字回复');
+        if (jsonObject && content.length > maxReplyChars) {
+          throw const ApiFailure('回复过长，请缩短请求');
+        }
+        if (content.trim().isEmpty) {
+          if (jsonObject) {
+            throw const ModelIncompleteFailure('模型没有返回 JSON 动作');
+          }
+          throw const ApiFailure('模型服务没有返回可用的文字回复');
+        }
         yield content;
         return;
       }
@@ -163,10 +214,12 @@ class LlmClient implements ChatService {
       await for (final delta in decodeRoomStream(
         response.stream.timeout(const Duration(seconds: 45)),
         proxy ? 'proxy' : roomProtocol(direct),
+        maxChars: maxReplyChars,
+        maxEventChars: jsonObject ? 16 * 1024 * 1024 : 1024 * 1024,
       )) {
         if (generation != _generation) return;
         total += delta.length;
-        if (total > 200000) throw const ApiFailure('回复过长，请缩短请求');
+        if (total > maxReplyChars) throw const ApiFailure('回复过长，请缩短请求');
         yield delta;
       }
     } on TimeoutException {

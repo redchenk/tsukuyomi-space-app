@@ -5,6 +5,7 @@ import 'dart:math';
 
 import '../models.dart';
 import 'agent_types.dart';
+import 'agent_limits.dart';
 
 class AgentTool {
   const AgentTool(
@@ -57,7 +58,7 @@ class ToolGateway {
       ),
       'fs_read': AgentTool(
         'fs_read',
-        'Read a UTF-8 text file (maximum 64 KiB).',
+        'Read a UTF-8 text file (maximum 1 MiB).',
         {
           'path': {'type': 'string'},
         },
@@ -66,10 +67,10 @@ class ToolGateway {
       ),
       'fs_write': AgentTool(
         'fs_write',
-        'Write a UTF-8 file and return a before/after diff.',
+        'Write a UTF-8 file (maximum 1 MiB) and return a before/after diff.',
         {
           'path': {'type': 'string'},
-          'content': {'type': 'string', 'maxLength': 65536},
+          'content': {'type': 'string', 'maxLength': agentMaxFileBytes},
         },
         ['path', 'content'],
         _write,
@@ -266,8 +267,8 @@ class ToolGateway {
   Future<dynamic> _read(Map<String, dynamic> args) async {
     final path = await _path(args['path'] as String, write: false);
     final file = File(path);
-    if (await file.length() > 65536) {
-      throw const ApiFailure('文件超过 64 KiB，请缩小读取范围');
+    if (await file.length() > agentMaxFileBytes) {
+      throw const ApiFailure('文件超过 1 MiB，请缩小读取范围');
     }
     return {'path': path, 'content': await file.readAsString()};
   }
@@ -276,11 +277,11 @@ class ToolGateway {
     final epoch = _epoch;
     final path = await _path(args['path'] as String, write: true);
     final content = args['content'] as String;
-    if (utf8.encode(content).length > 65536) {
-      throw const ApiFailure('文件写入超过 64 KiB');
+    if (utf8.encode(content).length > agentMaxFileBytes) {
+      throw const ApiFailure('文件写入超过 1 MiB，请分成较小文件');
     }
     final file = File(path);
-    if (await file.exists() && await file.length() > 65536) {
+    if (await file.exists() && await file.length() > agentMaxFileBytes) {
       throw const ApiFailure('原文件过大，无法安全展示差异');
     }
     final before = await file.exists() ? await file.readAsString() : '';
