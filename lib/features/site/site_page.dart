@@ -2,6 +2,7 @@ import '../../core/site_localization.dart';
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -19,7 +20,9 @@ import 'site_notification.dart';
 import 'site_chrome.dart';
 import 'site_share_actions.dart';
 import 'site_widgets.dart';
+import 'native_site_shell.dart';
 import 'site_navigation.dart';
+import 'native_gallery_details.dart';
 import '../../core/site_routes.dart';
 
 class SitePage extends StatefulWidget {
@@ -39,6 +42,7 @@ class SitePage extends StatefulWidget {
 class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
   late final SiteRepository repo;
   late final SiteShareActions _shares;
+  late final NativePublicUserLevels _levels;
   final _search = TextEditingController(), _composer = TextEditingController();
   final _scroll = ScrollController();
   final _messageAnchorKeys = <String, GlobalKey>{};
@@ -96,6 +100,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       repository: repo,
       canRecordGrowth: () => c.account != null && !c.sessionExpired,
     );
+    _levels = NativePublicUserLevels(c);
     _scope = repo.scope;
     _pendingAnchor = SiteMessageAnchor.parse(
       route,
@@ -406,6 +411,22 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
           }
         }),
       );
+      if (mounted &&
+          ticket == _request &&
+          (route == '/stage' || route == '/plaza' || article)) {
+        try {
+          final authors = [
+            ...rowsOf(_payload['data'])
+                .map((row) => row['author_id'] ?? row['user_id']),
+            ...rowsOf(_extra['comments']).map((row) => row['user_id']),
+            if (article) mapOf(_payload['data'])['author_id'],
+          ];
+          await _levels.hydrate(authors);
+          if (mounted && ticket == _request) setState(() {});
+        } catch (_) {
+          // Optional public badges cannot hide articles or comments.
+        }
+      }
     } catch (e) {
       if (mounted && ticket == _request) setState(() => _error = '$e');
     } finally {
@@ -687,7 +708,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       selected: selected,
       onSelected: (_) => tap(),
       showCheckmark: false,
-      selectedColor: RoomStyle(context).accent,
+      selectedColor: const Color(0xff7155ac),
       labelStyle: TextStyle(
         fontSize: 12,
         color: selected ? Colors.white : RoomStyle(context).ink,
@@ -773,18 +794,43 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
               style: const TextStyle(fontSize: 11),
             ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SiteAvatar(
-                value: textOf(a, 'author_avatar'),
-                name: author.toUpperCase(),
-                site: c.settings.siteUrl,
-                size: 22,
-              ),
-              const SizedBox(width: 6),
-              Text(author, style: const TextStyle(fontSize: 11)),
-            ],
+          InkWell(
+            onTap: textOf(a, 'author_username', textOf(a, 'author')).isEmpty
+                ? null
+                : () => _go(
+                    '/users/${Uri.encodeComponent(textOf(a, "author_username", textOf(a, "author")))}',
+                  ),
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                SiteAvatar(
+                  value: textOf(a, 'author_avatar'),
+                  name: author.toUpperCase(),
+                  site: c.settings.siteUrl,
+                  size: 22,
+                ),
+                const SizedBox(width: 6),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: box.maxWidth < 600 ? 112 : 180,
+                  ),
+                  child: Text(
+                    author,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ),
+                if (a['author_id'] != null) ...[
+                  const SizedBox(width: 6),
+                  NativeUserLevelBadge(
+                    level: _levels.level(a['author_id']),
+                    compact: true,
+                    showTitle: false,
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       );
@@ -826,7 +872,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
               runSpacing: 8,
               children: [
                 Text(
-                  '${a['view_count'] ?? 0} 阅读   ${a['like_count'] ?? 0} 点赞   ${a['bookmark_count'] ?? 0} 收藏',
+                  '${a['views'] ?? a['view_count'] ?? 0} 阅读   ${a['like_count'] ?? 0} 点赞   ${a['bookmark_count'] ?? 0} 收藏',
                   style: const TextStyle(fontSize: 11),
                 ),
                 Text(
@@ -846,6 +892,11 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
           : Image.network(
               '${endpointUri(c.settings.siteUrl).resolve(cover)}',
               fit: BoxFit.cover,
+              cacheWidth:
+                  ((desktop ? box.maxWidth * .45 : box.maxWidth) *
+                          MediaQuery.devicePixelRatioOf(context))
+                      .ceil()
+                      .clamp(1, 1600),
               width: double.infinity,
               height: double.infinity,
               errorBuilder: (_, _, _) =>
@@ -860,7 +911,12 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
             color: RoomStyle(context).surface,
             child: desktop
                 ? SizedBox(
-                    height: 222,
+                    height:
+                        222 *
+                        math.max(
+                          1,
+                          MediaQuery.textScalerOf(context).scale(14) / 14,
+                        ),
                     child: Row(
                       children: [
                         Expanded(child: body),
@@ -917,8 +973,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
         color: RoomStyle(context).soft,
         borderRadius: BorderRadius.circular(30),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Wrap(
         children: [
           for (final item in const {
             'featured': '精选优先',
@@ -942,7 +997,10 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(24),
                 ),
-                child: Text(item.value, style: const TextStyle(fontSize: 11)),
+                child: SiteText(
+                  item.value,
+                  style: const TextStyle(fontSize: 11),
+                ),
               ),
             ),
         ],
@@ -985,7 +1043,8 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
             ),
             const SizedBox(width: 12),
             FilledButton.icon(
-              onPressed: () => openSiteLink(c.settings.siteUrl, '/editor'),
+              key: const Key('stage-new-article'),
+              onPressed: () => _go('/editor'),
               icon: const Icon(CupertinoIcons.pencil, size: 16),
               label: const SiteText('新建投稿', style: TextStyle(fontSize: 12)),
             ),
@@ -1078,27 +1137,68 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          LayoutBuilder(
             key: _messageAnchorKeys.putIfAbsent('${m['id']}', GlobalKey.new),
-            children: [
-              SiteAvatar(
-                value: textOf(m, 'avatar', textOf(m, 'author_avatar')),
-                name: userDisplayName(m, prefix: 'author'),
-                site: c.settings.siteUrl,
-                size: 32,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  userDisplayName(m, prefix: 'author'),
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-              Text(
+            builder: (context, box) {
+              final author = Row(
+                children: [
+                  SiteAvatar(
+                    value: textOf(m, 'avatar', textOf(m, 'author_avatar')),
+                    name: userDisplayName(m, prefix: 'author'),
+                    site: c.settings.siteUrl,
+                    size: 32,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: InkWell(
+                      onTap: textOf(m, 'author').isEmpty
+                          ? null
+                          : () => _go(
+                              '/users/${Uri.encodeComponent(textOf(m, "author"))}',
+                            ),
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            userDisplayName(m, prefix: 'author'),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          if (m['user_id'] != null)
+                            NativeUserLevelBadge(
+                              level: _levels.level(m['user_id']),
+                              compact: true,
+                              showTitle: false,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+              final date = Text(
                 dateText(m['created_at']),
                 style: const TextStyle(fontSize: 11),
-              ),
-            ],
+              );
+              return box.maxWidth >=
+                      450 * (MediaQuery.textScalerOf(context).scale(14) / 14)
+                  ? Row(
+                      children: [
+                        Expanded(child: author),
+                        const SizedBox(width: 12),
+                        date,
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        author,
+                        const SizedBox(height: 8),
+                        Align(alignment: Alignment.centerRight, child: date),
+                      ],
+                    );
+            },
           ),
           const SizedBox(height: 14),
           if (reply && textOf(m, 'reply_to_author').isNotEmpty)
@@ -1516,13 +1616,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 contentPadding: EdgeInsets.zero,
                 title: Text(item.key, style: const TextStyle(fontSize: 14)),
                 trailing: const Icon(CupertinoIcons.arrow_up_right, size: 14),
-                onTap: () {
-                  if (item.value == '/stage') {
-                    _go('/stage');
-                  } else {
-                    openSiteLink(c.settings.siteUrl, item.value);
-                  }
-                },
+                onTap: () => _go(item.value),
               ),
           ],
         ),
@@ -1557,7 +1651,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => _go('/stage'),
             icon: const Icon(CupertinoIcons.back),
             label: const SiteText('返回主舞台'),
           ),
@@ -1572,8 +1666,37 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
               ),
               _heading(
                 textOf(a, 'title'),
-                '${userDisplayName(a, prefix: 'author')} · ${dateText(a['created_at'])} · ${a['view_count'] ?? 0} 阅读',
+                '${userDisplayName(a, prefix: 'author', fallback: 'admin')} · ${dateText(a['published_at'] ?? a['created_at'] ?? a['publish_date'])} · ${a['views'] ?? a['view_count'] ?? 0} 阅读',
               ),
+              if (textOf(a, 'excerpt').isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SiteCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SiteText('摘要', style: TextStyle(fontSize: 12)),
+                      const SizedBox(height: 6),
+                      Text(
+                        textOf(a, 'excerpt'),
+                        style: const TextStyle(height: 1.7),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (textOf(a, 'cover_image').isNotEmpty) ...[
+                const SizedBox(height: 20),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: nativeSiteImage(
+                    c.settings.siteUrl,
+                    textOf(a, 'cover_image'),
+                    width: double.infinity,
+                    height: 300,
+                  ),
+                ),
+              ],
               const Divider(height: 36),
               ArticleBody(
                 content: textOf(a, 'content'),
@@ -1804,173 +1927,354 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
   }
 
   Widget _growth() {
+    String copy(String key) => siteTr(context, 'growth.$key');
     final state = mapOf(_payload['data']),
         level = mapOf(mapOf(_payload['data'])['level']);
     final streak = mapOf(state['streak']), today = mapOf(state['today']);
-    final tasks = rowsOf(today['tasks']);
+    final tasks = rowsOf(today['tasks']),
+        articles = mapOf(state['articles']),
+        referral = mapOf(state['referral']);
     final checked = tasks.any(
       (t) => t['key'] == 'checkin' && t['completed'] == true,
     );
-    return Column(
+    Widget metric(String value, String label) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
+        ),
+        SiteText(label),
+      ],
+    );
+    final progress = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _heading('月契成长', '每天一点自然互动，都会成为你与八千代的共同记录。', kicker: 'MOON BOND'),
-        SiteCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'LV.${level['level'] ?? 1}',
-                style: TextStyle(
-                  color: RoomStyle(context).accent,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                textOf(level, 'title', '初次连接'),
-                style: const TextStyle(fontSize: 28),
-              ),
-              const SizedBox(height: 18),
-              LinearProgressIndicator(
-                value: ((level['progressPercent'] as num? ?? 0) / 100).clamp(
-                  0,
-                  1,
-                ),
-                minHeight: 6,
-                borderRadius: BorderRadius.circular(5),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                '${level['totalXp'] ?? 0} 经验 · 连续相伴 ${streak['current'] ?? 0} 天 · 最长 ${streak['longest'] ?? 0} 天',
-              ),
-              const SizedBox(height: 18),
-              FilledButton(
-                key: const Key('growth-check-in'),
-                onPressed: checked || _working ? null : _checkGrowthIn,
-                child: Text(checked ? '今日已领取' : '每日签到'),
-              ),
-            ],
+        Text(
+          'Lv.${level['level'] ?? 1}',
+          style: TextStyle(
+            color: RoomStyle(context).accent,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        _heading(
-          '今日约定',
-          '${today['completed'] ?? 0} / ${today['total'] ?? tasks.length} 已完成',
-        ),
-        SiteCard(
-          child: Column(
-            children: [
-              for (final task in tasks)
-                ListTile(
-                  leading: Icon(
-                    task['completed'] == true
-                        ? CupertinoIcons.checkmark_circle_fill
-                        : CupertinoIcons.circle,
-                  ),
-                  title: Text(textOf(task, 'label')),
-                  subtitle: Text('+${task['xp'] ?? 0} 经验'),
-                  trailing: task['completed'] == true
-                      ? const SiteText('已完成')
-                      : TextButton(
-                          key: Key('growth-task-${task['key']}'),
-                          onPressed: _working || _copying
-                              ? null
-                              : () {
-                                  if (task['key'] == 'checkin') {
-                                    _checkGrowthIn();
-                                    return;
-                                  }
-                                  if (task['key'] == 'daily_share') {
-                                    _shareInvite();
-                                    return;
-                                  }
-                                  final path = textOf(task, 'path');
-                                  if (siteDestinations.containsKey(path)) {
-                                    _go(path);
-                                  } else {
-                                    openSiteLink(c.settings.siteUrl, path);
-                                  }
-                                },
-                          child: const SiteText('去完成'),
-                        ),
-                ),
-            ],
+        const SizedBox(height: 4),
+        SiteText(
+          copy(
+            'levels.${((level['level'] as num? ?? 1).toInt() - 1).clamp(0, 8)}',
           ),
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
         ),
-        _heading('邀请同行者', '好友首次和八千代完成一轮聊天后，双方获得成长经验。'),
-        SiteCard(
-          child: Wrap(
-            spacing: 20,
+        const SizedBox(height: 14),
+        LinearProgressIndicator(
+          value: ((level['progressPercent'] as num? ?? 0) / 100).clamp(0, 1),
+          minHeight: 6,
+          borderRadius: BorderRadius.circular(5),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          level['nextLevel'] == null
+              ? '${level['totalXp'] ?? 0} ${copy('xp')}'
+              : '${level['progressXp'] ?? 0} / ${level['requiredXp'] ?? 0} ${copy('xp')}',
+        ),
+      ],
+    );
+    final streaks = Wrap(
+      spacing: 22,
+      runSpacing: 12,
+      children: [
+        metric(
+          '${streak['current'] ?? 0}',
+          '${copy('streak')} / ${copy('days')}',
+        ),
+        metric(
+          '${streak['longest'] ?? 0}',
+          '${copy('best')} / ${copy('days')}',
+        ),
+      ],
+    );
+    final checkin = FilledButton.icon(
+      key: const Key('growth-check-in'),
+      onPressed: checked || _working ? null : _checkGrowthIn,
+      icon: Icon(checked ? Icons.check : Icons.calendar_today_outlined),
+      label: SiteText(checked ? copy('checked') : copy('checkin')),
+    );
+    final invite = NativeSiteSection(
+      title: '邀请同行者',
+      subtitle: '好友首次和八千代完成一轮聊天后，双方获得成长经验。',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            '${referral['inviteCode'] ?? ''}   +60 / +30',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
             runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text(
-                '已完成 ${mapOf(state['referral'])['qualifiedCount'] ?? 0} · 待首次聊天 ${mapOf(state['referral'])['pendingCount'] ?? 0}',
+              FilledButton(
+                key: const Key('growth-share-invite'),
+                onPressed: _working || _copying ? null : _shareInvite,
+                child: const SiteText('直接分享'),
               ),
               OutlinedButton(
                 onPressed: _working || _copying ? null : _copyInvite,
                 child: const SiteText('复制邀请链接'),
               ),
-              OutlinedButton(
-                key: const Key('growth-share-invite'),
-                onPressed: _working || _copying ? null : _shareInvite,
-                child: const SiteText('直接分享'),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '${copy('pending')} ${referral['pendingCount'] ?? 0} · ${copy('qualified')} ${referral['qualifiedCount'] ?? 0} · ${copy('rewarded')} ${referral['rewardedCount'] ?? 0}',
+          ),
+        ],
+      ),
+    );
+    final history = NativeSiteSection(
+      title: '最近记录',
+      child: Column(
+        children: [
+          if (rowsOf(state['recentEvents']).isEmpty)
+            const SiteText('第一条共同记录，就从今天开始。'),
+          for (final event in rowsOf(state['recentEvents']))
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.history, size: 18),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          siteTr(
+                            context,
+                            'growth.events.${event['key']}',
+                            fallback: textOf(event, 'label'),
+                          ),
+                        ),
+                        Text(
+                          textOf(
+                            event,
+                            'date',
+                            dateText(event['createdAt'] ?? event['created_at']),
+                          ),
+                          style: TextStyle(
+                            color: RoomStyle(context).muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text('+${event['xp']}'),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SitePageHero(
+          title: copy('title'),
+          kicker: 'MOON BOND',
+          subtitle: copy('subtitle'),
+        ),
+        SiteCard(
+          child: LayoutBuilder(
+            builder: (context, box) {
+              final wide =
+                  box.maxWidth >=
+                  780 * (MediaQuery.textScalerOf(context).scale(14) / 14);
+              return wide
+                  ? Row(
+                      children: [
+                        Icon(
+                          Icons.workspace_premium_outlined,
+                          color: RoomStyle(context).accent,
+                          size: 42,
+                        ),
+                        const SizedBox(width: 22),
+                        Expanded(child: progress),
+                        const SizedBox(width: 30),
+                        streaks,
+                        const SizedBox(width: 24),
+                        checkin,
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        progress,
+                        const SizedBox(height: 18),
+                        streaks,
+                        const SizedBox(height: 16),
+                        Align(alignment: Alignment.centerLeft, child: checkin),
+                      ],
+                    );
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const SiteText(
+              '今日约定',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+            ),
+            Text(
+              '${today['completed'] ?? 0} / ${today['total'] ?? tasks.length}',
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        SiteResponsiveGrid(
+          children: [
+            for (final task in tasks)
+              SiteCard(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          task['completed'] == true
+                              ? CupertinoIcons.checkmark_circle_fill
+                              : CupertinoIcons.circle,
+                          color: RoomStyle(context).accent,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SiteText(
+                                siteTr(
+                                  context,
+                                  'growth.tasks.${task['key']}',
+                                  fallback: textOf(task, 'label'),
+                                ),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text('+${task['xp'] ?? 0} ${copy('xp')}'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: task['completed'] == true
+                          ? const SiteText('已完成')
+                          : TextButton(
+                              key: Key('growth-task-${task['key']}'),
+                              onPressed: _working || _copying
+                                  ? null
+                                  : () {
+                                      if (task['key'] == 'checkin') {
+                                        _checkGrowthIn();
+                                      } else if (task['key'] == 'daily_share') {
+                                        _shareInvite();
+                                      } else {
+                                        _go(textOf(task, 'path'));
+                                      }
+                                    },
+                              child: const SiteText('去完成'),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        NativeSiteSection(
+          title: '让创作持续获得回应',
+          subtitle: '每位读者有效阅读 +1、首次点赞 +2、首次收藏 +5。阅读需前台停留 12 秒，按账号与设备去重；自己的阅读与互动、取消后再次点赞或收藏不重复获得经验。',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                '${copy('article.total')} +${articles['totalXp'] ?? 0} ${copy('xp')}',
+                style: TextStyle(color: RoomStyle(context).accent),
+              ),
+              const SizedBox(height: 14),
+              SiteResponsiveGrid(
+                minWidth: 200,
+                children: [
+                  for (final reward in [
+                    ('有效阅读', 'viewXp', 1, Icons.visibility_outlined),
+                    ('收到点赞', 'likeXp', 2, Icons.favorite_border),
+                    ('收到收藏', 'bookmarkXp', 5, Icons.bookmark_border),
+                  ])
+                    Row(
+                      children: [
+                        Icon(reward.$4, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${siteTranslate(context, reward.$1)} +${reward.$3}',
+                              ),
+                              Text('${articles[reward.$2] ?? 0} ${copy('xp')}'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                '${copy('article.history')} +${articles['historyXp'] ?? 0} ${copy('xp')}',
               ),
             ],
           ),
         ),
-        _heading('成长路径', '每一步相伴，都有记录。'),
-        SiteCard(
-          child: Wrap(
-            spacing: 20,
-            runSpacing: 20,
+        SiteResponsiveGrid(
+          minWidth: 450,
+          maxColumns: 2,
+          children: [invite, history],
+        ),
+        NativeSiteSection(
+          title: '成长路径',
+          child: SiteResponsiveGrid(
+            minWidth: 130,
+            maxColumns: 9,
+            spacing: 12,
             children: [
               for (final item in rowsOf(state['levels']))
-                SizedBox(
-                  width: 150,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'LV.${item['level']}  ${item['title']}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: item['reached'] == true
-                              ? RoomStyle(context).accent
-                              : RoomStyle(context).muted,
-                        ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Lv.${item['level']}',
+                      style: TextStyle(
+                        color: item['reached'] == true
+                            ? RoomStyle(context).accent
+                            : RoomStyle(context).muted,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(height: 6),
-                      Text('${item['minXp']} 经验'),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
-        _heading('让创作持续获得回应', '有效阅读、首次点赞和首次收藏与网站使用相同的成长规则。'),
-        SiteCard(
-          child: Wrap(
-            spacing: 24,
-            runSpacing: 12,
-            children: [
-              Text('有效阅读  +${mapOf(state['articles'])['viewXp'] ?? 0}'),
-              Text('收到点赞  +${mapOf(state['articles'])['likeXp'] ?? 0}'),
-              Text('收到收藏  +${mapOf(state['articles'])['bookmarkXp'] ?? 0}'),
-            ],
-          ),
-        ),
-        _heading('最近记录', ''),
-        SiteCard(
-          child: Column(
-            children: [
-              for (final event in rowsOf(state['recentEvents']))
-                ListTile(
-                  title: Text(textOf(event, 'label')),
-                  subtitle: Text(
-                    dateText(event['createdAt'] ?? event['created_at']),
-                  ),
-                  trailing: Text('+${event['xp']}'),
+                    ),
+                    SiteText(
+                      copy(
+                        'levels.${((item['level'] as num? ?? 1).toInt() - 1).clamp(0, 8)}',
+                      ),
+                    ),
+                    Text('${item['minXp']} ${copy('xp')}'),
+                  ],
                 ),
             ],
           ),
@@ -2458,25 +2762,29 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _heading('站内信', '这里会收纳你收到的回复、点赞和互动提醒。'),
-        Wrap(
-          spacing: 12,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Text('未读 $unread', key: const ValueKey('notification-count')),
-            OutlinedButton(
-              onPressed: unread > 0 && !_working && !_notificationBusy
-                  ? _markAllNotificationsRead
-                  : null,
-              child: const SiteText('全部已读'),
-            ),
-            TextButton(
-              onPressed: _loading || _working || _notificationBusy
-                  ? null
-                  : _load,
-              child: const SiteText('刷新'),
-            ),
-          ],
+        SitePageHero(
+          title: '站内信',
+          kicker: 'INBOX',
+          subtitle: '这里会收纳你收到的回复、点赞和互动提醒。',
+          actions: Wrap(
+            spacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text('未读 $unread', key: const ValueKey('notification-count')),
+              OutlinedButton(
+                onPressed: unread > 0 && !_working && !_notificationBusy
+                    ? _markAllNotificationsRead
+                    : null,
+                child: const SiteText('全部已读'),
+              ),
+              TextButton(
+                onPressed: _loading || _working || _notificationBusy
+                    ? null
+                    : _load,
+                child: const SiteText('刷新'),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 18),
         for (final item in rows)
@@ -2585,7 +2893,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                   ),
                   child: SiteHeader(
                     title: title,
-                    username: c.account?.displayName,
+                    username: c.sessionExpired ? null : c.account?.displayName,
                     role: c.sessionExpired ? null : c.account?.role,
                     onGo: _go,
                     onTheme: widget.onTheme,

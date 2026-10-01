@@ -1,0 +1,1023 @@
+{
+  "/api/settings": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": {
+        "siteTitle": "月读空间",
+        "siteAnnouncement": "欢迎访问月读空间",
+        "visitPopupEnabled": false,
+        "visitPopupTitle": "欢迎来到月读空间",
+        "visitPopupContent": "",
+        "beianText": "",
+        "beianUrl": "",
+        "mpsBeianText": "",
+        "mpsBeianUrl": "",
+        "mpsBeianIcon": "",
+        "publicAssetBaseUrl": "",
+        "qqOAuthStartUrl": "https://yachiyo.hk/api/auth/oauth/qq/start",
+        "visitPopupButton": "我知道了"
+      }
+    }
+  },
+  "/api/stats/view": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "message": "OK",
+      "recorded": false,
+      "deduped": true,
+      "data": {
+        "articles": 3,
+        "articleViews": 0,
+        "users": 19,
+        "messages": 3,
+        "todayViews": 1,
+        "weekViews": 1,
+        "totalViews": 1,
+        "uptime": 16065443
+      }
+    }
+  },
+  "/api/stats": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": {
+        "articles": 3,
+        "articleViews": 0,
+        "users": 19,
+        "messages": 3,
+        "todayViews": 1,
+        "weekViews": 1,
+        "totalViews": 1,
+        "uptime": 16065443
+      }
+    }
+  },
+  "/api/hub-preview": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": {
+        "article": {
+          "id": 3,
+          "title": "月下的创作手记",
+          "slug": "月读空间技术札记",
+          "excerpt": "探索虚拟空间背后的实现",
+          "category": "技术",
+          "publish_date": "2024-01-03",
+          "published_at": "2024-01-03 00:00:00",
+          "cover_image": "/assets/images/tsukuyomi-bg.webp",
+          "created_at": "2026-10-01 14:04:41",
+          "updated_at": "2026-10-01 14:04:41"
+        },
+        "messages": [
+          {
+            "id": 3,
+            "author": "e2e-user",
+            "avatar": "",
+            "content": "浅色与深色主题都应该清楚易读。",
+            "created_at": "2026-10-01 14:04:41"
+          },
+          {
+            "id": 2,
+            "author": "e2e-user",
+            "avatar": "",
+            "content": "一起分享喜欢的作品，期待下一次相遇。",
+            "created_at": "2026-10-01 14:04:41"
+          },
+          {
+            "id": 1,
+            "author": "e2e-user",
+            "avatar": "",
+            "content": "今天也给日常留一点月光。",
+            "created_at": "2026-10-01 14:04:41"
+          }
+        ],
+        "gallery": null,
+        "pixel": null,
+        "stats": {
+          "articles": 3,
+          "articleViews": 0,
+          "users": 19,
+          "messages": 3,
+          "todayViews": 1,
+          "weekViews": 1,
+          "totalViews": 1,
+          "uptime": 16065443
+        }
+      }
+    }
+  },
+  "/api/articles": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": [
+        {
+          "id": 3,
+          "title": "月下的创作手记",
+          "slug": "月读空间技术札记",
+          "excerpt": "探索虚拟空间背后的实现",
+          "category": "技术",
+          "tags": [
+            "技术",
+            "札记"
+          ],
+          "author_id": null,
+          "publish_date": "2024-01-03",
+          "published_at": "2024-01-03 00:00:00",
+          "read_time": null,
+          "view_count": 0,
+          "cover_image": "/assets/images/tsukuyomi-bg.webp",
+          "cover_image_asset_id": null,
+          "content_format": "markdown",
+          "status": "published",
+          "pinned_at": null,
+          "created_at": "2026-10-01 14:04:41",
+          "updated_at": "2026-10-01 14:04:41",
+          "like_count": 0,
+          "bookmark_count": 0,
+          "content_quality": 0,
+          "author_username": null,
+          "author_nickname": null,
+          "author_avatar": "",
+          "cover_image_url": "/assets/images/tsukuyomi-bg.webp",
+          "category_id": 3
+        },
+        {
+          "id": 2,
+          "title": "辉夜姬的传说",
+          "slug": "辉夜姬的传说",
+          "excerpt": "来自月之都的公主，跨越千年的故事",
+          "category": "传说",
+          "tags": [
+            "辉夜姬",
+            "传说"
+          ],
+          "author_id": null,
+          "publish_date": "2024-01-02",
+          "published_at": "2024-01-02 00:00:00",
+          "read_time": "5 min",
+          "view_count": 0,
+          "cover_image": null,
+          "cover_image_asset_id": null,
+          "content_format": "markdown",
+          "status": "published",
+          "pinned_at": null,
+          "created_at": "2026-10-01 14:04:41",
+          "updated_at": "2026-10-01 14:04:41",
+          "like_count": 0,
+          "bookmark_count": 0,
+          "content_quality": 0,
+          "author_username": null,
+          "author_nickname": null,
+          "author_avatar": "",
+          "cover_image_url": null,
+          "category_id": 2
+        },
+        {
+          "id": 1,
+          "title": "欢迎来到月读空间",
+          "slug": "欢迎来到月读空间",
+          "excerpt": "这里是月读空间的第一篇文章",
+          "category": "公告",
+          "tags": [
+            "公告",
+            "欢迎"
+          ],
+          "author_id": null,
+          "publish_date": "2024-01-01",
+          "published_at": "2024-01-01 00:00:00",
+          "read_time": "3 min",
+          "view_count": 0,
+          "cover_image": null,
+          "cover_image_asset_id": null,
+          "content_format": "markdown",
+          "status": "published",
+          "pinned_at": null,
+          "created_at": "2026-10-01 14:04:41",
+          "updated_at": "2026-10-01 14:04:41",
+          "like_count": 0,
+          "bookmark_count": 0,
+          "content_quality": 0,
+          "author_username": null,
+          "author_nickname": null,
+          "author_avatar": "",
+          "cover_image_url": null,
+          "category_id": 1
+        }
+      ],
+      "recommendationDate": null,
+      "pagination": {
+        "page": 1,
+        "limit": 100,
+        "total": 3,
+        "totalPages": 1
+      }
+    }
+  },
+  "/api/article-categories": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "name": "公告",
+          "protected": 0
+        },
+        {
+          "id": 2,
+          "name": "传说",
+          "protected": 0
+        },
+        {
+          "id": 3,
+          "name": "技术",
+          "protected": 0
+        },
+        {
+          "id": 4,
+          "name": "二创",
+          "protected": 0
+        },
+        {
+          "id": 5,
+          "name": "其他",
+          "protected": 1
+        }
+      ],
+      "revision": "1"
+    }
+  },
+  "/api/messages": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "author": "e2e-user",
+          "author_nickname": "e2e-user",
+          "content": "今天也给日常留一点月光。",
+          "user_id": "e2e-user-001",
+          "parent_id": null,
+          "reply_to_id": null,
+          "reply_to_author": null,
+          "reply_to_nickname": null,
+          "like_count": 0,
+          "article_id": null,
+          "status": "approved",
+          "created_at": "2026-10-01 14:04:41",
+          "updated_at": null,
+          "avatar": ""
+        },
+        {
+          "id": 2,
+          "author": "e2e-user",
+          "author_nickname": "e2e-user",
+          "content": "一起分享喜欢的作品，期待下一次相遇。",
+          "user_id": "e2e-user-001",
+          "parent_id": null,
+          "reply_to_id": null,
+          "reply_to_author": null,
+          "reply_to_nickname": null,
+          "like_count": 0,
+          "article_id": null,
+          "status": "approved",
+          "created_at": "2026-10-01 14:04:41",
+          "updated_at": null,
+          "avatar": ""
+        },
+        {
+          "id": 3,
+          "author": "e2e-user",
+          "author_nickname": "e2e-user",
+          "content": "浅色与深色主题都应该清楚易读。",
+          "user_id": "e2e-user-001",
+          "parent_id": null,
+          "reply_to_id": null,
+          "reply_to_author": null,
+          "reply_to_nickname": null,
+          "like_count": 0,
+          "article_id": null,
+          "status": "approved",
+          "created_at": "2026-10-01 14:04:41",
+          "updated_at": null,
+          "avatar": ""
+        }
+      ]
+    }
+  },
+  "/api/messages/liked": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": []
+    }
+  },
+  "/api/messages/mine": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "author": "e2e-user",
+          "author_nickname": "e2e-user",
+          "content": "今天也给日常留一点月光。",
+          "user_id": "e2e-user-001",
+          "parent_id": null,
+          "like_count": 0,
+          "article_id": null,
+          "status": "approved",
+          "created_at": "2026-10-01 14:04:41",
+          "updated_at": null,
+          "avatar": "",
+          "article_title": null,
+          "article_slug": null,
+          "reply_count": 0,
+          "moderation": null
+        },
+        {
+          "id": 2,
+          "author": "e2e-user",
+          "author_nickname": "e2e-user",
+          "content": "一起分享喜欢的作品，期待下一次相遇。",
+          "user_id": "e2e-user-001",
+          "parent_id": null,
+          "like_count": 0,
+          "article_id": null,
+          "status": "approved",
+          "created_at": "2026-10-01 14:04:41",
+          "updated_at": null,
+          "avatar": "",
+          "article_title": null,
+          "article_slug": null,
+          "reply_count": 0,
+          "moderation": null
+        },
+        {
+          "id": 3,
+          "author": "e2e-user",
+          "author_nickname": "e2e-user",
+          "content": "浅色与深色主题都应该清楚易读。",
+          "user_id": "e2e-user-001",
+          "parent_id": null,
+          "like_count": 0,
+          "article_id": null,
+          "status": "approved",
+          "created_at": "2026-10-01 14:04:41",
+          "updated_at": null,
+          "avatar": "",
+          "article_title": null,
+          "article_slug": null,
+          "reply_count": 0,
+          "moderation": null
+        }
+      ]
+    }
+  },
+  "/api/messages/topics": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": []
+    }
+  },
+  "/api/growth/me": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": {
+        "serverDate": "2026-10-01",
+        "articles": {
+          "rates": {
+            "view": 1,
+            "like": 2,
+            "bookmark": 5
+          },
+          "viewXp": 0,
+          "likeXp": 0,
+          "bookmarkXp": 0,
+          "historyXp": 0,
+          "totalXp": 0
+        },
+        "level": {
+          "level": 1,
+          "title": "初次连接",
+          "totalXp": 0,
+          "currentMinXp": 0,
+          "nextLevel": {
+            "level": 2,
+            "title": "微光相识",
+            "minXp": 60
+          },
+          "progressXp": 0,
+          "requiredXp": 60,
+          "progressPercent": 0
+        },
+        "streak": {
+          "current": 0,
+          "longest": 0,
+          "lastCheckinDate": "",
+          "rewardEveryDays": 7,
+          "rewardXp": 20,
+          "cycleDay": 0,
+          "nextRewardInDays": 7
+        },
+        "today": {
+          "earnedXp": 0,
+          "completed": 0,
+          "total": 3,
+          "roomChatCompleted": false,
+          "tasks": [
+            {
+              "key": "checkin",
+              "label": "每日签到",
+              "xp": 10,
+              "path": "/growth",
+              "type": "fixed",
+              "completed": false,
+              "earnedXp": 0
+            },
+            {
+              "key": "daily_share",
+              "label": "分享月读空间",
+              "xp": 15,
+              "path": "/growth",
+              "type": "fixed",
+              "completed": false,
+              "earnedXp": 0
+            },
+            {
+              "key": "daily_gallery_upload",
+              "label": "图库上传图片",
+              "xp": 20,
+              "path": "/gallery/manage",
+              "type": "rotating",
+              "completed": false,
+              "earnedXp": 0
+            }
+          ]
+        },
+        "referral": {
+          "inviteCode": "60658DF72C",
+          "claimed": false,
+          "qualified": false,
+          "pendingCount": 0,
+          "qualifiedCount": 0,
+          "rewardedCount": 0,
+          "rewardedXp": 0,
+          "inviterRewardXp": 60,
+          "inviteeRewardXp": 30
+        },
+        "levels": [
+          {
+            "level": 1,
+            "title": "初次连接",
+            "minXp": 0,
+            "reached": true
+          },
+          {
+            "level": 2,
+            "title": "微光相识",
+            "minXp": 60,
+            "reached": false
+          },
+          {
+            "level": 3,
+            "title": "月下同行",
+            "minXp": 180,
+            "reached": false
+          },
+          {
+            "level": 4,
+            "title": "心声共鸣",
+            "minXp": 420,
+            "reached": false
+          },
+          {
+            "level": 5,
+            "title": "记忆同调",
+            "minXp": 800,
+            "reached": false
+          },
+          {
+            "level": 6,
+            "title": "星海相伴",
+            "minXp": 1400,
+            "reached": false
+          },
+          {
+            "level": 7,
+            "title": "月之眷属",
+            "minXp": 2200,
+            "reached": false
+          },
+          {
+            "level": 8,
+            "title": "永恒月契",
+            "minXp": 3200,
+            "reached": false
+          },
+          {
+            "level": 9,
+            "title": "八千代之约",
+            "minXp": 8000,
+            "reached": false
+          }
+        ],
+        "recentEvents": []
+      }
+    }
+  },
+  "/api/growth/public": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": [
+        {
+          "userId": "e2e-user-001",
+          "level": 1,
+          "title": "初次连接"
+        }
+      ]
+    }
+  },
+  "/api/user/profile": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": {
+        "id": "e2e-user-001",
+        "username": "e2e-user",
+        "nickname": "e2e-user",
+        "email": "e2e@example.test",
+        "has_real_email": true,
+        "avatar": "",
+        "bio": "",
+        "role": "user",
+        "created_at": "2026-10-01 14:04:41",
+        "oauth_accounts": []
+      }
+    }
+  },
+  "/api/user/articles": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": []
+    }
+  },
+  "/api/user/bookmarks": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": []
+    }
+  },
+  "/api/user/notifications": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": [],
+      "unread": 0,
+      "pagination": {
+        "page": 1,
+        "limit": 20,
+        "total": 0,
+        "totalPages": 1,
+        "hasPrevious": false,
+        "hasNext": false
+      }
+    }
+  },
+  "/api/user/notifications/unread-count": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": {
+        "count": 0
+      }
+    }
+  },
+  "/api/user/public/e2e-user": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": {
+        "user": {
+          "id": "e2e-user-001",
+          "username": "e2e-user",
+          "nickname": "e2e-user",
+          "avatar": "",
+          "bio": "",
+          "role": "user",
+          "created_at": "2026-10-01 14:04:41"
+        },
+        "stats": {
+          "followers": 0,
+          "following": 0,
+          "articles": 0,
+          "totalViews": 0
+        },
+        "viewer": {
+          "isSelf": true,
+          "isFollowing": false
+        },
+        "articles": []
+      }
+    }
+  },
+  "/api/assets": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "message": "操作成功",
+      "data": {
+        "assets": [],
+        "pagination": {
+          "page": 1,
+          "limit": 60,
+          "total": 0,
+          "totalPages": 0
+        }
+      }
+    }
+  },
+  "/api/assets/uploads": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "message": "操作成功",
+      "data": []
+    }
+  },
+  "/api/assets/gallery/public": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "message": "OK",
+      "data": {
+        "assets": []
+      }
+    }
+  },
+  "/api/assets/gallery": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "message": "操作成功",
+      "data": {
+        "assets": [],
+        "pagination": {
+          "page": 1,
+          "limit": 48,
+          "total": 0,
+          "totalPages": 0
+        }
+      }
+    }
+  },
+  "/api/pixel-art/gallery": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": [],
+      "pagination": {
+        "total": 0,
+        "limit": 12,
+        "offset": 0
+      }
+    }
+  },
+  "/api/pixel-art/manage": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": [],
+      "pagination": {
+        "total": 0,
+        "limit": 80,
+        "offset": 0
+      }
+    }
+  },
+  "/api/friend-links": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": []
+    }
+  },
+  "/api/friend-links/mine": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": []
+    }
+  },
+  "/api/growth/game/leaderboard": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": {
+        "entries": [],
+        "current": null,
+        "page": 1,
+        "pageSize": 10,
+        "total": 0,
+        "totalPages": 1
+      }
+    }
+  },
+  "/api/room/chat": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": []
+    }
+  },
+  "/api/room/memory": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": {
+        "items": [],
+        "total": 0,
+        "hasMore": false
+      }
+    }
+  },
+  "/api/room/diary": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": {
+        "userId": "e2e-user-001",
+        "entries": [],
+        "nextCursor": null
+      }
+    }
+  },
+  "/api/moderation/me": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "message": "操作成功",
+      "data": {
+        "id": "notify-site-admin",
+        "username": "notify-site-admin",
+        "role": "admin"
+      }
+    }
+  },
+  "/api/moderation/summary": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "message": "操作成功",
+      "data": {
+        "articles": 3,
+        "messages": {
+          "all": 3,
+          "pending": 0,
+          "approved": 3
+        },
+        "gallery": 0,
+        "attachments": 0
+      }
+    }
+  },
+  "/api/moderation/articles": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "message": "操作成功",
+      "data": {
+        "items": [
+          {
+            "id": 1,
+            "title": "欢迎来到月读空间",
+            "slug": "欢迎来到月读空间",
+            "category": "公告",
+            "content_format": "markdown",
+            "cover_image_asset_id": null,
+            "view_count": 0,
+            "status": "published",
+            "pinned_at": null,
+            "published_at": "2024-01-01 00:00:00",
+            "created_at": "2026-10-01 14:04:41",
+            "updated_at": "2026-10-01 14:04:41"
+          },
+          {
+            "id": 2,
+            "title": "辉夜姬的传说",
+            "slug": "辉夜姬的传说",
+            "category": "传说",
+            "content_format": "markdown",
+            "cover_image_asset_id": null,
+            "view_count": 0,
+            "status": "published",
+            "pinned_at": null,
+            "published_at": "2024-01-02 00:00:00",
+            "created_at": "2026-10-01 14:04:41",
+            "updated_at": "2026-10-01 14:04:41"
+          },
+          {
+            "id": 3,
+            "title": "月下的创作手记",
+            "slug": "月读空间技术札记",
+            "category": "技术",
+            "content_format": "markdown",
+            "cover_image_asset_id": null,
+            "view_count": 0,
+            "status": "published",
+            "pinned_at": null,
+            "published_at": "2024-01-03 00:00:00",
+            "created_at": "2026-10-01 14:04:41",
+            "updated_at": "2026-10-01 14:04:41"
+          }
+        ],
+        "pagination": {
+          "page": 1,
+          "limit": 10,
+          "total": 3,
+          "totalPages": 1
+        }
+      }
+    }
+  },
+  "/api/moderation/article-categories": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": [
+        {
+          "id": 1,
+          "name": "公告",
+          "protected": 0
+        },
+        {
+          "id": 2,
+          "name": "传说",
+          "protected": 0
+        },
+        {
+          "id": 3,
+          "name": "技术",
+          "protected": 0
+        },
+        {
+          "id": 4,
+          "name": "二创",
+          "protected": 0
+        },
+        {
+          "id": 5,
+          "name": "其他",
+          "protected": 1
+        }
+      ],
+      "revision": "1"
+    }
+  },
+  "/api/admin/me": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "message": "操作成功",
+      "data": {
+        "id": 1,
+        "username": "admin",
+        "nickname": "admin",
+        "role": "super_admin",
+        "scope": "admin"
+      }
+    }
+  },
+  "/api/admin/articles": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "message": "操作成功",
+      "data": [
+        {
+          "id": 1,
+          "title": "欢迎来到月读空间",
+          "slug": "欢迎来到月读空间",
+          "category": "公告",
+          "content_format": "markdown",
+          "cover_image_asset_id": null,
+          "view_count": 0,
+          "status": "published",
+          "pinned_at": null,
+          "published_at": "2024-01-01 00:00:00",
+          "created_at": "2026-10-01 14:04:41",
+          "updated_at": "2026-10-01 14:04:41"
+        },
+        {
+          "id": 2,
+          "title": "辉夜姬的传说",
+          "slug": "辉夜姬的传说",
+          "category": "传说",
+          "content_format": "markdown",
+          "cover_image_asset_id": null,
+          "view_count": 0,
+          "status": "published",
+          "pinned_at": null,
+          "published_at": "2024-01-02 00:00:00",
+          "created_at": "2026-10-01 14:04:41",
+          "updated_at": "2026-10-01 14:04:41"
+        },
+        {
+          "id": 3,
+          "title": "月下的创作手记",
+          "slug": "月读空间技术札记",
+          "category": "技术",
+          "content_format": "markdown",
+          "cover_image_asset_id": null,
+          "view_count": 0,
+          "status": "published",
+          "pinned_at": null,
+          "published_at": "2024-01-03 00:00:00",
+          "created_at": "2026-10-01 14:04:41",
+          "updated_at": "2026-10-01 14:04:41"
+        }
+      ]
+    }
+  },
+  "/api/articles/3": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": {
+        "id": 3,
+        "title": "月下的创作手记",
+        "excerpt": "探索虚拟空间背后的实现",
+        "content": "## 从一个小小的想法开始\n\n夜晚安静下来时，给自己留一小块可以自由创作的地方。它可以是一篇文章、一幅像素画，也可以是与朋友分享的一个念头。\n\n好的空间让人愿意停留，也让人容易找到想看的内容。我们把故事、作品和交流放在一起，让每一次来访都有新的发现。\n\n## 把故事留下\n\n记录不必等待灵感完整。把今天读到的句子、调试时的发现和偶然的相遇写下来，它们会慢慢成为自己的创作档案。\n\n### 阅读的节奏\n\n标题帮助读者辨认方向，留白让眼睛有时间休息。图片可以讲述故事，文字则把故事延续下去。\n\n> 给日常留一点月光，也给创作留一点耐心。\n\n## 在月光下相遇\n\n每一份作品都从好奇开始。愿意尝试、愿意分享的人，让这个小小的空间变得有温度。写下一句话，画下一个像素，都是故事的开始。\n\n每一份作品都从好奇开始。愿意尝试、愿意分享的人，让这个小小的空间变得有温度。写下一句话，画下一个像素，都是故事的开始。\n\n每一份作品都从好奇开始。愿意尝试、愿意分享的人，让这个小小的空间变得有温度。写下一句话，画下一个像素，都是故事的开始。\n\n每一份作品都从好奇开始。愿意尝试、愿意分享的人，让这个小小的空间变得有温度。写下一句话，画下一个像素，都是故事的开始。\n\n## 下一次见\n\n读完之后，可以回到主舞台继续探索，也可以到广场留下今天的问候。期待下一次相遇。",
+        "content_format": "markdown",
+        "category": "技术",
+        "tags": [
+          "技术",
+          "札记"
+        ],
+        "author_id": null,
+        "publish_date": "2024-01-03",
+        "read_time": null,
+        "view_count": 0,
+        "cover_image": "/assets/images/tsukuyomi-bg.webp",
+        "cover_image_asset_id": null,
+        "status": "published",
+        "pinned_at": null,
+        "created_at": "2026-10-01 14:04:41",
+        "updated_at": "2026-10-01 14:04:41",
+        "slug": "月读空间技术札记",
+        "published_at": "2024-01-03 00:00:00",
+        "like_count": 0,
+        "bookmark_count": 0,
+        "author_username": null,
+        "author_nickname": null,
+        "author_avatar": "",
+        "cover_image_url": "/assets/images/tsukuyomi-bg.webp",
+        "category_id": 3
+      }
+    }
+  },
+  "/api/articles/3/messages": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": []
+    }
+  },
+  "/api/user/bookmarks/3/status": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": {
+        "bookmarked": false,
+        "count": 0
+      }
+    }
+  },
+  "/api/user/article-likes/3/status": {
+    "status": 200,
+    "result": {
+      "success": true,
+      "data": {
+        "liked": false,
+        "count": 0
+      }
+    }
+  },
+  "_meta": {
+    "fixture": "Original Express SQLite disposable UI fixture",
+    "date": "2026-10-01",
+    "articleId": 3,
+    "sourceCommit": "5c4346e20f5dbb9710707096f1cb73ea4c64b691"
+  }
+}

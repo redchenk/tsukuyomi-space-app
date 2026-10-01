@@ -73,55 +73,62 @@ class ContentPageShell extends StatelessWidget {
     );
     return Scaffold(
       backgroundColor: p.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: EdgeInsets.all(narrow ? 14 : 24),
-              child: SiteHeader(
-                title: title,
-                username: controller.account?.displayName,
-                role: controller.sessionExpired
-                    ? null
-                    : controller.account?.role,
-                onGo: onGo,
-                onTheme: onTheme,
-                onLogin: () {
-                  if (controller.account == null || controller.sessionExpired) {
-                    showSiteLogin(context, controller);
-                  } else {
-                    onGo('/user');
-                  }
-                },
-              ),
-            ),
-            if (loading) const LinearProgressIndicator(minHeight: 2),
-            if (controller.sessionExpired)
-              MaterialBanner(
-                content: const SiteText('登录已过期，本机草稿已保留。'),
-                actions: [
-                  TextButton(
-                    onPressed: () => showSiteLogin(context, controller),
-                    child: const SiteText('重新登录'),
-                  ),
-                ],
-              ),
-            if (toolbar != null)
-              Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: maxWidth),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: narrow ? 14 : 24),
-                    child: toolbar,
-                  ),
+      body: SiteBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.all(narrow ? 14 : 24),
+                child: SiteHeader(
+                  title: title,
+                  username: controller.sessionExpired
+                      ? null
+                      : controller.account?.displayName,
+                  role: controller.sessionExpired
+                      ? null
+                      : controller.account?.role,
+                  onGo: onGo,
+                  onTheme: onTheme,
+                  onLogin: () {
+                    if (controller.account == null ||
+                        controller.sessionExpired) {
+                      showSiteLogin(context, controller);
+                    } else {
+                      onGo('/user');
+                    }
+                  },
                 ),
               ),
-            Expanded(
-              child: onRefresh == null
-                  ? content
-                  : RefreshIndicator(onRefresh: onRefresh!, child: content),
-            ),
-          ],
+              if (loading) const LinearProgressIndicator(minHeight: 2),
+              if (controller.sessionExpired)
+                MaterialBanner(
+                  content: const SiteText('登录已过期，本机草稿已保留。'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => showSiteLogin(context, controller),
+                      child: const SiteText('重新登录'),
+                    ),
+                  ],
+                ),
+              if (toolbar != null)
+                Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: maxWidth),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: narrow ? 14 : 24,
+                      ),
+                      child: toolbar,
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: onRefresh == null
+                    ? content
+                    : RefreshIndicator(onRefresh: onRefresh!, child: content),
+              ),
+            ],
+          ),
         ),
       ),
     );

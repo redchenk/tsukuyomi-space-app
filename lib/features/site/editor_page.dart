@@ -54,12 +54,23 @@ class _EditorPageState extends State<EditorPage> {
   ));
   Widget? _previewPane;
   Timer? _previewTimer;
-  bool leaving = false;
+  bool leaving = false, _syncingInputs = false;
   @override
   void initState() {
     super.initState();
     editor =
         widget.editor ?? NativeArticleEditor(widget.controller, widget.path);
+    for (final entry in inputs.entries) {
+      entry.value.addListener(() {
+        if (_syncingInputs ||
+            editor.loading ||
+            editor.submitting ||
+            '${editor.fields[entry.key] ?? ''}' == entry.value.text) {
+          return;
+        }
+        editor.change(entry.key, entry.value.text);
+      });
+    }
     editor.addListener(changed);
     editor.initialize();
   }
@@ -83,6 +94,7 @@ class _EditorPageState extends State<EditorPage> {
 
   void changed() {
     if (!mounted) return;
+    _syncingInputs = true;
     for (final entry in inputs.entries) {
       final value = '${editor.fields[entry.key] ?? ''}';
       if (entry.value.text != value) {
@@ -98,6 +110,7 @@ class _EditorPageState extends State<EditorPage> {
         );
       }
     }
+    _syncingInputs = false;
     _updatePreview();
     setState(() {});
   }
@@ -407,7 +420,6 @@ class _EditorPageState extends State<EditorPage> {
         maxLength: maxLength,
         enabled: !editor.loading && !editor.submitting,
         focusNode: key == 'content' ? bodyFocus : null,
-        onChanged: (value) => editor.change(key, value),
         inputFormatters:
             key == 'content' && editor.fields['content_format'] == 'markdown'
             ? [NativeMarkdownListFormatter()]

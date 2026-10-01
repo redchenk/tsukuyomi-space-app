@@ -566,7 +566,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                   .map(
                     (w) => SizedBox(
                       width: (box.maxWidth - 8 * (columns - 1)) / columns,
-                      height: 44,
+                      height:
+                          44 *
+                          (MediaQuery.textScalerOf(context).scale(14) / 14),
                       child: w,
                     ),
                   )
@@ -577,14 +579,12 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         const SizedBox(height: 24),
         _field('apiKey', 'API 密钥', secret: true),
         _hint('密钥保存在系统安全存储，调用时发送给所选服务。'),
-        Row(
+        Wrap(
+          spacing: 14,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            const Expanded(
-              child: SiteText(
-                '模型',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
+            const SiteText('模型', style: TextStyle(fontWeight: FontWeight.w600)),
             TextButton.icon(
               onPressed: busy ? null : () => _run(_catalog),
               icon: const Icon(CupertinoIcons.refresh, size: 15),
@@ -703,7 +703,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             );
             return box.maxWidth > 190
                 ? SizedBox(
-                    height: 68,
+                    height:
+                        68 * (MediaQuery.textScalerOf(context).scale(14) / 14),
                     child: Row(
                       children: [
                         Icon(icon, color: RoomStyle(context).accent),
@@ -1318,7 +1319,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             SafeArea(
               child: LayoutBuilder(
                 builder: (context, box) {
-                  final mobile = box.maxWidth <= 860;
+                  final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+                  final mobile = box.maxWidth <= 860 * scale;
                   return Column(
                     children: [
                       Expanded(
@@ -1334,7 +1336,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               SizedBox(
-                                height: mobile ? 60 : 68,
+                                height: (mobile ? 60 : 68) * scale,
                                 child: RoomNavigation(
                                   title: '房间设置',
                                   mobile: mobile,
@@ -1356,16 +1358,17 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                 style: TextStyle(fontSize: 12),
                               ),
                               const SizedBox(height: 10),
-                              Row(
+                              Wrap(
+                                spacing: 16,
+                                runSpacing: 12,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  const Expanded(
-                                    child: SiteText(
-                                      '房间设置',
-                                      style: TextStyle(
-                                        fontSize: 28,
-                                        height: 1.2,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                  const SiteText(
+                                    '房间设置',
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      height: 1.2,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   TextButton.icon(
@@ -1475,20 +1478,32 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                               if (mobile) ...[
                                 SiteCard(
                                   padding: EdgeInsets.zero,
-                                  child: ListTile(
-                                    dense: true,
-                                    minTileHeight: 50,
-                                    leading: Icon(current.$2, size: 20),
-                                    title: Text(
-                                      current.$1,
-                                      style: const TextStyle(fontSize: 13),
-                                    ),
-                                    trailing: const SiteText(
-                                      '全部设置 ﹀',
-                                      style: TextStyle(fontSize: 12),
-                                    ),
+                                  child: InkWell(
                                     onTap: () => setState(
                                       () => mobileMenu = !mobileMenu,
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(14),
+                                      child: Wrap(
+                                        spacing: 12,
+                                        runSpacing: 8,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
+                                        children: [
+                                          Icon(current.$2, size: 20),
+                                          Text(
+                                            current.$1,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          const SiteText(
+                                            '全部设置 ﹀',
+                                            style: TextStyle(fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -1602,7 +1617,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                       ),
                                     ),
                                   ),
-                                  if (box.maxWidth > 1180) ...[
+                                  if (!mobile &&
+                                      box.maxWidth > 1180 * scale) ...[
                                     const SizedBox(width: 24),
                                     SizedBox(width: 252, child: _summary()),
                                   ],
@@ -1621,70 +1637,63 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                           horizontal: mobile ? 14 : 32,
                           vertical: 14,
                         ),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (!mobile)
-                              Expanded(
-                                child: Text(
-                                  dirty ? '有尚未保存的修改' : '所有修改已保存',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: p.muted,
-                                  ),
-                                ),
-                              ),
-                            if (mobile && !dirty)
-                              Expanded(
-                                child: SiteText(
-                                  '所有修改已保存',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: p.muted,
-                                  ),
-                                ),
-                              ),
-                            TextButton(
-                              onPressed: !dirty || busy
-                                  ? null
-                                  : () async {
-                                      if (await roomConfirm(
-                                        context,
-                                        '放弃尚未保存的修改？',
-                                        '已保存的记忆、日记与人设不会撤销。',
-                                      )) {
-                                        setState(_restore);
-                                      }
-                                    },
-                              child: const SiteText('放弃修改'),
+                            SiteText(
+                              dirty ? '有尚未保存的修改' : '所有修改已保存',
+                              style: TextStyle(fontSize: 12, color: p.muted),
                             ),
-                            if (mobile && dirty) const Spacer(),
-                            if (dirty)
-                              TextButton(
-                                onPressed: busy
-                                    ? null
-                                    : () => _run(() async {
-                                        await _save();
-                                      }),
-                                child: const SiteText('保存全部'),
-                              ),
-                            const SizedBox(width: 8),
-                            FilledButton.icon(
-                              onPressed: busy
-                                  ? null
-                                  : () => _run(() async {
-                                      if (await _save() && context.mounted) {
-                                        setState(() => allowPop = true);
-                                        Navigator.popUntil(
-                                          context,
-                                          (route) => route.isFirst,
-                                        );
-                                      }
-                                    }),
-                              icon: const Icon(
-                                CupertinoIcons.arrow_right,
-                                size: 17,
-                              ),
-                              label: Text(dirty ? '保存并进入房间' : '返回房间'),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              alignment: WrapAlignment.end,
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                TextButton(
+                                  onPressed: !dirty || busy
+                                      ? null
+                                      : () async {
+                                          if (await roomConfirm(
+                                            context,
+                                            '放弃尚未保存的修改？',
+                                            '已保存的记忆、日记与人设不会撤销。',
+                                          )) {
+                                            setState(_restore);
+                                          }
+                                        },
+                                  child: const SiteText('放弃修改'),
+                                ),
+                                if (dirty)
+                                  TextButton(
+                                    onPressed: busy
+                                        ? null
+                                        : () => _run(() async {
+                                            await _save();
+                                          }),
+                                    child: const SiteText('保存全部'),
+                                  ),
+                                FilledButton.icon(
+                                  onPressed: busy
+                                      ? null
+                                      : () => _run(() async {
+                                          if (await _save() &&
+                                              context.mounted) {
+                                            setState(() => allowPop = true);
+                                            Navigator.popUntil(
+                                              context,
+                                              (route) => route.isFirst,
+                                            );
+                                          }
+                                        }),
+                                  icon: const Icon(
+                                    CupertinoIcons.arrow_right,
+                                    size: 17,
+                                  ),
+                                  label: SiteText(dirty ? '保存并进入房间' : '返回房间'),
+                                ),
+                              ],
                             ),
                           ],
                         ),

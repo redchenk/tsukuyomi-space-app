@@ -240,10 +240,10 @@ class _FriendLinksPageState extends State<FriendLinksPage> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        NativeSiteSection(
+        SitePageHero(
           title: apply ? '友链申请' : '友链',
           subtitle: apply ? '填写站点信息，审核通过后将在月读广场展示。' : '一些值得顺路拜访的站点。',
-          child: Wrap(
+          actions: Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [

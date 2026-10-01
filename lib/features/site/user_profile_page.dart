@@ -9,6 +9,7 @@ import '../room/room_controller.dart';
 import '../room/room_style.dart';
 import 'login_dialog.dart';
 import 'native_site_shell.dart';
+import 'native_gallery_details.dart';
 import 'site_widgets.dart';
 
 class UserProfilePage extends StatefulWidget {
@@ -201,117 +202,216 @@ class _UserProfilePageState extends State<UserProfilePage> {
         if (_loading && _profile.isEmpty)
           const Center(child: CircularProgressIndicator()),
         if (_profile.isNotEmpty) ...[
-          NativeSiteSection(
-            translate: false,
-            title: userDisplayName(user, fallback: username),
-            subtitle: textOf(user, 'bio', '这位创作者还没有写下个人简介。'),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SiteAvatar(
-                  value: textOf(user, 'avatar'),
-                  name: userDisplayName(user, fallback: username),
-                  site: c.settings.siteUrl,
-                  size: 90,
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    Chip(
-                      label: SiteText(
-                        ['admin', 'super_admin'].contains(user['role'])
-                            ? '管理员'
-                            : '创作者',
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: SiteCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SiteAvatar(
+                        value: textOf(user, 'avatar'),
+                        name: userDisplayName(user, fallback: username),
+                        site: c.settings.siteUrl,
+                        size: MediaQuery.sizeOf(context).width < 600 ? 64 : 96,
                       ),
-                    ),
-                    if (_level.isNotEmpty)
-                      Chip(
-                        label: Text('Lv.${_level['level']} ${_level['title']}'),
-                      ),
-                    Chip(
-                      label: Text(
-                        siteTr(
-                          context,
-                          'nativeProfileJoinedAt',
-                          fallback: '加入于 {date}',
-                          params: {'date': dateText(user['created_at'])},
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: [
-                    if (isSelf)
-                      FilledButton.icon(
-                        onPressed: () => widget.onGo('/user-center'),
-                        icon: const Icon(Icons.edit_outlined),
-                        label: const SiteText('编辑个人资料'),
-                      )
-                    else
-                      FilledButton.icon(
-                        key: const Key('profile-follow'),
-                        onPressed: _following ? null : _toggleFollow,
-                        icon: Icon(
-                          viewer['isFollowing'] == true
-                              ? Icons.person_remove_outlined
-                              : Icons.person_add_outlined,
-                        ),
-                        label: SiteText(
-                          _following
-                              ? '正在更新关注状态'
-                              : viewer['isFollowing'] == true
-                              ? '取消关注'
-                              : '关注作者',
-                        ),
-                      ),
-                    OutlinedButton.icon(
-                      onPressed: () => widget.onGo('/stage'),
-                      icon: const Icon(Icons.book_outlined),
-                      label: const SiteText('回到主舞台'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          NativeSiteSection(
-            title: '创作档案',
-            child: LayoutBuilder(
-              builder: (context, box) {
-                final columns = box.maxWidth >= 700 ? 4 : 2;
-                return Wrap(
-                  runSpacing: 20,
-                  children: [
-                    for (final entry in const {
-                      'articles': '公开文章',
-                      'totalViews': '累计阅读',
-                      'followers': '关注者',
-                      'following': '正在关注',
-                    }.entries)
-                      SizedBox(
-                        width: box.maxWidth / columns,
+                      const SizedBox(width: 20),
+                      Expanded(
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${stats[entry.key] ?? 0}',
-                              style: const TextStyle(fontSize: 30),
+                              'USER PROFILE',
+                              style: TextStyle(
+                                color: RoomStyle(context).accent,
+                                fontSize: 11,
+                                letterSpacing: 1,
+                              ),
                             ),
+                            const SizedBox(height: 8),
                             Text(
-                              entry.value,
+                              userDisplayName(user, fallback: username),
+                              style: const TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            if (textOf(user, 'bio').isNotEmpty)
+                              Text(
+                                textOf(user, 'bio'),
+                                style: const TextStyle(height: 1.7),
+                              )
+                            else
+                              const SiteText('这位创作者还没有写下个人简介。'),
+                            const SizedBox(height: 8),
+                            Text(
+                              '@$username',
                               style: TextStyle(color: RoomStyle(context).muted),
                             ),
                           ],
                         ),
                       ),
-                  ],
-                );
-              },
+                      if (MediaQuery.sizeOf(context).width >=
+                          1100 *
+                              (MediaQuery.textScalerOf(context).scale(14) /
+                                  14)) ...[
+                        const SizedBox(width: 24),
+                        SizedBox(
+                          width: 270,
+                          child: SiteCard(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const SiteText(
+                                  '创作档案',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                                const SizedBox(height: 8),
+                                if (articles.isEmpty)
+                                  const SiteText(
+                                    '等待新的公开记录',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    textOf(articles.first, 'title'),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                const SizedBox(height: 8),
+                                if (articles.isEmpty)
+                                  const SiteText(
+                                    '这里会收纳这个用户发布到月读空间的公开文章、关注关系和创作痕迹。',
+                                    style: TextStyle(height: 1.6),
+                                  )
+                                else
+                                  Text(
+                                    textOf(articles.first, 'excerpt'),
+                                    style: const TextStyle(height: 1.6),
+                                  ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  '${stats['totalViews'] ?? 0} 阅读 · ${stats['followers'] ?? 0} 关注者',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      Chip(
+                        label: SiteText(
+                          ['admin', 'super_admin'].contains(user['role'])
+                              ? '管理员'
+                              : '创作者',
+                        ),
+                      ),
+                      if (_level.isNotEmpty)
+                        NativeUserLevelBadge(
+                          level: _level['level'] is num
+                              ? (_level['level'] as num).toInt()
+                              : int.tryParse('${_level['level']}') ?? 1,
+                        ),
+                      Chip(
+                        label: Text(
+                          siteTr(
+                            context,
+                            'nativeProfileJoinedAt',
+                            fallback: '加入于 {date}',
+                            params: {'date': dateText(user['created_at'])},
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      if (isSelf)
+                        FilledButton.icon(
+                          onPressed: () => widget.onGo('/user-center'),
+                          icon: const Icon(Icons.edit_outlined),
+                          label: const SiteText('编辑个人资料'),
+                        )
+                      else
+                        FilledButton.icon(
+                          key: const Key('profile-follow'),
+                          onPressed: _following ? null : _toggleFollow,
+                          icon: Icon(
+                            viewer['isFollowing'] == true
+                                ? Icons.person_remove_outlined
+                                : Icons.person_add_outlined,
+                          ),
+                          label: SiteText(
+                            _following
+                                ? '正在更新关注状态'
+                                : viewer['isFollowing'] == true
+                                ? '取消关注'
+                                : '关注作者',
+                          ),
+                        ),
+                      OutlinedButton.icon(
+                        onPressed: () => widget.onGo('/stage'),
+                        icon: const Icon(Icons.book_outlined),
+                        label: const SiteText('回到主舞台'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: SiteCard(
+              child: LayoutBuilder(
+                builder: (context, box) {
+                  final columns = box.maxWidth >= 700 ? 4 : 2;
+                  return Wrap(
+                    runSpacing: 20,
+                    children: [
+                      for (final entry in const {
+                        'articles': '公开文章',
+                        'totalViews': '累计阅读',
+                        'followers': '关注者',
+                        'following': '正在关注',
+                      }.entries)
+                        SizedBox(
+                          width: box.maxWidth / columns,
+                          child: Column(
+                            children: [
+                              Text(
+                                '${stats[entry.key] ?? 0}',
+                                style: const TextStyle(fontSize: 30),
+                              ),
+                              Text(
+                                entry.value,
+                                style: TextStyle(
+                                  color: RoomStyle(context).muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
           NativeSiteSection(

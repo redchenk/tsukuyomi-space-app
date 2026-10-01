@@ -796,4 +796,49 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets(
+    'platform paste and composing text update both the draft and preview',
+    (tester) async {
+      final room = await _room(_Site());
+      final editor = NativeArticleEditor(room, '/editor');
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox());
+        editor.dispose();
+        room.dispose();
+      });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: EditorPage(
+            controller: room,
+            path: '/editor',
+            onGo: (_) {},
+            editor: editor,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final input = tester
+          .widget<TextField>(find.byKey(const ValueKey('editor-content')))
+          .controller!;
+      input.value = const TextEditingValue(
+        text: '## 中文粘贴\n\n完整正文',
+        selection: TextSelection.collapsed(offset: 6),
+        composing: TextRange(start: 3, end: 6),
+      );
+      await tester.pump();
+      expect(editor.fields['content'], '## 中文粘贴\n\n完整正文');
+      expect(input.value.composing, const TextRange(start: 3, end: 6));
+      input.value = input.value.copyWith(composing: TextRange.empty);
+      await tester.tap(find.widgetWithText(ChoiceChip, '预览'));
+      await tester.pump();
+      final rich = find.descendant(
+        of: find.byKey(const Key('article-editor-preview')),
+        matching: find.byType(NativeRichText),
+      );
+      expect(tester.widget<NativeRichText>(rich).content, '## 中文粘贴\n\n完整正文');
+      await editor.saveDraft();
+      expect(await room.storage.draft(editor.draftKey), contains('完整正文'));
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

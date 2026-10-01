@@ -98,6 +98,149 @@ class SiteCard extends StatelessWidget {
   );
 }
 
+/// Editorial page heading shared by the website's content surfaces.
+class SitePageHero extends StatelessWidget {
+  const SitePageHero({
+    super.key,
+    required this.title,
+    this.kicker = '',
+    this.subtitle = '',
+    this.actions,
+    this.background,
+    this.translate = true,
+  });
+  final String title, kicker, subtitle;
+  final Widget? actions;
+  final Widget? background;
+  final bool translate;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 20),
+    child: SiteCard(
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            if (background != null) Positioned.fill(child: background!),
+            if (background != null)
+              const Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xef10111f), Color(0xa610111f)],
+                    ),
+                  ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (kicker.isNotEmpty)
+                    SiteText(
+                      kicker,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: background == null
+                            ? RoomStyle(context).accent
+                            : Colors.white70,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  SiteText(
+                    title,
+                    translate: translate,
+                    style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.w600,
+                      color: background == null ? null : Colors.white,
+                    ),
+                  ),
+                  if (subtitle.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    SiteText(
+                      subtitle,
+                      translate: translate,
+                      style: TextStyle(
+                        height: 1.7,
+                        color: background == null
+                            ? RoomStyle(context).muted
+                            : Colors.white70,
+                      ),
+                    ),
+                  ],
+                  if (actions != null) ...[
+                    const SizedBox(height: 20),
+                    actions!,
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class SiteResponsiveGrid extends StatelessWidget {
+  const SiteResponsiveGrid({
+    super.key,
+    required this.children,
+    this.minWidth = 280,
+    this.maxColumns = 3,
+    this.spacing = 16,
+  });
+  final List<Widget> children;
+  final double minWidth, spacing;
+  final int maxColumns;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+      final columns = (box.maxWidth / (minWidth * scale)).floor().clamp(
+        1,
+        maxColumns,
+      );
+      final width = (box.maxWidth - spacing * (columns - 1)) / columns;
+      return Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        children: [
+          for (final child in children) SizedBox(width: width, child: child),
+        ],
+      );
+    },
+  );
+}
+
+/// The same fixed scenery and editorial tint used by the website and Room.
+class SiteBackground extends StatelessWidget {
+  const SiteBackground({super.key, required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
+    children: [
+      Image.asset(
+        'assets/images/moonlit-lake.png',
+        fit: BoxFit.cover,
+        cacheWidth:
+            (MediaQuery.sizeOf(context).width *
+                    MediaQuery.devicePixelRatioOf(context))
+                .ceil()
+                .clamp(1, 2560),
+        excludeFromSemantics: true,
+      ),
+      ColoredBox(color: RoomStyle(context).background.withValues(alpha: .80)),
+      child,
+    ],
+  );
+}
+
 class SiteAvatar extends StatelessWidget {
   const SiteAvatar({
     super.key,
@@ -154,7 +297,11 @@ class SiteAvatar extends StatelessWidget {
       child: Container(
         width: size,
         height: size,
-        color: RoomStyle(context).primary,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xffec4899), Color(0xff8b5cf6)],
+          ),
+        ),
         child: picture,
       ),
     );
@@ -180,94 +327,142 @@ class SiteHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
+      final style = RoomStyle(context);
       final compact =
           box.maxWidth <
-          1050 * (MediaQuery.textScalerOf(context).scale(14) / 14);
+          1160 * (MediaQuery.textScalerOf(context).scale(14) / 14);
+      final path = ModalRoute.of(context)?.settings.name ?? '';
+      final controller = SiteControllerScope.maybeOf(context);
+      final music = SiteMusicScope.maybeOf(context);
+      final administrator =
+          username != null && (role == 'admin' || role == 'super_admin');
+      final explore = SiteExploreMenu(
+        currentPath: path,
+        administrator: administrator,
+        showLabel: !compact,
+        actions: {
+          'search': '搜索月读空间',
+          'music': '全站音乐',
+          'theme': '切换主题',
+          'language:zh': '中文',
+          'language:ja': '日本語',
+          'language:en': 'English',
+        },
+        onSelected: (value) {
+          if (value == 'theme') {
+            onTheme?.call();
+          } else if (value == 'search') {
+            if (controller != null) showSiteSearch(context, controller, onGo);
+          } else if (value == 'music') {
+            if (music != null) showRoomMusic(context, music);
+          } else if (value.startsWith('language:')) {
+            SiteLocaleScope.maybeOf(context)?.setLanguage(value.substring(9));
+          } else {
+            onGo(value);
+          }
+        },
+      );
       return SiteCard(
         padding: EdgeInsets.symmetric(
-          horizontal: compact ? 12 : 24,
+          horizontal: compact ? 12 : 20,
           vertical: compact ? 6 : 10,
         ),
         child: Row(
           children: [
-            if (!compact)
-              Icon(
-                CupertinoIcons.moon,
-                color: RoomStyle(context).accent,
-                size: 26,
-              ),
-            if (!compact) const SizedBox(width: 10),
             Expanded(
               child: InkWell(
+                borderRadius: BorderRadius.circular(12),
                 onTap: () => onGo('/hub'),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    const SiteText(
-                      '月读空间',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: RoomStyle.serif,
-                        fontSize: 21,
-                        height: 1.2,
-                        letterSpacing: 2,
+                    if (!compact) ...[
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: style.soft,
+                          border: Border.all(color: style.line),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          CupertinoIcons.moon_circle,
+                          color: style.accent,
+                          size: 25,
+                        ),
                       ),
-                    ),
-                    SiteText(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 10, height: 1.2),
+                      const SizedBox(width: 10),
+                    ],
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SiteText(
+                            '月读空间',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: RoomStyle.serif,
+                              fontSize: 21,
+                              height: 1.2,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          SiteText(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 10,
+                              height: 1.4,
+                              color: style.muted,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            if (!compact)
-              if (SiteControllerScope.maybeOf(context) case final controller?)
-                IconButton(
-                  onPressed: () => showSiteSearch(context, controller, onGo),
-                  icon: const Icon(Icons.search),
-                  tooltip: '搜索月读空间',
-                ),
-            if (!compact)
-              if (SiteMusicScope.maybeOf(context) case final music?)
-                IconButton(
-                  onPressed: () => showRoomMusic(context, music),
-                  icon: const Icon(CupertinoIcons.music_note_2),
-                  tooltip: '全站音乐',
-                ),
-            if (!compact) const SiteLanguageMenu(),
-            if (!compact)
-              for (final path in ['/hub', '/stage', '/plaza', '/wiki'])
+            if (!compact) ...[
+              for (final route in ['/hub', '/stage', '/plaza', '/wiki'])
                 TextButton(
-                  onPressed: () => onGo(path),
+                  onPressed: () => onGo(route),
+                  style: TextButton.styleFrom(
+                    foregroundColor: path == route ? style.accent : style.muted,
+                    backgroundColor: path == route ? style.soft : null,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                  ),
                   child: SiteText(
                     const {
                       '/hub': '中枢',
                       '/stage': '舞台',
                       '/plaza': '广场',
                       '/wiki': '百科',
-                    }[path]!,
+                    }[route]!,
                   ),
                 ),
-            if (!compact)
-              IconButton(
-                onPressed: onTheme,
-                icon: const Icon(CupertinoIcons.moon),
-                tooltip: siteTranslate(
-                  context,
-                  Theme.of(context).brightness == Brightness.dark
-                      ? '切换浅色主题'
-                      : '切换深色主题',
+              explore,
+              const SizedBox(width: 12),
+              if (controller != null)
+                OutlinedButton.icon(
+                  onPressed: () => showSiteSearch(context, controller, onGo),
+                  icon: const Icon(Icons.search, size: 19),
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SiteText('搜索', style: const TextStyle(fontSize: 13)),
+                      const SizedBox(width: 12),
+                      Text(
+                        '⌘ K',
+                        style: TextStyle(fontSize: 10, color: style.muted),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            IconButton(
-              onPressed: onLogin,
-              icon: const Icon(CupertinoIcons.person_crop_circle),
-              tooltip: username ?? '登录',
-            ),
+              const SizedBox(width: 8),
+            ],
             if (username != null &&
                 SiteChromeScope.maybeOf(context)?.authed == true)
               IconButton(
@@ -275,44 +470,81 @@ class SiteHeader extends StatelessWidget {
                 tooltip: siteTr(context, 'notifications'),
                 icon: const SiteNotificationBadge(),
               ),
-            SiteExploreMenu(
-              currentPath: ModalRoute.of(context)?.settings.name ?? '',
-              administrator:
-                  username != null &&
-                  (role == 'admin' || role == 'super_admin'),
-              actions: {
-                if (compact) 'search': '搜索月读空间',
-                if (compact) 'music': '全站音乐',
-                'theme': '切换主题',
-                'language:zh': '中文',
-                'language:ja': '日本語',
-                'language:en': 'English',
-              },
-              onSelected: (path) {
-                if (path == 'theme') {
-                  onTheme?.call();
-                } else if (path == 'search') {
-                  final controller = SiteControllerScope.maybeOf(context);
-                  if (controller != null) {
-                    showSiteSearch(context, controller, onGo);
-                  }
-                } else if (path == 'music') {
-                  final music = SiteMusicScope.maybeOf(context);
-                  if (music != null) showRoomMusic(context, music);
-                } else if (path.startsWith('language:')) {
-                  SiteLocaleScope.maybeOf(context)
-                      ?.setLanguage(path.substring(9));
-                } else {
-                  onGo(path);
-                }
-              },
-            ),
             if (!compact)
+              IconButton(
+                onPressed: onTheme,
+                icon: Icon(
+                  Theme.of(context).brightness == Brightness.dark
+                      ? CupertinoIcons.sun_max
+                      : CupertinoIcons.moon,
+                ),
+                tooltip: siteTranslate(
+                  context,
+                  Theme.of(context).brightness == Brightness.dark
+                      ? '切换浅色主题'
+                      : '切换深色主题',
+                ),
+              ),
+            if (compact)
+              IconButton(
+                onPressed: onLogin,
+                icon: const Icon(CupertinoIcons.person_crop_circle),
+                tooltip: username ?? siteTr(context, 'login'),
+              )
+            else
+              PopupMenuButton<String>(
+                tooltip: username ?? siteTr(context, 'login'),
+                onSelected: onGo,
+                itemBuilder: (_) => [
+                  for (final entry
+                      in (username == null
+                              ? {'/login': '登录', '/register': '注册'}
+                              : {
+                                  '/user': '个人中心',
+                                  '/growth': '月契成长',
+                                  '/notifications': '站内信',
+                                  '/attachments': '附件管理',
+                                  if (administrator) '/admin': '内容管理',
+                                })
+                          .entries)
+                    PopupMenuItem(
+                      value: entry.key,
+                      child: SiteText(entry.value),
+                    ),
+                ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(CupertinoIcons.person_crop_circle, size: 26),
+                      const SizedBox(width: 6),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 100),
+                        child: Text(
+                          username ?? siteTr(context, 'login'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      const Icon(Icons.expand_more, size: 16),
+                    ],
+                  ),
+                ),
+              ),
+            if (compact) explore,
+            if (!compact) ...[
+              const SizedBox(width: 8),
               FilledButton.icon(
                 onPressed: () => onGo('/room'),
-                icon: const Icon(CupertinoIcons.moon),
+                icon: const Icon(CupertinoIcons.moon, size: 17),
                 label: const SiteText('进入房间'),
               ),
+            ],
           ],
         ),
       );

@@ -42,11 +42,13 @@ class SiteExploreMenu extends StatefulWidget {
     this.currentPath = '',
     this.administrator = false,
     this.actions = const {},
+    this.showLabel = false,
   });
   final ValueChanged<String> onSelected;
   final String currentPath;
   final bool administrator;
   final Map<String, String> actions;
+  final bool showLabel;
   @override
   State<SiteExploreMenu> createState() => _SiteExploreMenuState();
 }
@@ -177,7 +179,17 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
     focusNode: _focus,
     tooltip: siteTranslate(context, '探索'),
     onPressed: _show,
-    icon: const Icon(Icons.menu_rounded),
+    icon: widget.showLabel
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.menu_rounded, size: 17),
+              const SizedBox(width: 6),
+              SiteText('探索', style: const TextStyle(fontSize: 14)),
+              const Icon(Icons.expand_more, size: 16),
+            ],
+          )
+        : const Icon(Icons.menu_rounded),
   );
 }
 

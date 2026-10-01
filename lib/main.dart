@@ -262,11 +262,37 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
             inputDecorationTheme: InputDecorationTheme(
               filled: true,
               fillColor: _dark
-                  ? const Color(0xff25283a)
-                  : const Color(0xffefedf7),
+                  ? const Color(0xff0d0f1a)
+                  : const Color(0xfff6f5f9),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: _dark
+                      ? const Color(0xff343448)
+                      : const Color(0xffe5e1ef),
+                ),
+              ),
+            ),
+            filledButtonTheme: FilledButtonThemeData(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xff7155ac),
+                foregroundColor: Colors.white,
+                minimumSize: const Size(44, 44),
+                shape: const StadiumBorder(),
+              ),
+            ),
+            outlinedButtonTheme: OutlinedButtonThemeData(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _dark
+                    ? const Color(0xfff0edf8)
+                    : const Color(0xff292738),
+                side: BorderSide(
+                  color: _dark
+                      ? const Color(0xff343448)
+                      : const Color(0xffe5e1ef),
+                ),
+                minimumSize: const Size(44, 44),
+                shape: const StadiumBorder(),
               ),
             ),
             snackBarTheme: const SnackBarThemeData(

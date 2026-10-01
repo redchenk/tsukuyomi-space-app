@@ -10,9 +10,11 @@ import 'package:flutter/material.dart';
 import '../../core/models.dart';
 import '../../core/site_client.dart';
 import '../room/room_controller.dart';
+import '../room/room_style.dart';
 import 'hub_pixel_preview.dart';
 import 'login_dialog.dart';
 import 'native_auth_page.dart';
+import 'native_gallery_details.dart';
 import 'native_site_shell.dart';
 import 'site_widgets.dart';
 
@@ -38,6 +40,16 @@ class _UserCenterPageState extends State<UserCenterPage> {
   int _epoch = 0, _page = 1;
   bool _loading = true, _saving = false;
   Map<String, dynamic> _profile = {}, _growth = {};
+  int get _growthLevel {
+    final summary = mapOf(_growth['summary']);
+    final raw = summary['level'] ?? _growth['level'];
+    final value = raw is Map ? raw['level'] : raw;
+    return (value is num ? value.toInt() : int.tryParse('$value') ?? 1).clamp(
+      1,
+      9,
+    );
+  }
+
   final Map<String, List<Map<String, dynamic>>> _content = {};
   final _nickname = TextEditingController(),
       _bio = TextEditingController(),
@@ -145,10 +157,26 @@ class _UserCenterPageState extends State<UserCenterPage> {
       // successfully loaded profile or erase another panel's existing results.
       final tab = _tab;
       if (tab == 'profile') {
-        final growth = mapOf((await _request('GET', '/api/growth/me'))['data']);
-        if (mounted && epoch == _epoch && scope == _accountScope) {
-          setState(() => _growth = growth);
-        }
+        await Future.wait([
+          () async {
+            final growth = mapOf(
+              (await _request('GET', '/api/growth/me'))['data'],
+            );
+            if (mounted && epoch == _epoch && scope == _accountScope) {
+              setState(() => _growth = growth);
+            }
+          }(),
+          () async {
+            final data = (await _request('GET', '/api/user/articles'))['data'];
+            if (mounted && epoch == _epoch && scope == _accountScope) {
+              setState(
+                () => _content['articles'] = rowsOf(
+                  data is List ? data : mapOf(data)['items'],
+                ),
+              );
+            }
+          }(),
+        ]);
       } else if (tab != 'security') {
         final path = switch (tab) {
           'articles' =>
@@ -359,10 +387,6 @@ class _UserCenterPageState extends State<UserCenterPage> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('用户名：${textOf(_profile, 'username')}'),
-        Text('ID：${textOf(_profile, 'id')}'),
-        const SiteText('登录用户名与用户 ID 不可修改'),
-        const SizedBox(height: 12),
         TextField(
           key: const Key('account-nickname'),
           controller: _nickname,
@@ -370,14 +394,40 @@ class _UserCenterPageState extends State<UserCenterPage> {
           decoration: InputDecoration(labelText: siteTranslate(context, '昵称')),
         ),
         const SizedBox(height: 8),
-        Text('邮箱：${textOf(_profile, 'email', '未绑定邮箱')}'),
-        const SizedBox(height: 8),
-        Text('加入时间：${dateText(_profile['created_at'])}'),
+        const SiteText('1–32 个字符，可随时修改、可重名，不影响登录账号。'),
+        const SizedBox(height: 20),
+        TextFormField(
+          key: ValueKey('account-username-${_profile['id']}'),
+          initialValue: textOf(_profile, 'username'),
+          enabled: false,
+          readOnly: true,
+          decoration: InputDecoration(
+            labelText: siteTranslate(context, '登录用户名'),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          key: ValueKey('account-id-${_profile['id']}'),
+          initialValue: textOf(_profile, 'id'),
+          enabled: false,
+          readOnly: true,
+          decoration: InputDecoration(
+            labelText: siteTranslate(context, '用户 ID（不可修改）'),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          key: ValueKey('account-email-${_profile['email']}'),
+          initialValue: textOf(_profile, 'email', '未绑定邮箱'),
+          enabled: false,
+          readOnly: true,
+          decoration: InputDecoration(labelText: siteTranslate(context, '邮箱')),
+        ),
         const SizedBox(height: 20),
         TextField(
           controller: _bio,
           maxLines: 4,
-          maxLength: 500,
+          maxLength: 300,
           decoration: InputDecoration(
             labelText: siteTranslate(context, '个人简介'),
           ),
@@ -409,12 +459,6 @@ class _UserCenterPageState extends State<UserCenterPage> {
                 '/users/${Uri.encodeComponent(textOf(_profile, 'username'))}',
               ),
               child: const SiteText('查看公开主页'),
-            ),
-            OutlinedButton(
-              onPressed: () => widget.onGo('/growth'),
-              child: Text(
-                '月契成长 · ${mapOf(_growth['summary'])['level'] ?? _growth['level'] ?? ''}',
-              ),
             ),
             if (c.account?.isAdministrator == true) ...[
               OutlinedButton(
@@ -680,6 +724,371 @@ class _UserCenterPageState extends State<UserCenterPage> {
     );
   }
 
+  String get _roleLabel => c.account?.isAdministrator == true ? '管理员' : '普通用户';
+
+  Future<void> _logout() async {
+    try {
+      await c.logout();
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  Widget _hero() => SiteCard(
+    child: LayoutBuilder(
+      builder: (context, box) {
+        final narrow = box.maxWidth < 800;
+        final info = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Chip(
+              avatar: Icon(
+                c.account!.isAdministrator
+                    ? Icons.workspace_premium_outlined
+                    : Icons.person_outline,
+                size: 15,
+              ),
+              label: SiteText(_roleLabel, style: const TextStyle(fontSize: 12)),
+              visualDensity: VisualDensity.compact,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              userDisplayName(_profile, fallback: c.account!.displayName),
+              style: TextStyle(
+                fontSize: narrow ? 28 : 38,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+            TextButton(
+              key: const Key('account-growth-link'),
+              onPressed: () => widget.onGo('/growth'),
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(44, 36),
+                alignment: Alignment.centerLeft,
+              ),
+              child: NativeUserLevelBadge(level: _growthLevel),
+            ),
+            Text(
+              textOf(_profile, 'email', '未绑定邮箱'),
+              style: const TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            SiteText(
+              textOf(_profile, 'bio').isEmpty
+                  ? '还没有个人简介。'
+                  : textOf(_profile, 'bio'),
+              translate: textOf(_profile, 'bio').isEmpty,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.6,
+                color: RoomStyle(context).muted,
+              ),
+            ),
+          ],
+        );
+        final avatar = SizedBox(
+          width: 112,
+          child: Column(
+            children: [
+              SiteAvatar(
+                value: textOf(_profile, 'avatar'),
+                name: userDisplayName(
+                  _profile,
+                  fallback: c.account!.displayName,
+                ),
+                site: c.settings.siteUrl,
+                size: 96,
+              ),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: _saving || _loading ? null : _avatar,
+                icon: const Icon(Icons.upload_outlined, size: 16),
+                label: const SiteText('上传头像', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+          ),
+        );
+        final actions = LayoutBuilder(
+          builder: (context, actionBox) {
+            final cell = (actionBox.maxWidth - 8) / 2;
+            Widget action(
+              String label,
+              IconData icon,
+              VoidCallback? onPressed, {
+              bool primary = false,
+            }) => SizedBox(
+              width: cell,
+              child: primary
+                  ? FilledButton.icon(
+                      onPressed: onPressed,
+                      icon: Icon(icon, size: 16),
+                      label: SiteText(
+                        label,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    )
+                  : OutlinedButton.icon(
+                      onPressed: onPressed,
+                      icon: Icon(icon, size: 16),
+                      label: SiteText(
+                        label,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    action(
+                      '新建投稿',
+                      Icons.edit_outlined,
+                      () => widget.onGo('/editor'),
+                      primary: true,
+                    ),
+                    action(
+                      '公开主页',
+                      Icons.person_outline,
+                      () => widget.onGo(
+                        '/users/${Uri.encodeComponent(textOf(_profile, 'username'))}',
+                      ),
+                    ),
+                    action(
+                      '查看主舞台',
+                      Icons.menu_book_outlined,
+                      () => widget.onGo('/stage'),
+                    ),
+                    action(
+                      '刷新资料',
+                      Icons.refresh,
+                      _loading || _saving ? null : _load,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _saving ? null : _logout,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                  icon: const Icon(Icons.logout, size: 16),
+                  label: const SiteText('退出登录'),
+                ),
+              ],
+            );
+          },
+        );
+        return narrow
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      avatar,
+                      const SizedBox(width: 16),
+                      Expanded(child: info),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  actions,
+                ],
+              )
+            : Row(
+                children: [
+                  avatar,
+                  const SizedBox(width: 22),
+                  Expanded(child: info),
+                  const SizedBox(width: 24),
+                  SizedBox(width: 360, child: actions),
+                ],
+              );
+      },
+    ),
+  );
+
+  Widget _statistics() => LayoutBuilder(
+    builder: (context, box) {
+      final articles = _content['articles'];
+      final totalViews = articles?.fold<int>(
+        0,
+        (sum, row) =>
+            sum +
+            (row['view_count'] is num
+                ? (row['view_count'] as num).toInt()
+                : int.tryParse('${row['view_count']}') ?? 0),
+      );
+      final columns = box.maxWidth >= 900
+          ? 4
+          : box.maxWidth >= 500
+          ? 2
+          : 1;
+      final width = (box.maxWidth - (columns - 1) * 12) / columns;
+      return Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: [
+          for (final stat in [
+            (
+              '我的文章',
+              articles == null ? '—' : '${articles.length}',
+              '投稿总数',
+              Icons.article_outlined,
+            ),
+            (
+              '累计阅读',
+              totalViews == null ? '—' : '$totalViews',
+              '文章访问量',
+              Icons.layers_outlined,
+            ),
+            (
+              '账户角色',
+              siteTranslate(context, _roleLabel),
+              '权限等级',
+              Icons.workspace_premium_outlined,
+            ),
+            (
+              '加入时间',
+              dateText(_profile['created_at']),
+              '月读接入日',
+              Icons.calendar_month_outlined,
+            ),
+          ])
+            SizedBox(
+              width: width,
+              child: SiteCard(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Icon(stat.$4, color: RoomStyle(context).accent, size: 26),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SiteText(
+                            stat.$1,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          Text(
+                            stat.$2,
+                            style: const TextStyle(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SiteText(
+                            stat.$3,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      );
+    },
+  );
+
+  static const _tabs = {
+    'profile': ('个人资料', Icons.person_outline),
+    'articles': ('我的文章', Icons.article_outlined),
+    'messages': ('我的留言', Icons.forum_outlined),
+    'bookmarks': ('我的收藏', Icons.bookmark_border),
+    'pixel': ('像素作品', Icons.palette_outlined),
+    '/gallery/manage': ('图库管理', Icons.photo_library_outlined),
+    '/attachments': ('附件库', Icons.attach_file),
+    'security': ('账号安全', Icons.shield_outlined),
+  };
+
+  void _selectTab(String key) {
+    if (_saving) return;
+    if (key.startsWith('/')) {
+      widget.onGo(key);
+      return;
+    }
+    setState(() {
+      _tab = key;
+      _page = 1;
+      _search.clear();
+      _notice = '';
+    });
+    _load();
+  }
+
+  Widget _panels() => LayoutBuilder(
+    builder: (context, box) {
+      final content = _tab == 'profile'
+          ? _profileView()
+          : _tab == 'security'
+          ? _security()
+          : _list();
+      if (box.maxWidth < 900) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final entry in _tabs.entries)
+                  ChoiceChip(
+                    label: SiteText(entry.value.$1),
+                    avatar: Icon(entry.value.$2, size: 16),
+                    selected: _tab == entry.key,
+                    showCheckmark: false,
+                    onSelected: _saving ? null : (_) => _selectTab(entry.key),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            content,
+          ],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 212,
+            child: SiteCard(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                children: [
+                  for (final entry in _tabs.entries)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: ListTile(
+                        dense: true,
+                        selected: _tab == entry.key,
+                        selectedTileColor: RoomStyle(context).selected,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        leading: Icon(entry.value.$2, size: 18),
+                        title: SiteText(entry.value.$1),
+                        onTap: _saving ? null : () => _selectTab(entry.key),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(child: content),
+        ],
+      );
+    },
+  );
+
   @override
   Widget build(BuildContext context) => NativeSiteShell(
     controller: c,
@@ -707,90 +1116,11 @@ class _UserCenterPageState extends State<UserCenterPage> {
           )
         else ...[
           const SizedBox(height: 16),
-          SiteCard(
-            child: Wrap(
-              spacing: 20,
-              runSpacing: 12,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                SiteAvatar(
-                  value: textOf(_profile, 'avatar'),
-                  name: userDisplayName(
-                    _profile,
-                    fallback: c.account!.displayName,
-                  ),
-                  site: c.settings.siteUrl,
-                  size: 88,
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      userDisplayName(
-                        _profile,
-                        fallback: c.account!.displayName,
-                      ),
-                      style: const TextStyle(fontSize: 32),
-                    ),
-                    Text(textOf(_profile, 'bio', '记录你的月下旅程')),
-                  ],
-                ),
-                TextButton(
-                  onPressed: _saving || _loading ? null : _avatar,
-                  child: const SiteText('上传头像'),
-                ),
-                TextButton(
-                  onPressed: _saving
-                      ? null
-                      : () async {
-                          try {
-                            await c.logout();
-                          } catch (e) {
-                            if (mounted) setState(() => _error = '$e');
-                          }
-                        },
-                  child: const SiteText('退出登录'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final entry in const {
-                'profile': '个人资料',
-                'articles': '我的文章',
-                'messages': '我的留言',
-                'bookmarks': '我的收藏',
-                'pixel': '像素作品',
-                'security': '账号安全',
-              }.entries)
-                ChoiceChip(
-                  label: Text(entry.value),
-                  selected: _tab == entry.key,
-                  onSelected: _saving
-                      ? null
-                      : (_) {
-                          setState(() {
-                            _tab = entry.key;
-                            _page = 1;
-                            _search.clear();
-                            _notice = '';
-                          });
-                          _load();
-                        },
-                ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          if (_tab == 'profile')
-            _profileView()
-          else if (_tab == 'security')
-            _security()
-          else
-            _list(),
+          _hero(),
+          const SizedBox(height: 14),
+          _statistics(),
+          const SizedBox(height: 16),
+          _panels(),
         ],
       ],
     ),

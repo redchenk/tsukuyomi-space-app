@@ -83,10 +83,10 @@ class _RealityPageState extends State<RealityPage> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        NativeSiteSection(
+        SitePageHero(
           title: t('Title'),
           subtitle: '${t('Eyebrow')}\n${t('Subtitle')}',
-          child: Wrap(
+          actions: Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [

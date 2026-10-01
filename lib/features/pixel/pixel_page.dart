@@ -17,7 +17,7 @@ import '../site/hub_pixel_preview.dart';
 import '../site/login_dialog.dart';
 import '../site/site_share_actions.dart';
 import '../site/site_widgets.dart';
-import '../site/site_chrome.dart';
+import '../site/native_site_shell.dart';
 import 'pixel_document.dart';
 import 'pixel_image.dart';
 import 'pixel_session.dart';
@@ -412,188 +412,188 @@ class _PixelPageState extends State<PixelPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: RoomStyle(context).background,
-    body: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SiteHeader(
-              title: '月光像素工坊',
-              username: widget.controller.account?.displayName,
-              role: widget.controller.sessionExpired
-                  ? null
-                  : widget.controller.account?.role,
-              onGo: widget.onGo,
-              onLogin: () => unawaited(_login()),
-              onTheme: widget.onTheme,
+  Widget build(BuildContext context) => NativeSiteShell(
+    controller: widget.controller,
+    title: '月光像素工坊',
+    onGo: widget.onGo,
+    onTheme: widget.onTheme,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SiteText('月光像素工坊', style: Theme.of(context).textTheme.headlineMedium),
+        const SiteText('选择工具与颜色，在网格里绘制，再导出或发布你的作品。'),
+        const SizedBox(height: 14),
+        if (session.error.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text(
+              session.error,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
-            const SizedBox(height: 18),
-            SiteText(
-              '月光像素工坊',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SiteText('选择工具与颜色，在网格里绘制，再导出或发布你的作品。'),
-            const SizedBox(height: 14),
-            if (session.error.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Text(
-                  session.error,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+          ),
+        if (session.notice.isNotEmpty) Text(session.notice),
+        LayoutBuilder(
+          builder: (context, box) {
+            if (!_controlsOpen ||
+                box.maxWidth <
+                    1000 * (MediaQuery.textScalerOf(context).scale(14) / 14)) {
+              return Column(
+                children: [
+                  _canvasPanel(),
+                  const SizedBox(height: 12),
+                  if (_controlsOpen) _controls(),
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(width: 280, child: _controls()),
+                const SizedBox(width: 16),
+                Expanded(child: _canvasPanel()),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _details(),
+        const SizedBox(height: 12),
+        SiteCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SiteText(
+                '制作备忘',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              ..._notes.map(
+                (value) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Text(value),
                 ),
               ),
-            if (session.notice.isNotEmpty) Text(session.notice),
-            SiteCard(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  _toolbar(),
-                  const SizedBox(height: 10),
-                  Focus(
-                    focusNode: _focus,
-                    onKeyEvent: _key,
-                    child: LayoutBuilder(
-                      builder: (context, box) {
-                        if (_viewportWidth != box.maxWidth) {
-                          _viewportWidth = box.maxWidth;
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (mounted) _fit();
-                          });
-                        }
-                        return Container(
-                          key: _canvasKey,
-                          height: (box.maxWidth * 9 / 16).clamp(250.0, 640.0),
-                          clipBehavior: Clip.hardEdge,
-                          decoration: BoxDecoration(
-                            color: RoomStyle(context).line,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Listener(
-                            onPointerDown: _down,
-                            onPointerMove: _move,
-                            onPointerUp: _end,
-                            onPointerCancel: _end,
-                            onPointerSignal: (event) {
-                              if (event is PointerScrollEvent) {
-                                _zoom(event.scrollDelta.dy < 0 ? .1 : -.1);
-                              }
-                            },
-                            child: InteractiveViewer(
-                              transformationController: _transform,
-                              minScale: .2,
-                              maxScale: 2.6,
-                              constrained: false,
-                              panEnabled: false,
-                              scaleEnabled: true,
-                              boundaryMargin: const EdgeInsets.all(1500),
-                              child: SizedBox(
-                                width: doc.width * 6.0,
-                                height: doc.height * 6.0,
-                                child: Semantics(
-                                  label: '${doc.width} 乘 ${doc.height} 像素画布',
-                                  child: CustomPaint(
-                                    painter: PixelPainter(
-                                      doc.snapshot,
-                                      grid: true,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${doc.width} × ${doc.height} · 已绘制 ${doc.paintedCount} 像素 · ${doc.palette.length}/64 色',
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: _fit,
-                        tooltip: siteTranslate(context, '适应画布'),
-                        icon: const Icon(Icons.fit_screen),
-                      ),
-                      IconButton(
-                        onPressed: () => _zoom(-.25),
-                        icon: const Icon(Icons.remove),
-                      ),
-                      ValueListenableBuilder<Matrix4>(
-                        valueListenable: _transform,
-                        builder: (_, matrix, _) => Text(
-                          '${(matrix.getMaxScaleOnAxis() * 100).round()}%',
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => _zoom(.25),
-                        icon: const Icon(Icons.add),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (_controlsOpen) _controls(),
-            const SizedBox(height: 12),
-            _details(),
-            const SizedBox(height: 12),
-            SiteCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SiteText(
-                    '制作备忘',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  ..._notes.map(
-                    (value) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 3),
-                      child: Text(value),
-                    ),
-                  ),
-                  TextField(
-                    controller: _note,
-                    decoration: InputDecoration(
-                      hintText: siteTranslate(context, '记下绘画灵感，只在本次页面保留'),
-                      suffixIcon: IconButton(
-                        onPressed: () {
-                          if (_note.text.trim().isNotEmpty) {
-                            setState(() {
-                              _notes.add(_note.text.trim());
-                              _note.clear();
-                            });
-                          }
-                        },
-                        icon: const Icon(Icons.add),
-                      ),
-                    ),
-                    onSubmitted: (value) {
-                      if (value.trim().isNotEmpty) {
+              TextField(
+                controller: _note,
+                decoration: InputDecoration(
+                  hintText: siteTranslate(context, '记下绘画灵感，只在本次页面保留'),
+                  suffixIcon: IconButton(
+                    onPressed: () {
+                      if (_note.text.trim().isNotEmpty) {
                         setState(() {
-                          _notes.add(value.trim());
+                          _notes.add(_note.text.trim());
                           _note.clear();
                         });
                       }
                     },
+                    icon: const Icon(Icons.add),
                   ),
-                ],
+                ),
+                onSubmitted: (value) {
+                  if (value.trim().isNotEmpty) {
+                    setState(() {
+                      _notes.add(value.trim());
+                      _note.clear();
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        _gallery(),
+        const SizedBox(height: 24),
+      ],
+    ),
+  );
+  Widget _canvasPanel() => SiteCard(
+    padding: const EdgeInsets.all(12),
+    child: Column(
+      children: [
+        _toolbar(),
+        const SizedBox(height: 10),
+        Focus(
+          focusNode: _focus,
+          onKeyEvent: _key,
+          child: LayoutBuilder(
+            builder: (context, box) {
+              if (_viewportWidth != box.maxWidth) {
+                _viewportWidth = box.maxWidth;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _fit();
+                });
+              }
+              return Container(
+                key: _canvasKey,
+                height: (box.maxWidth * 9 / 16).clamp(250.0, 640.0),
+                clipBehavior: Clip.hardEdge,
+                decoration: BoxDecoration(
+                  color: RoomStyle(context).line,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Listener(
+                  onPointerDown: _down,
+                  onPointerMove: _move,
+                  onPointerUp: _end,
+                  onPointerCancel: _end,
+                  onPointerSignal: (event) {
+                    if (event is PointerScrollEvent) {
+                      _zoom(event.scrollDelta.dy < 0 ? .1 : -.1);
+                    }
+                  },
+                  child: InteractiveViewer(
+                    transformationController: _transform,
+                    minScale: .2,
+                    maxScale: 2.6,
+                    constrained: false,
+                    panEnabled: false,
+                    scaleEnabled: true,
+                    boundaryMargin: const EdgeInsets.all(1500),
+                    child: SizedBox(
+                      width: doc.width * 6.0,
+                      height: doc.height * 6.0,
+                      child: Semantics(
+                        label: '${doc.width} 乘 ${doc.height} 像素画布',
+                        child: CustomPaint(
+                          painter: PixelPainter(doc.snapshot, grid: true),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${doc.width} × ${doc.height} · 已绘制 ${doc.paintedCount} 像素 · ${doc.palette.length}/64 色',
               ),
             ),
-            const SizedBox(height: 16),
-            _gallery(),
-            const SizedBox(height: 24),
-            const SiteBeianFooter(path: '/pixel'),
+            IconButton(
+              onPressed: _fit,
+              tooltip: siteTranslate(context, '适应画布'),
+              icon: const Icon(Icons.fit_screen),
+            ),
+            IconButton(
+              onPressed: () => _zoom(-.25),
+              icon: const Icon(Icons.remove),
+            ),
+            ValueListenableBuilder<Matrix4>(
+              valueListenable: _transform,
+              builder: (_, matrix, _) =>
+                  Text('${(matrix.getMaxScaleOnAxis() * 100).round()}%'),
+            ),
+            IconButton(
+              onPressed: () => _zoom(.25),
+              icon: const Icon(Icons.add),
+            ),
           ],
         ),
-      ),
+      ],
     ),
   );
   Widget _toolbar() => Wrap(

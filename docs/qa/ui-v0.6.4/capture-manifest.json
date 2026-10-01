@@ -1,0 +1,133 @@
+{
+  "capturedAt": "2026-10-01",
+  "sourceCommit": "5c4346e20f5dbb9710707096f1cb73ea4c64b691",
+  "notes": "Exact PNG bytes are retained locally under ignored artifacts. WebP files are whole-frame presentation copies; paired captures retain their aspect ratio. Source 1280x720 and native 1280x900 are different viewport heights. System Songti SC Regular loaded for local QA only, never redistributed.",
+  "captures": [
+    {
+      "path": "artifacts/ui-parity-2026-10-01/web-user-center.png",
+      "sha256": "256fc6ccd3dde51424e67e4b769e86b783ea611cdf0d67dba2e371eb76096e08",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "kind": "original browser capture"
+    },
+    {
+      "path": "artifacts/ui-parity-2026-10-01/matrix/user-1280-dark.png",
+      "sha256": "9bf3385371e111dd690645a0dd4684d28eb1b455e86ec2844eafd997966e8b2e",
+      "dimensions": [
+        1280,
+        900
+      ],
+      "kind": "native widget renderer, sanitized source API snapshot"
+    },
+    {
+      "path": "artifacts/ui-parity-2026-10-01/web-growth.png",
+      "sha256": "f5d3cb47152a491026310deb3dd766275c4c8c4d4a5e098a578f3c9c23d1526e",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "kind": "original browser capture"
+    },
+    {
+      "path": "artifacts/ui-parity-2026-10-01/matrix/growth-1280-dark.png",
+      "sha256": "9eec2581b21782bea1f85ecda504a20e4a30e92591d24ccf1bc0f35407ffff17",
+      "dimensions": [
+        1280,
+        900
+      ],
+      "kind": "native widget renderer, sanitized source API snapshot"
+    },
+    {
+      "path": "artifacts/ui-parity-2026-10-01/web-wiki.png",
+      "sha256": "07b867b3d79025f4393988b6ff219ddc5de97ce7e0f17c685b55e645e23867f5",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "kind": "original browser capture"
+    },
+    {
+      "path": "artifacts/ui-parity-2026-10-01/matrix/wiki-1280-dark.png",
+      "sha256": "cc256141fab23ff41f4667632428f34f6b813960e3581c21700a45c82dbbc5a4",
+      "dimensions": [
+        1280,
+        900
+      ],
+      "kind": "native widget renderer, sanitized source API snapshot"
+    },
+    {
+      "path": "artifacts/ui-parity-2026-10-01/web-gallery.png",
+      "sha256": "b7baf5808a85fe92452e1de5b139480fe613786acf15db92e7e3e250ba258fc8",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "kind": "original browser capture"
+    },
+    {
+      "path": "artifacts/ui-parity-2026-10-01/matrix/gallery-1280-dark.png",
+      "sha256": "7db948e90413739f93e57025a9a72d215a6ecf6773c48bb987d347516dbb8db3",
+      "dimensions": [
+        1280,
+        900
+      ],
+      "kind": "native widget renderer, sanitized source API snapshot"
+    },
+    {
+      "path": "artifacts/ui-parity-2026-10-01/web-pixel.png",
+      "sha256": "0c7744c3c46f73ba2ef285982093eb6a3d8b5c9ebb7d6d19cb9772d41f9458e2",
+      "dimensions": [
+        1280,
+        720
+      ],
+      "kind": "original browser capture"
+    },
+    {
+      "path": "artifacts/ui-parity-2026-10-01/matrix/pixel-1280-dark.png",
+      "sha256": "42995a5c0c3fe59816d7d6e55d82a50d4fd84c525c0a320f2314c572abaed3df",
+      "dimensions": [
+        1280,
+        900
+      ],
+      "kind": "native widget renderer, sanitized source API snapshot"
+    },
+    {
+      "path": "artifacts/native-site-parity/editor-desktop.png",
+      "sha256": "b0b33486b8da50620c3e509cd4688fc53dcf5094c0eca78ec9632a6c327d55f9",
+      "dimensions": [
+        1280,
+        900
+      ],
+      "kind": "native widget renderer with disposable fixture, Chinese text entered via Flutter test input"
+    },
+    {
+      "path": "artifacts/native-site-parity/editor-mobile.png",
+      "sha256": "a67b6dd28600c645afec92434ecb7e5435203d503ac696cf51c7737426ff172f",
+      "dimensions": [
+        390,
+        844
+      ],
+      "kind": "native widget renderer with disposable fixture, Chinese text entered via Flutter test input"
+    },
+    {
+      "path": "artifacts/ui-parity-2026-10-01/07-native-user-after.png",
+      "sha256": "2bed926e13328211ea24c4c47635e235a7ea7a1b26d0e4d02ab47175fdbcfc05",
+      "dimensions": [
+        2560,
+        1658
+      ],
+      "kind": "native window capture"
+    },
+    {
+      "path": "artifacts/ui-parity-2026-10-01/11-native-wiki-after.png",
+      "sha256": "87a7daf3236d29cf6c5a160b045f34682f0ad832436c22a3df7ecfaa37071987",
+      "dimensions": [
+        2560,
+        1658
+      ],
+      "kind": "native window capture"
+    }
+  ]
+}

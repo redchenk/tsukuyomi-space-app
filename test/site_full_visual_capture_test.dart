@@ -12,6 +12,7 @@ import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
 import 'package:tsukuyomi_space_app/main.dart';
 
 import 'support/fakes.dart';
+import 'support/site_capture_fonts.dart';
 
 const _origin = 'https://native-visual.example';
 const _cookie = 'tsukuyomi_session=visual.local.session';
@@ -40,7 +41,14 @@ Iterable<NetworkImage> get _pictureKeys sync* {
 
 Iterable<ImageProvider<Object>> _fixtureProviders(NetworkImage key) sync* {
   yield key;
-  yield ResizeImage(key, width: 88, height: 88, policy: ResizeImagePolicy.fit);
+  for (final size in [22, 32, 40, 44, 88, 96]) {
+    yield ResizeImage(
+      key,
+      width: size,
+      height: size,
+      policy: ResizeImagePolicy.fit,
+    );
+  }
 }
 
 const _categories = [
@@ -125,6 +133,15 @@ class _VisualSite extends FakeSite implements SiteDataService {
       '/api/user/notifications/unread-count' => {'count': 3},
       '/api/stats/view' => {'todayViews': 31, 'totalViews': 1234},
       '/api/user/profile' || '/api/moderation/me' => _profile,
+      '/api/user/articles' => [
+        {
+          'id': 42,
+          'title': '在月读空间，记录与你相遇的故事',
+          'status': 'published',
+          'view_count': 314,
+        },
+        {'id': 43, 'title': '九月的月下日记', 'status': 'draft', 'view_count': 0},
+      ],
       '/api/article-categories' ||
       '/api/moderation/article-categories' => _categories,
       '/api/growth/public' => [
@@ -225,37 +242,6 @@ class _VisualSite extends FakeSite implements SiteDataService {
   }
 }
 
-Future<void> _loadSystemFonts() async {
-  final override = const String.fromEnvironment('QA_SANS_FONT');
-  final sans = override.isNotEmpty
-      ? File(override)
-      : Directory('/System/Library/AssetsV2/com_apple_MobileAsset_Font8')
-            .listSync(recursive: true)
-            .whereType<File>()
-            .firstWhere((file) => file.path.endsWith('/PingFang.ttc'));
-  final bytes = ByteData.sublistView(await sans.readAsBytes());
-  for (final family in ['Roboto', 'PingFang SC']) {
-    await (FontLoader(family)..addFont(Future.value(bytes))).load();
-  }
-  final serif = File(
-    const String.fromEnvironment(
-      'QA_SERIF_FONT',
-      defaultValue: '/System/Library/Fonts/Supplemental/Songti.ttc',
-    ),
-  );
-  await (FontLoader(
-        'Songti SC',
-      )..addFont(Future.value(ByteData.sublistView(await serif.readAsBytes()))))
-      .load();
-  await (FontLoader('packages/cupertino_icons/CupertinoIcons')..addFont(
-        rootBundle.load('packages/cupertino_icons/assets/CupertinoIcons.ttf'),
-      ))
-      .load();
-  await (FontLoader(
-    'MaterialIcons',
-  )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-}
-
 // Resolve mock image URLs entirely from existing bundled artwork. This also
 // preserves the actual Image.network layout without requesting any server.
 Future<void> _cacheFixtureImages() async {
@@ -299,7 +285,7 @@ void main() {
   testWidgets(
     'capture native site routes with system fonts at desktop and mobile sizes',
     (tester) async {
-      await tester.runAsync(_loadSystemFonts);
+      await tester.runAsync(loadSiteCaptureFonts);
       addTearDown(() async {
         for (final key in _pictureKeys) {
           for (final provider in _fixtureProviders(key)) {
@@ -353,6 +339,21 @@ void main() {
               EnginePhase.sendSemanticsUpdate,
               const Duration(seconds: 60),
             );
+            if (path == '/editor') {
+              await tester.enterText(
+                find.byKey(const ValueKey('editor-title')),
+                '月光下的原生预览',
+              );
+              await tester.enterText(
+                find.byKey(const ValueKey('editor-content')),
+                '## 月光下的原生预览\n\n这是一段中文正文，**加粗文字**和列表应当正确显示。\n\n- 主舞台直接进入原生编辑器\n- 中文输入、粘贴与草稿保存同步',
+              );
+              if (form == 'mobile') {
+                await tester.tap(find.widgetWithText(ChoiceChip, '预览'));
+              }
+              tester.testTextInput.hide();
+              await tester.pumpAndSettle();
+            }
             expect(tester.takeException(), isNull, reason: '$path ($form)');
             expect(site.unhandled, isEmpty, reason: '$path ($form)');
             if (const ['/gallery', '/friend-links', '/user'].contains(path)) {

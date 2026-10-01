@@ -64,6 +64,7 @@ class NativeSiteShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = RoomStyle(context);
+    final narrow = MediaQuery.sizeOf(context).width < 650;
     final route =
         Uri.tryParse(ModalRoute.of(context)?.settings.name ?? '')?.path ?? '';
     final showBeian =
@@ -78,34 +79,17 @@ class NativeSiteShell extends StatelessWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1280),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.fromLTRB(
+              narrow ? 14 : 32,
+              12,
+              narrow ? 14 : 32,
+              24,
+            ),
             child: DefaultTextStyle.merge(
               style: TextStyle(color: p.ink),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (showChrome)
-                    AnimatedBuilder(
-                      animation: controller,
-                      builder: (context, _) => SiteHeader(
-                        title: title,
-                        onGo: onGo,
-                        onTheme: onTheme,
-                        username: controller.account?.displayName,
-                        role: controller.sessionExpired
-                            ? null
-                            : controller.account?.role,
-                        onLogin: () {
-                          if (controller.account != null &&
-                              !controller.sessionExpired) {
-                            onGo('/user');
-                          } else {
-                            showSiteLogin(context, controller);
-                          }
-                        },
-                      ),
-                    ),
-                  if (showChrome) const SizedBox(height: 24),
                   child,
                   if (showBeian) const SiteBeianLinks(),
                   const SizedBox(height: 36),
@@ -122,7 +106,44 @@ class NativeSiteShell extends StatelessWidget {
     return Scaffold(
       backgroundColor: p.background,
       floatingActionButton: floatingActionButton,
-      body: SafeArea(child: body),
+      body: SiteBackground(
+        child: SafeArea(
+          child: Column(
+            children: [
+              if (showChrome)
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: narrow ? 14 : 24,
+                    vertical: narrow ? 10 : 16,
+                  ),
+                  child: AnimatedBuilder(
+                    animation: controller,
+                    builder: (context, _) => SiteHeader(
+                      title: title,
+                      onGo: onGo,
+                      onTheme: onTheme,
+                      username: controller.sessionExpired
+                          ? null
+                          : controller.account?.displayName,
+                      role: controller.sessionExpired
+                          ? null
+                          : controller.account?.role,
+                      onLogin: () {
+                        if (controller.account != null &&
+                            !controller.sessionExpired) {
+                          onGo('/user');
+                        } else {
+                          showSiteLogin(context, controller);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              Expanded(child: body),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

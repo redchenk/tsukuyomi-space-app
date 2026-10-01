@@ -182,35 +182,37 @@ class _WikiPageState extends State<WikiPage> {
   List<List<dynamic>> _pairs(dynamic value) => value is List
       ? value.whereType<List>().map((item) => List<dynamic>.from(item)).toList()
       : [];
-  Widget _facts(dynamic values, {bool html = false}) => Column(
-    children: [
-      for (final pair in _pairs(values))
-        if (pair.length >= 2)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: MediaQuery.sizeOf(context).width < 430 ? 85 : 140,
-                  child: Text(
-                    '${pair[0]}',
-                    style: TextStyle(color: RoomStyle(context).muted),
+  Widget _facts(dynamic values, {bool html = false}) => LayoutBuilder(
+    builder: (context, box) => Column(
+      children: [
+        for (final pair in _pairs(values))
+          if (pair.length >= 2)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: box.maxWidth < 320 ? 65 : 120,
+                    child: Text(
+                      '${pair[0]}',
+                      style: TextStyle(color: RoomStyle(context).muted),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: html
-                      ? _html('${pair[1]}')
-                      : SelectableText(
-                          '${pair[1]}',
-                          style: const TextStyle(height: 1.6),
-                        ),
-                ),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: html
+                        ? _html('${pair[1]}')
+                        : SelectableText(
+                            '${pair[1]}',
+                            style: const TextStyle(height: 1.6),
+                          ),
+                  ),
+                ],
+              ),
             ),
-          ),
-    ],
+      ],
+    ),
   );
   Widget _chips(
     List<Map<String, dynamic>> groups,
@@ -266,11 +268,12 @@ class _WikiPageState extends State<WikiPage> {
         borderRadius: BorderRadius.circular(24),
         child: Stack(
           children: [
-            nativeSiteImage(
-              site,
-              '/assets/images/wiki/wiki-hero-original.webp',
-              height: MediaQuery.sizeOf(context).width < 430 ? 350 : 280,
-              width: double.infinity,
+            Positioned.fill(
+              child: nativeSiteImage(
+                site,
+                '/assets/images/wiki/wiki-hero-original.webp',
+                width: double.infinity,
+              ),
             ),
             const Positioned.fill(
               child: DecoratedBox(
@@ -281,12 +284,16 @@ class _WikiPageState extends State<WikiPage> {
                 ),
               ),
             ),
-            const Positioned.fill(
-              child: Padding(
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.sizeOf(context).width < 430 ? 350 : 280,
+              ),
+              child: const Padding(
                 padding: EdgeInsets.all(26),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     SiteText(
                       'TSUKUYOMI ARCHIVE / FAN WIKI',
@@ -314,38 +321,97 @@ class _WikiPageState extends State<WikiPage> {
         ),
       ),
       const SizedBox(height: 20),
-      NativeSiteSection(
-        title: '词条目录',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+      LayoutBuilder(
+        builder: (context, box) {
+          final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+          if (box.maxWidth < 1080 * scale) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final item in rowsOf(data['tocEntries']))
-                  OutlinedButton(
-                    onPressed: () => _jump(textOf(item, 'id')),
-                    child: Text('${item['index']} ${item['label']}'),
+                SiteCard(
+                  padding: EdgeInsets.zero,
+                  child: ExpansionTile(
+                    title: const SiteText('词条目录'),
+                    children: [_directory()],
                   ),
+                ),
+                const SizedBox(height: 16),
+                _overviewBody(showFacts: true),
               ],
-            ),
-            const SizedBox(height: 18),
-            TextField(
-              key: const Key('wiki-search'),
-              controller: _search,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: siteTranslate(context, '词条速查'),
-                hintText: siteTranslate(context, '角色、歌曲、术语…'),
-                prefixIcon: const Icon(Icons.search),
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 190, child: _directory()),
+              const SizedBox(width: 16),
+              Expanded(child: _overviewBody(showFacts: false)),
+              const SizedBox(width: 16),
+              SizedBox(
+                width: 250,
+                child: NativeSiteSection(
+                  title: '作品档案',
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SiteText(
+                        '超かぐや姫！',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 16),
+                      _facts(data['infoRows']),
+                      TextButton(
+                        onPressed: () => widget.onGo(
+                          'https://www.netflix.com/sg-zh/title/81756595',
+                        ),
+                        child: const SiteText('Netflix 作品页'),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            ..._searchResults(),
+            ],
+          );
+        },
+      ),
+    ],
+  );
+  Widget _directory() => NativeSiteSection(
+    title: '词条目录',
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final item in rowsOf(data['tocEntries']))
+              OutlinedButton(
+                onPressed: () => _jump(textOf(item, 'id')),
+                child: Text('${item['index']} ${item['label']}'),
+              ),
           ],
         ),
-      ),
+        const SizedBox(height: 18),
+        TextField(
+          key: const Key('wiki-search'),
+          controller: _search,
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            labelText: siteTranslate(context, '词条速查'),
+            hintText: siteTranslate(context, '角色、歌曲、术语…'),
+            prefixIcon: const Icon(Icons.search),
+          ),
+        ),
+        const SizedBox(height: 10),
+        ..._searchResults(),
+      ],
+    ),
+  );
+  Widget _overviewBody({required bool showFacts}) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
       nativeSiteFeedback(
         context,
         '非官方网站。正文依据公开资料整理，完整结局默认折叠；角色中文名以本站通行译法为准，日文原名为准。资料核验至 ${data['verifiedAt']}。',
@@ -357,7 +423,7 @@ class _WikiPageState extends State<WikiPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _prose('overview'),
-            _facts(data['infoRows']),
+            if (showFacts) _facts(data['infoRows']),
             const SizedBox(height: 16),
             for (final item in rowsOf(data['timeline']))
               ListTile(

@@ -66,7 +66,7 @@ class AgentBridge {
         'initialize' => {
           'protocolVersion': '2024-11-05',
           'capabilities': {'tools': {}},
-          'serverInfo': {'name': 'tsukuyomi', 'version': '0.6.3'},
+          'serverInfo': {'name': 'tsukuyomi', 'version': '0.6.4'},
         },
         'ping' => {},
         'tools/list' => {

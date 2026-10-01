@@ -12,6 +12,7 @@ import '../room/room_controller.dart';
 import '../room/room_style.dart';
 import 'hub_pixel_preview.dart';
 import 'login_dialog.dart';
+import 'native_site_shell.dart';
 import 'site_widgets.dart';
 import 'site_chrome.dart';
 
@@ -228,64 +229,37 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final p = RoomStyle(context);
-    return Scaffold(
-      backgroundColor: p.background,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1280),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: DefaultTextStyle.merge(
-                    style: TextStyle(color: p.ink),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SiteHeader(
-                          title: '中枢',
-                          onGo: widget.onGo,
-                          onLogin: _login,
-                          username: c.account?.displayName,
-                          role: c.sessionExpired ? null : c.account?.role,
-                          onTheme: widget.onTheme,
-                        ),
-                        const SizedBox(height: 20),
-                        _hero(),
-                        const SizedBox(height: 20),
-                        _announcement(),
-                        const SizedBox(height: 26),
-                        _latest(),
-                        const SizedBox(height: 20),
-                        if (_notice.isNotEmpty) _status(_notice),
-                        if (_error.isNotEmpty) _status(_error, error: true),
-                        if (_loading && _data.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.all(40),
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        else if (_data.isNotEmpty) ...[
-                          _scenes(),
-                          const SizedBox(height: 20),
-                          _plaza(),
-                        ],
-                        _stats(),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => NativeSiteShell(
+    controller: c,
+    title: '中枢',
+    onGo: widget.onGo,
+    onTheme: widget.onTheme,
+    onRefresh: _load,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _hero(),
+        const SizedBox(height: 20),
+        _announcement(),
+        const SizedBox(height: 26),
+        _latest(),
+        const SizedBox(height: 20),
+        if (_notice.isNotEmpty) _status(_notice),
+        if (_error.isNotEmpty) _status(_error, error: true),
+        if (_loading && _data.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(40),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_data.isNotEmpty) ...[
+          _scenes(),
+          const SizedBox(height: 20),
+          _plaza(),
+        ],
+        _stats(),
+      ],
+    ),
+  );
 
   Widget _hero() => LayoutBuilder(
     builder: (context, box) {
@@ -559,7 +533,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
         child: InkWell(
           onTap: () => widget.onGo(path),
           child: SizedBox(
-            height: 330,
+            height: 330 * (MediaQuery.textScalerOf(context).scale(14) / 14),
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -645,13 +619,13 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Icon(CupertinoIcons.chat_bubble_2, color: p.accent),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: SiteText('月读广场', style: TextStyle(fontSize: 21)),
-                ),
+                const SiteText('月读广场', style: TextStyle(fontSize: 21)),
                 TextButton(
                   onPressed: () => widget.onGo('/plaza'),
                   child: const SiteText('逛逛广场'),

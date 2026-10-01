@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 import '../../core/models.dart';
 import '../room/room_controller.dart';
 import 'content_page_shell.dart';
+import 'native_site_shell.dart';
 import 'login_dialog.dart';
 import 'native_asset_service.dart';
 import 'native_gallery_details.dart';
@@ -663,251 +664,369 @@ class _AssetLibraryPageState extends State<AssetLibraryPage>
     error: error,
     notice: notice,
     onRefresh: load,
+    child: LayoutBuilder(
+      builder: (context, box) {
+        if (!widget.gallery ||
+            manage ||
+            box.maxWidth <
+                1000 * (MediaQuery.textScalerOf(context).scale(14) / 14)) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _libraryBody(),
+              if (widget.gallery && !manage) _gallerySidebar(),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _libraryBody()),
+            const SizedBox(width: 20),
+            SizedBox(width: 280, child: _gallerySidebar()),
+          ],
+        );
+      },
+    ),
+  );
+
+  void _filterGallery(String value) {
+    search.text = value;
+    load(requestedPage: 1);
+  }
+
+  Widget _gallerySidebar() => NativeSiteSection(
+    title: '图库概览',
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SiteText(
-          widget.gallery
-              ? manage
-                    ? admin
-                          ? '管理全部图库图片'
-                          : '管理我的图库图片'
-                    : '图库影像'
-              : '附件库',
-          style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w600),
+        Wrap(
+          spacing: 24,
+          runSpacing: 16,
+          children: [
+            for (final item in [('当前图片', total), ('本页展示', assets.length)])
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SiteText(item.$1),
+                  Text(
+                    '${item.$2}',
+                    style: const TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        const Divider(height: 32),
+        const SiteText('快速筛选', style: TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final item in [
+              ('全部图片', ''),
+              ('壁纸', 'wallpaper'),
+              ('截图', 'screenshot'),
+            ])
+              OutlinedButton(
+                onPressed: () => _filterGallery(item.$2),
+                child: SiteText(item.$1),
+              ),
+          ],
+        ),
+        const Divider(height: 32),
+        const SiteText('图库上传入口', style: TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 10),
+        const SiteText(
+          '登录后进入「图库管理」页面上传图片；上传到图库的公开图片会显示在当前页面。',
+          style: TextStyle(height: 1.7),
         ),
         const SizedBox(height: 12),
-        SiteText(
-          widget.gallery
-              ? '共同记录月读空间的风景。'
-              : '图片、音视频、PDF、TXT 与 Markdown。单文件最大 100 MB，重新选择同一文件可继续上传。',
+        FilledButton(
+          onPressed: () => widget.onGo(
+            authed ? '/gallery/manage' : '/login?redirect=%2Fgallery%2Fmanage',
+          ),
+          child: SiteText(authed ? '进入图库管理' : '登录后上传'),
         ),
-        const SizedBox(height: 18),
-        if (private && !authed)
-          SiteCard(
-            child: Column(
-              children: [
-                const SiteText('登录后管理自己上传的附件'),
-                TextButton(
-                  onPressed: () => showSiteLogin(context, c),
-                  child: const SiteText('去登录'),
-                ),
-              ],
-            ),
-          )
-        else ...[
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+        const Divider(height: 32),
+        const SiteText('常用标签', style: TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final label in ['月读', '星空', '夜景', '角色'])
+              ActionChip(
+                label: SiteText(label),
+                onPressed: () => _filterGallery(label),
+              ),
+          ],
+        ),
+      ],
+    ),
+  );
+  Widget _libraryBody() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      SitePageHero(
+        title: widget.gallery
+            ? (manage ? (admin ? '管理全部图库图片' : '管理我的图库图片') : '图库')
+            : '附件库',
+        kicker: widget.gallery ? 'GALLERY' : 'ASSET LIBRARY',
+        background: widget.gallery
+            ? (latest == null
+                  ? Image.asset(
+                      'assets/images/tsukuyomi-bg.webp',
+                      fit: BoxFit.cover,
+                      cacheWidth: 1600,
+                    )
+                  : nativeSiteImage(
+                      c.settings.siteUrl,
+                      galleryImageUrls(
+                            latest!,
+                            c.settings.siteUrl,
+                            preview: false,
+                          ).lastOrNull ??
+                          '',
+                      width: double.infinity,
+                    ))
+            : null,
+        subtitle: widget.gallery
+            ? '收藏插画、截图、设定图与站点视觉记录。'
+            : '图片、音视频、PDF、TXT 与 Markdown。单文件最大 100 MB，重新选择同一文件可继续上传。',
+      ),
+      if (private && !authed)
+        SiteCard(
+          child: Column(
             children: [
-              SizedBox(
-                width: 280,
-                child: TextField(
-                  controller: search,
-                  onSubmitted: (_) => load(requestedPage: 1),
-                  decoration: InputDecoration(
-                    hintText: siteTranslate(
-                      context,
-                      widget.gallery ? '搜索图库' : '搜索附件',
-                    ),
-                    suffixIcon: IconButton(
-                      onPressed: () => load(requestedPage: 1),
-                      icon: const Icon(Icons.search),
-                    ),
+              const SiteText('登录后管理自己上传的附件'),
+              TextButton(
+                onPressed: () => showSiteLogin(context, c),
+                child: const SiteText('去登录'),
+              ),
+            ],
+          ),
+        )
+      else ...[
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            SizedBox(
+              width: 280,
+              child: TextField(
+                controller: search,
+                onSubmitted: (_) => load(requestedPage: 1),
+                decoration: InputDecoration(
+                  hintText: siteTranslate(
+                    context,
+                    widget.gallery ? '搜索图库' : '搜索附件',
+                  ),
+                  suffixIcon: IconButton(
+                    onPressed: () => load(requestedPage: 1),
+                    icon: const Icon(Icons.search),
                   ),
                 ),
               ),
-              if (widget.gallery)
-                OutlinedButton(
-                  onPressed: () =>
-                      widget.onGo(manage ? '/gallery' : '/gallery/manage'),
-                  child: SiteText(manage ? '浏览图库' : '图库管理'),
-                ),
-              if (!widget.gallery || manage)
-                FilledButton(
-                  onPressed: uploading ? null : chooseAndUpload,
-                  child: const SiteText('上传文件'),
-                ),
-              if (!widget.gallery)
-                OutlinedButton(
-                  onPressed: () => widget.onGo('/editor'),
-                  child: const SiteText('写文章'),
-                ),
-            ],
-          ),
-          if (!widget.gallery)
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final entry in {
-                  'all': '全部',
-                  'image': '图片',
-                  'video': '视频',
-                  'audio': '音频',
-                  'document': '文档',
-                  'file': '文件',
-                }.entries)
-                  if (!widget.imageOnly || entry.key == 'image')
-                    ChoiceChip(
-                      label: SiteText(entry.value),
-                      selected: type == entry.key,
-                      onSelected: (_) {
-                        setState(() => type = entry.key);
-                        load(requestedPage: 1);
-                      },
-                    ),
-                if (admin)
+            ),
+            if (widget.gallery)
+              OutlinedButton(
+                onPressed: () =>
+                    widget.onGo(manage ? '/gallery' : '/gallery/manage'),
+                child: SiteText(manage ? '浏览图库' : '图库管理'),
+              ),
+            if (!widget.gallery || manage)
+              FilledButton(
+                onPressed: uploading ? null : chooseAndUpload,
+                child: const SiteText('上传文件'),
+              ),
+            if (!widget.gallery)
+              OutlinedButton(
+                onPressed: () => widget.onGo('/editor'),
+                child: const SiteText('写文章'),
+              ),
+          ],
+        ),
+        if (!widget.gallery)
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final entry in {
+                'all': '全部',
+                'image': '图片',
+                'video': '视频',
+                'audio': '音频',
+                'document': '文档',
+                'file': '文件',
+              }.entries)
+                if (!widget.imageOnly || entry.key == 'image')
                   ChoiceChip(
-                    label: const SiteText('全部用户'),
-                    selected: scope == 'all',
-                    onSelected: (selected) {
-                      setState(() => scope = selected ? 'all' : 'mine');
+                    label: SiteText(entry.value),
+                    selected: type == entry.key,
+                    onSelected: (_) {
+                      setState(() => type = entry.key);
                       load(requestedPage: 1);
                     },
                   ),
-              ],
-            ),
-          if (!widget.gallery)
-            DropdownButton<String>(
-              value: storageMode,
-              items: const [
-                DropdownMenuItem(value: 'auto', child: SiteText('跟随站点默认存储')),
-                DropdownMenuItem(value: 'local', child: SiteText('本地存储')),
-                DropdownMenuItem(value: 'oss', child: SiteText('对象存储')),
-              ],
-              onChanged: uploading
-                  ? null
-                  : (value) => setState(() => storageMode = value!),
-            ),
-          if (uploading)
-            SiteCard(
-              child: Column(
-                children: [
-                  SiteText(phase),
-                  LinearProgressIndicator(value: progress),
-                  TextButton(
-                    onPressed: widget.gallery ? null : () => upload?.cancel(),
-                    child: const SiteText('暂停上传'),
-                  ),
-                ],
-              ),
-            ),
-          if (!uploading && pending.isNotEmpty)
-            SiteCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SiteText('未完成的上传保留 24 小时。重新选择同一文件可继续。'),
-                  for (final item in pending)
-                    ListTile(
-                      title: Text('${item['fileName']}'),
-                      subtitle: Text(
-                        '${item['received']} / ${item['size']} 字节',
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.close),
-                        tooltip: siteTranslate(context, '取消上传'),
-                        onPressed: () async {
-                          try {
-                            await service.request(
-                              'DELETE',
-                              '/api/assets/uploads/${Uri.encodeComponent('${item['id']}')}',
-                            );
-                            await loadPending();
-                          } catch (e) {
-                            if (mounted) setState(() => error = '$e');
-                          }
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          if (widget.gallery && !manage && (latest != null || featured != null))
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              child: Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: [
-                  if (latest != null)
-                    SizedBox(
-                      width: min(420, MediaQuery.sizeOf(context).width - 28),
-                      child: Column(
-                        children: [const SiteText('最新影像'), card(latest!)],
-                      ),
-                    ),
-                  if (featured != null)
-                    SizedBox(
-                      width: min(420, MediaQuery.sizeOf(context).width - 28),
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 420),
-                        child: Column(
-                          key: ValueKey(featured!['id']),
-                          children: [
-                            const SiteText('随机放映 · 每 30 秒轮换'),
-                            card(featured!),
-                          ],
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          const SizedBox(height: 18),
-          Text(
-            siteTr(
-              context,
-              'nativeAssetPagination',
-              params: {'total': total, 'page': page, 'pages': pages},
-            ),
-          ),
-          const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth < 620
-                  ? 1
-                  : constraints.maxWidth < 980
-                  ? 2
-                  : 3;
-              final width =
-                  (constraints.maxWidth - (columns - 1) * 16) / columns;
-              return Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: [
-                  for (final asset in assets)
-                    SizedBox(width: width, child: card(asset)),
-                ],
-              );
-            },
-          ),
-          if (!loading && assets.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(32),
-              child: Center(child: SiteText('还没有匹配的附件')),
-            ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextButton(
-                onPressed: page > 1 && !loading
-                    ? () => load(requestedPage: page - 1)
-                    : null,
-                child: const SiteText('上一页'),
-              ),
-              Text('$page / $pages'),
-              TextButton(
-                onPressed: page < pages && !loading
-                    ? () => load(requestedPage: page + 1)
-                    : null,
-                child: const SiteText('下一页'),
-              ),
+              if (admin)
+                ChoiceChip(
+                  label: const SiteText('全部用户'),
+                  selected: scope == 'all',
+                  onSelected: (selected) {
+                    setState(() => scope = selected ? 'all' : 'mine');
+                    load(requestedPage: 1);
+                  },
+                ),
             ],
           ),
-        ],
+        if (!widget.gallery)
+          DropdownButton<String>(
+            isExpanded: true,
+            itemHeight: null,
+            value: storageMode,
+            items: const [
+              DropdownMenuItem(value: 'auto', child: SiteText('跟随站点默认存储')),
+              DropdownMenuItem(value: 'local', child: SiteText('本地存储')),
+              DropdownMenuItem(value: 'oss', child: SiteText('对象存储')),
+            ],
+            onChanged: uploading
+                ? null
+                : (value) => setState(() => storageMode = value!),
+          ),
+        if (uploading)
+          SiteCard(
+            child: Column(
+              children: [
+                SiteText(phase),
+                LinearProgressIndicator(value: progress),
+                TextButton(
+                  onPressed: widget.gallery ? null : () => upload?.cancel(),
+                  child: const SiteText('暂停上传'),
+                ),
+              ],
+            ),
+          ),
+        if (!uploading && pending.isNotEmpty)
+          SiteCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SiteText('未完成的上传保留 24 小时。重新选择同一文件可继续。'),
+                for (final item in pending)
+                  ListTile(
+                    title: Text('${item['fileName']}'),
+                    subtitle: Text('${item['received']} / ${item['size']} 字节'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close),
+                      tooltip: siteTranslate(context, '取消上传'),
+                      onPressed: () async {
+                        try {
+                          await service.request(
+                            'DELETE',
+                            '/api/assets/uploads/${Uri.encodeComponent('${item['id']}')}',
+                          );
+                          await loadPending();
+                        } catch (e) {
+                          if (mounted) setState(() => error = '$e');
+                        }
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        if (widget.gallery && !manage && (latest != null || featured != null))
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                if (latest != null)
+                  SizedBox(
+                    width: min(420, MediaQuery.sizeOf(context).width - 28),
+                    child: Column(
+                      children: [const SiteText('最新影像'), card(latest!)],
+                    ),
+                  ),
+                if (featured != null)
+                  SizedBox(
+                    width: min(420, MediaQuery.sizeOf(context).width - 28),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 420),
+                      child: Column(
+                        key: ValueKey(featured!['id']),
+                        children: [
+                          const SiteText('随机放映 · 每 30 秒轮换'),
+                          card(featured!),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 18),
+        Text(
+          siteTr(
+            context,
+            'nativeAssetPagination',
+            params: {'total': total, 'page': page, 'pages': pages},
+          ),
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth < 620
+                ? 1
+                : constraints.maxWidth < 980
+                ? 2
+                : 3;
+            final width = (constraints.maxWidth - (columns - 1) * 16) / columns;
+            return Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                for (final asset in assets)
+                  SizedBox(width: width, child: card(asset)),
+              ],
+            );
+          },
+        ),
+        if (!loading && assets.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(32),
+            child: Center(
+              child: SiteText(widget.gallery ? '暂时还没有匹配的图片' : '还没有匹配的附件'),
+            ),
+          ),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
+          children: [
+            TextButton(
+              onPressed: page > 1 && !loading
+                  ? () => load(requestedPage: page - 1)
+                  : null,
+              child: const SiteText('上一页'),
+            ),
+            Text('$page / $pages'),
+            TextButton(
+              onPressed: page < pages && !loading
+                  ? () => load(requestedPage: page + 1)
+                  : null,
+              child: const SiteText('下一页'),
+            ),
+          ],
+        ),
       ],
-    ),
+    ],
   );
 }
 

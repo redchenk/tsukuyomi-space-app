@@ -203,6 +203,10 @@ void main() {
       expect(find.text('词条目录'), findsOneWidget);
       expect(find.text('展开完整剧情与结局剧透'), findsOneWidget);
       expect(site.calls, isEmpty);
+      if (width < 1080) {
+        await tester.tap(find.widgetWithText(ExpansionTile, '词条目录'));
+        await tester.pumpAndSettle();
+      }
       await tester.ensureVisible(find.byKey(const Key('wiki-search')));
       await tester.enterText(
         find.byKey(const Key('wiki-search')),

@@ -134,7 +134,7 @@ void main() {
             .onPressed,
         isNull,
       );
-      expect(find.textContaining('5 经验 ·'), findsOneWidget);
+      expect(find.text('5 经验'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },
@@ -154,7 +154,7 @@ void main() {
       expect(claims.single.method, 'POST');
       expect(claims.single.body, {'code': 'ABCDEF0123'});
       expect(storage.drafts['pending-referral:https://yachiyo.hk'], '');
-      expect(find.textContaining('20 经验 ·'), findsOneWidget);
+      expect(find.text('20 经验'), findsOneWidget);
       await tester.ensureVisible(find.byKey(const Key('growth-check-in')));
       await tester.tap(find.byKey(const Key('growth-check-in')));
       await tester.pumpAndSettle();
@@ -186,7 +186,7 @@ void main() {
         hasLength(1),
       );
       expect(storage.drafts['pending-referral:https://yachiyo.hk'], '');
-      expect(find.textContaining('20 经验 ·'), findsOneWidget);
+      expect(find.text('20 经验'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
     },

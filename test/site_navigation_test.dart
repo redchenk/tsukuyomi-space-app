@@ -7,6 +7,9 @@ import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
 import 'package:tsukuyomi_space_app/features/room/room_page.dart';
 import 'package:tsukuyomi_space_app/features/settings/settings_page.dart';
 import 'package:tsukuyomi_space_app/features/site/hub_page.dart';
+import 'package:tsukuyomi_space_app/features/site/editor_page.dart';
+import 'package:tsukuyomi_space_app/features/site/wiki_page.dart';
+import 'package:tsukuyomi_space_app/features/site/friend_links_page.dart';
 import 'package:tsukuyomi_space_app/features/site/site_navigation.dart';
 import 'package:tsukuyomi_space_app/features/site/site_page.dart';
 import 'package:tsukuyomi_space_app/features/site/user_center_page.dart';
@@ -16,6 +19,7 @@ import 'support/fakes.dart';
 
 class NavigationSite extends FakeSite implements SiteDataService {
   final calls = <String>[];
+  final fixtures = <String, Map<String, dynamic>>{};
   @override
   Future<Map<String, dynamic>> request(
     String site,
@@ -24,6 +28,7 @@ class NavigationSite extends FakeSite implements SiteDataService {
     Map<String, dynamic>? body,
   ]) async {
     calls.add('$method $path');
+    if (fixtures.containsKey(path)) return fixtures[path]!;
     if (path.endsWith('/articles/42')) {
       return {
         'success': true,
@@ -93,6 +98,87 @@ void main() {
     expect(find.byType(HubPage), findsNothing);
     expect(launches, 0);
   });
+
+  testWidgets(
+    'Main Stage new post enters the native editor without launching a browser',
+    (tester) async {
+      final (c, _) = await mount(tester);
+      await c.login('alice', 'test');
+      var launches = 0;
+      const channel = MethodChannel('plugins.flutter.io/url_launcher');
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        launches++;
+        return true;
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        ),
+      );
+      Navigator.of(tester.element(find.byType(RoomPage))).pushNamed('/stage');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('stage-new-article')));
+      await tester.pumpAndSettle();
+      expect(find.byType(EditorPage), findsOneWidget);
+      expect(find.byType(SitePage), findsNothing);
+      expect(launches, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Plaza friend-link entry stays native', (tester) async {
+    await mount(tester);
+    Navigator.of(tester.element(find.byType(RoomPage))).pushNamed('/plaza');
+    await tester.pumpAndSettle();
+    final entry = find.text('友链', findRichText: true);
+    await tester.ensureVisible(entry);
+    await tester.tap(entry);
+    await tester.pumpAndSettle();
+    expect(find.byType(FriendLinksPage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'Growth deep-link task preserves the native Wiki entry and query',
+    (tester) async {
+      final (c, site) = await mount(tester);
+      await c.login('alice', 'test');
+      site.fixtures['/api/growth/me'] = {
+        'success': true,
+        'data': {
+          'level': {'level': 1, 'title': '初次连接'},
+          'today': {
+            'total': 1,
+            'completed': 0,
+            'tasks': [
+              {
+                'key': 'wiki',
+                'label': '阅读词条',
+                'path': '/wiki/characters/yachiyo?from=%2Fgrowth',
+                'completed': false,
+                'xp': 5,
+              },
+            ],
+          },
+        },
+      };
+      Navigator.of(tester.element(find.byType(RoomPage))).pushNamed('/growth');
+      await tester.pumpAndSettle();
+      final entry = find.byKey(const Key('growth-task-wiki'));
+      await tester.ensureVisible(entry);
+      await tester.tap(entry);
+      await tester.pumpAndSettle();
+      expect(find.byType(WikiPage), findsOneWidget);
+      expect(
+        ModalRoute.of(tester.element(find.byType(WikiPage)))!.settings.name,
+        '/wiki/characters/yachiyo?from=%2Fgrowth',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'settings alias opens the requested section and Hub returns to the same settings',
