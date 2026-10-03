@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/models.dart';
 import '../../core/site_localization.dart';
 import '../room/room_style.dart';
+import '../room/room_controller.dart';
 import '../room/room_music.dart';
 import 'native_rich_text.dart';
 import 'site_search.dart';
@@ -241,18 +243,29 @@ class SiteBackground extends StatelessWidget {
   );
 }
 
-class SiteAvatar extends StatelessWidget {
+class SiteAvatar extends StatefulWidget {
   const SiteAvatar({
     super.key,
     required this.value,
     required this.name,
     required this.site,
     this.size = 40,
+    this.headers,
   });
   final String value, name, site;
   final double size;
+  final Map<String, String>? headers;
+  @override
+  State<SiteAvatar> createState() => _SiteAvatarState();
+}
+
+class _SiteAvatarState extends State<SiteAvatar> {
+  String? decodedValue;
+  Uint8List? decodedBytes;
   @override
   Widget build(BuildContext context) {
+    final value = widget.value, name = widget.name, site = widget.site;
+    final size = widget.size, headers = widget.headers;
     final fallback = Center(
       child: Text(
         name.isEmpty ? '月' : name.characters.first,
@@ -265,9 +278,13 @@ class SiteAvatar extends StatelessWidget {
         .clamp(1, 512);
     try {
       if (value.startsWith('data:image/') && value.contains(';base64,')) {
+        if (decodedValue != value) {
+          decodedBytes = base64Decode(value.split(';base64,').last);
+          decodedValue = value;
+        }
         picture = Image(
           image: ResizeImage(
-            MemoryImage(base64Decode(value.split(';base64,').last)),
+            MemoryImage(decodedBytes!),
             width: decodeSize,
             height: decodeSize,
             policy: ResizeImagePolicy.fit,
@@ -280,7 +297,12 @@ class SiteAvatar extends StatelessWidget {
         if (['https', 'http'].contains(uri.scheme)) {
           picture = Image(
             image: ResizeImage(
-              NetworkImage('$uri'),
+              NetworkImage(
+                '$uri',
+                headers: uri.origin == endpointUri(site).origin
+                    ? headers
+                    : null,
+              ),
               width: decodeSize,
               height: decodeSize,
               policy: ResizeImagePolicy.fit,
@@ -488,7 +510,7 @@ class SiteHeader extends StatelessWidget {
             if (compact)
               IconButton(
                 onPressed: onLogin,
-                icon: const Icon(CupertinoIcons.person_crop_circle),
+                icon: _SiteAccountPicture(username: username),
                 tooltip: username ?? siteTr(context, 'login'),
               )
             else
@@ -520,7 +542,7 @@ class SiteHeader extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(CupertinoIcons.person_crop_circle, size: 26),
+                      _SiteAccountPicture(username: username),
                       const SizedBox(width: 6),
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 100),
@@ -550,6 +572,68 @@ class SiteHeader extends StatelessWidget {
       );
     },
   );
+}
+
+/// Only profile/identity changes rebuild the picture, not streaming chat tokens.
+class _SiteAccountPicture extends StatefulWidget {
+  const _SiteAccountPicture({required this.username});
+  final String? username;
+  @override
+  State<_SiteAccountPicture> createState() => _SiteAccountPictureState();
+}
+
+class _SiteAccountPictureState extends State<_SiteAccountPicture> {
+  RoomController? room;
+  (String?, String?, String?, bool?, String?)? signature;
+  (String?, String?, String?, bool?, String?) get currentSignature => (
+    room?.account?.id,
+    room?.account?.avatar,
+    room?.settings.siteUrl,
+    room?.sessionExpired,
+    room?.site.cookie,
+  );
+  void changed() {
+    final next = currentSignature;
+    if (next != signature && mounted) setState(() => signature = next);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final next = context
+        .dependOnInheritedWidgetOfExactType<SiteControllerScope>()
+        ?.controller;
+    if (next != room) {
+      room?.removeListener(changed);
+      room = next;
+      room?.addListener(changed);
+      signature = currentSignature;
+    }
+  }
+
+  @override
+  void dispose() {
+    room?.removeListener(changed);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final account = room?.sessionExpired == true ? null : room?.account;
+    if (widget.username == null || account == null || account.avatar.isEmpty) {
+      return const Icon(CupertinoIcons.person_crop_circle, size: 28);
+    }
+    return SiteAvatar(
+      key: ValueKey('nav-account-avatar:${account.id}'),
+      value: account.avatar,
+      name: account.displayName,
+      site: room!.settings.siteUrl,
+      headers: room!.site.cookie == null
+          ? null
+          : {'Cookie': room!.site.cookie!},
+      size: 28,
+    );
+  }
 }
 
 class ArticleBody extends StatelessWidget {

@@ -222,6 +222,7 @@ class RoomController extends ChangeNotifier {
               'id': account!.id,
               'username': account!.username,
               'nickname': account!.nickname,
+              'avatar': account!.avatar,
             }),
     );
   }
@@ -235,11 +236,13 @@ class RoomController extends ChangeNotifier {
       return;
     }
     final name = '${profile['nickname'] ?? current.nickname}'.trim();
-    if (name == current.nickname) return;
+    final avatar = '${profile['avatar'] ?? current.avatar}';
+    if (name == current.nickname && avatar == current.avatar) return;
     account = Account(
       current.id,
       current.username,
       nickname: name,
+      avatar: avatar,
       role: current.role,
       scope: current.scope,
     );
@@ -270,6 +273,7 @@ class RoomController extends ChangeNotifier {
               j['id'],
               j['username'],
               nickname: '${j['nickname'] ?? ''}',
+              avatar: '${j['avatar'] ?? ''}',
             );
           } catch (_) {}
         }

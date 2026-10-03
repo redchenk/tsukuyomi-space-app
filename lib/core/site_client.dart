@@ -285,6 +285,7 @@ class SiteClient implements SiteService, SiteDataService, SiteRoomEventService {
       role: '${user['role'] ?? 'user'}',
       scope: user['scope'] == 'admin' ? 'admin' : 'user',
       nickname: '${user['nickname'] ?? ''}',
+      avatar: '${user['avatar'] ?? ''}',
     );
   }
 

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/models.dart';
 import '../room/room_controller.dart';
+import '../room/room_style.dart';
 import 'asset_library_page.dart';
 import 'content_page_shell.dart';
 import 'login_dialog.dart';
@@ -569,6 +570,11 @@ class _EditorPageState extends State<EditorPage> {
                 ],
               ),
               const SizedBox(height: 12),
+              Text(
+                siteTr(context, 'nativeEditorPreviewSync'),
+                style: TextStyle(fontSize: 12, color: RoomStyle(context).muted),
+              ),
+              const SizedBox(height: 18),
               NativeRichText(
                 content: value.content,
                 format: value.format,
@@ -579,6 +585,11 @@ class _EditorPageState extends State<EditorPage> {
                     ? null
                     : {'Cookie': value.cookie!},
               ),
+              if (value.content.trim().isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  child: Text(siteTr(context, 'nativeEditorPreviewEmpty')),
+                ),
             ],
           ),
         ),
@@ -784,7 +795,12 @@ class _EditorPageState extends State<EditorPage> {
                         children: [
                           Expanded(child: source),
                           const SizedBox(width: 18),
-                          Expanded(child: preview),
+                          Expanded(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 760),
+                              child: SingleChildScrollView(child: preview),
+                            ),
+                          ),
                         ],
                       )
                     : Column(

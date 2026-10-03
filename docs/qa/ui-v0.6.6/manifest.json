@@ -1,0 +1,53 @@
+{
+  "referenceSource": "291c3874a9420840d5d454f1bd23e62432563e9d",
+  "screenshots": [
+    {
+      "file": "native-editor-1280-dark.webp",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "5dfb80ca09d196fdea288bf4e578412777ecf30467c451defb8ea9d7563747af"
+    },
+    {
+      "file": "native-editor-1280-light.webp",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "d8b499b00b6e5d48e63ee210d7ed5d200a561de4d209d7d4befb0bd3a1045c99"
+    },
+    {
+      "file": "native-editor-390-dark.webp",
+      "width": 390,
+      "height": 1000,
+      "sha256": "233da3e185be1c14966ca88a2406e280fe217b8024ca9bd331a0b4ccf039e23f"
+    },
+    {
+      "file": "native-editor-390-light.webp",
+      "width": 390,
+      "height": 1000,
+      "sha256": "0ef5af1c26bfc250292d97ccf50b416b1ed1730ea03995ff35bf8de8798846bf"
+    },
+    {
+      "file": "native-editor-window-code.webp",
+      "width": 2560,
+      "height": 1658,
+      "sha256": "e02397b64169f1c0ab23d4c2ca092615fcfd22a0fead812f3eec28cb1387f2f2"
+    },
+    {
+      "file": "native-editor-window.webp",
+      "width": 2560,
+      "height": 1658,
+      "sha256": "8fb6d5d9770fa639c024a6f318107f52faa08785fd4b7c843c934e8bebb473dc"
+    },
+    {
+      "file": "web-editor-avatar.webp",
+      "width": 1280,
+      "height": 720,
+      "sha256": "fb4f22aa46c0bb70b7e53799a06038718d6c2e995bc5d3fef6e5187f8e8df86b"
+    },
+    {
+      "file": "web-editor-before.webp",
+      "width": 1280,
+      "height": 720,
+      "sha256": "d3eba1fceaa909e04d8c620f64e8c833d8e5687b2f8c039a63606e4b11d29c87"
+    }
+  ]
+}

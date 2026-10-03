@@ -46,7 +46,7 @@ Iterable<ImageProvider<Object>> _fixtureProviders(NetworkImage key) sync* {
   // capture layouts; avatar cache keys below use the fit policy instead.
   yield ResizeImage(key, width: 292);
   yield ResizeImage(key, width: 175);
-  for (final size in [22, 32, 40, 44, 56, 64, 68, 76, 80, 88, 96]) {
+  for (final size in [22, 28, 32, 40, 44, 56, 64, 68, 76, 80, 88, 96]) {
     yield ResizeImage(
       key,
       width: size,

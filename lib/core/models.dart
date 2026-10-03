@@ -214,8 +214,9 @@ class Account {
     this.role = 'user',
     this.scope = 'user',
     this.nickname = '',
+    this.avatar = '',
   });
-  final String id, username, role, scope, nickname;
+  final String id, username, role, scope, nickname, avatar;
   String get displayName => nickname.trim().isEmpty ? username : nickname;
   bool get isAdministrator => role == 'admin' || role == 'super_admin';
 }

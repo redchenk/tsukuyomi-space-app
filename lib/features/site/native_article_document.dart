@@ -180,6 +180,7 @@ String _markdown(String source) {
   );
   final fragment = html.parseFragment(md.renderToHtml(document.parse(source)));
   for (final input in fragment.querySelectorAll('input[type=checkbox]')) {
+    input.parent?.classes.add('markdown-task');
     final check = dom.Element.tag('span')
       ..attributes['class'] = 'markdown-task-check'
       ..text = input.attributes.containsKey('checked') ? '☑ ' : '☐ ';

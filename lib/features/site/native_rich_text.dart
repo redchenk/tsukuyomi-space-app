@@ -13,7 +13,9 @@ import 'package:html/parser.dart' as html;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models.dart';
+import '../room/room_style.dart';
 import 'native_article_document.dart';
+import 'native_article_style.dart';
 import 'native_article_embed.dart';
 import 'native_media_view.dart';
 
@@ -46,6 +48,7 @@ class _NativeRichTextState extends State<NativeRichText> {
   final activeHeading = ValueNotifier('');
   bool measurementScheduled = false;
   int revision = 0;
+  String firstBlockId = '';
   @override
   void initState() {
     super.initState();
@@ -59,6 +62,8 @@ class _NativeRichTextState extends State<NativeRichText> {
     openedDetails.clear();
     detailAncestors.clear();
     final fragment = html.parseFragment(document.html);
+    firstBlockId =
+        fragment.nodes.whereType<dom.Element>().firstOrNull?.id ?? '';
     var index = 0;
     for (final details in fragment.querySelectorAll('details')) {
       details.attributes['data-native-details'] = 'details-${++index}';
@@ -238,6 +243,13 @@ class _NativeRichTextState extends State<NativeRichText> {
                 MediaQuery.devicePixelRatioOf(context))
             .ceil()
             .clamp(1, 1600);
+    var gallery = false;
+    for (var parent = element.parent; parent != null; parent = parent.parent) {
+      if (parent.classes.contains('markdown-gallery') ||
+          parent.classes.contains('markdown-gallery-image')) {
+        gallery = true;
+      }
+    }
     final ImageProvider<Object> provider = bytes != null
         ? MemoryImage(bytes)
         : NetworkImage('$uri', headers: imageHeaders(uri));
@@ -249,7 +261,7 @@ class _NativeRichTextState extends State<NativeRichText> {
               width: decodeWidth,
               policy: ResizeImagePolicy.fit,
             ),
-      fit: BoxFit.contain,
+      fit: gallery && !expand ? BoxFit.cover : BoxFit.contain,
       semanticLabel: alt,
       errorBuilder: (_, _, _) =>
           Text('$alt（${siteTranslate(context, '图片暂不可用')}）'),
@@ -285,7 +297,12 @@ class _NativeRichTextState extends State<NativeRichText> {
         ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxHeight: 650),
-          child: picture(),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: gallery
+                ? AspectRatio(aspectRatio: 4 / 3, child: picture())
+                : picture(),
+          ),
         ),
       ),
     );
@@ -300,42 +317,31 @@ class _NativeRichTextState extends State<NativeRichText> {
     rebuildTriggers: [revision, openedDetails.join(',')],
     baseUrl: endpointUri(widget.site),
     textStyle: TextStyle(
-      fontSize: 17,
-      height: 1.85,
-      color: Theme.of(context).colorScheme.onSurface,
+      fontSize: MediaQuery.sizeOf(context).width <= 760 ? 16 : 17,
+      height: MediaQuery.sizeOf(context).width <= 760 ? 1.85 : 1.9,
+      color: RoomStyle(context).ink,
+      fontFamilyFallback: const [
+        'PingFang SC',
+        'Noto Sans CJK SC',
+        'Microsoft YaHei',
+      ],
     ),
     onTapUrl: open,
     customStylesBuilder: (element) {
-      final classes = element.classes;
+      final styles = nativeArticleStyles(
+        element,
+        RoomStyle(context),
+        mobile: MediaQuery.sizeOf(context).width <= 760,
+        firstHeading: element.id.isEmpty || element.id == firstBlockId,
+      );
       if (element.localName == 'ts-math' &&
           element.attributes['data-display'] == 'true') {
-        return {'display': 'block'};
+        styles['display'] = 'block';
       }
       if (element.localName == 'ts-media' || element.localName == 'iframe') {
-        return {'display': 'block'};
+        styles['display'] = 'block';
       }
-      if (element.localName == 'mark') {
-        final variant = classes.firstOrNull ?? '';
-        final scheme = Theme.of(context).colorScheme;
-        final color = variant.endsWith('error')
-            ? scheme.errorContainer
-            : variant.endsWith('secondary')
-            ? scheme.secondaryContainer
-            : variant.endsWith('tertiary')
-            ? scheme.tertiaryContainer
-            : variant.endsWith('tip')
-            ? const Color(0x3344aa88)
-            : scheme.primaryContainer;
-        return {
-          'background-color':
-              '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}',
-        };
-      }
-      if (classes.contains('markdown-callout-title') ||
-          classes.contains('markdown-alert-title')) {
-        return {'font-weight': 'bold'};
-      }
-      return null;
+      return styles;
     },
     customWidgetBuilder: (element) {
       final tag = element.localName;
@@ -381,6 +387,11 @@ class _NativeRichTextState extends State<NativeRichText> {
             source,
             style: TextStyle(
               fontFamily: 'monospace',
+              fontFamilyFallback: const [
+                'PingFang SC',
+                'Noto Sans CJK SC',
+                'Microsoft YaHei',
+              ],
               color: Theme.of(context).colorScheme.error,
             ),
           ),
@@ -459,11 +470,25 @@ class _NativeRichTextState extends State<NativeRichText> {
       if (tag == 'details') {
         final id = element.attributes['data-native-details']!;
         final clone = element.clone(true)..querySelector('summary')?.remove();
-        return Card(
+        final palette = RoomStyle(context);
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 24),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: palette.ink.withValues(alpha: .03),
+            border: Border.all(color: palette.line),
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: ExpansionTile(
             key: ValueKey('$id:${openedDetails.contains(id)}'),
             initiallyExpanded: openedDetails.contains(id),
             maintainState: true,
+            shape: const Border(),
+            collapsedShape: const Border(),
+            tilePadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 4,
+            ),
             title: Text(element.querySelector('summary')?.text ?? 'Details'),
             onExpansionChanged: (expanded) => setState(() {
               if (expanded) {
@@ -486,19 +511,26 @@ class _NativeRichTextState extends State<NativeRichText> {
           (value) => value.startsWith('markdown-callout-'),
           orElse: () => 'markdown-callout-note',
         );
-        final color = type.endsWith('warning') || type.endsWith('caution')
-            ? Theme.of(context).colorScheme.error
-            : type.endsWith('tip')
-            ? const Color(0xff36876e)
-            : Theme.of(context).colorScheme.primary;
+        final color = articleCalloutColor(
+          type.replaceFirst('markdown-callout-', ''),
+        );
         return Container(
-          margin: const EdgeInsets.symmetric(vertical: 12),
-          padding: const EdgeInsets.all(16),
+          margin: const EdgeInsets.symmetric(vertical: 24),
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: .08),
-            border: Border(left: BorderSide(width: 4, color: color)),
+            color: color.withValues(alpha: .09),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withValues(alpha: .42)),
           ),
-          child: htmlWidget(element.innerHtml),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(left: BorderSide(width: 4, color: color)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 17),
+              child: htmlWidget(element.innerHtml),
+            ),
+          ),
         );
       }
       if (element.classes.contains('markdown-gallery')) {
@@ -509,10 +541,12 @@ class _NativeRichTextState extends State<NativeRichText> {
             children: [
               for (final child in element.children)
                 SizedBox(
-                  width: constraints.maxWidth > 540
+                  width: MediaQuery.sizeOf(context).width > 560
                       ? (constraints.maxWidth - 12) / 2
                       : constraints.maxWidth,
-                  child: htmlWidget(child.outerHtml),
+                  child: htmlWidget(
+                    '<div class="markdown-gallery-image">${child.outerHtml}</div>',
+                  ),
                 ),
             ],
           ),
@@ -520,30 +554,38 @@ class _NativeRichTextState extends State<NativeRichText> {
       }
       if (tag == 'table' && table) {
         return LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: constraints.maxWidth,
-                maxWidth:
-                    (element
+          builder: (context, constraints) => Container(
+            margin: const EdgeInsets.symmetric(vertical: 24),
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              border: Border.all(color: RoomStyle(context).line),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth: constraints.maxWidth,
+                  maxWidth:
+                      (element
+                                      .querySelectorAll('tr')
+                                      .firstOrNull
+                                      ?.children
+                                      .length ??
+                                  1) *
+                              122.0 <
+                          constraints.maxWidth
+                      ? constraints.maxWidth
+                      : (element
                                     .querySelectorAll('tr')
                                     .firstOrNull
                                     ?.children
                                     .length ??
                                 1) *
-                            180.0 <
-                        constraints.maxWidth
-                    ? constraints.maxWidth
-                    : (element
-                                  .querySelectorAll('tr')
-                                  .firstOrNull
-                                  ?.children
-                                  .length ??
-                              1) *
-                          180.0,
+                            122.0,
+                ),
+                child: htmlWidget(element.outerHtml, table: false),
               ),
-              child: htmlWidget(element.outerHtml, table: false),
             ),
           ),
         );
@@ -645,18 +687,33 @@ class _NativeSpoilerState extends State<NativeSpoiler> {
   bool revealed = false;
   @override
   Widget build(BuildContext context) => Semantics(
-    button: !revealed,
-    label: revealed ? widget.text : '点击显示剧透内容',
+    button: true,
+    label: revealed
+        ? '${siteTranslate(context, '隐藏')}: ${widget.text}'
+        : siteTranslate(context, '防剧透'),
     child: InkWell(
-      onTap: revealed ? null : () => setState(() => revealed = true),
+      key: const Key('article-spoiler-toggle'),
+      onTap: () => setState(() => revealed = !revealed),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          color: revealed
+              ? Colors.transparent
+              : RoomStyle(context).ink.withValues(alpha: .13),
+          border: Border.all(
+            color: RoomStyle(context).muted.withValues(alpha: .6),
+          ),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-          child: revealed ? Text(widget.text) : const SiteText('剧透内容（点击显示）'),
+          child: ExcludeSemantics(
+            child: Text(
+              widget.text,
+              style: TextStyle(
+                color: revealed ? RoomStyle(context).ink : Colors.transparent,
+              ),
+            ),
+          ),
         ),
       ),
     ),
@@ -721,21 +778,9 @@ class _NativeCodeBlockState extends State<NativeCodeBlock> {
     if (widget.code.length > 20000 || !languages.contains(language)) {
       return [TextSpan(text: widget.code)];
     }
-    final colors = <String, Color>{
-      'keyword': isDark ? const Color(0xffc792ea) : const Color(0xff7c3d9f),
-      'string': isDark ? const Color(0xffc3e88d) : const Color(0xff277842),
-      'number': isDark ? const Color(0xfff78c6c) : const Color(0xffaa521b),
-      'comment': isDark ? const Color(0xff8292a2) : const Color(0xff617481),
-      'title': isDark ? const Color(0xff82aaff) : const Color(0xff2866aa),
-      'built_in': isDark ? const Color(0xffffcb6b) : const Color(0xff986b1f),
-      'literal': isDark ? const Color(0xffffcb6b) : const Color(0xff986b1f),
-      'attr': isDark ? const Color(0xff82aaff) : const Color(0xff2866aa),
-      'addition': const Color(0xff36876e),
-      'deletion': const Color(0xffc04d59),
-    };
     TextSpan span(syntax.Node node) => TextSpan(
       text: node.value,
-      style: TextStyle(color: colors[node.className]),
+      style: TextStyle(color: articleCodeColors[node.className]),
       children: node.children?.map(span).toList(),
     );
     try {
@@ -773,34 +818,50 @@ class _NativeCodeBlockState extends State<NativeCodeBlock> {
       margin: const EdgeInsets.symmetric(vertical: 12),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(12),
+        color: articleCodeBackground,
+        border: Border.all(color: RoomStyle(context).line),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    widget.title.isEmpty
-                        ? widget.language.isEmpty
-                              ? 'text'
-                              : widget.language
-                        : widget.title,
+          ColoredBox(
+            color: articleCodeHeader,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      widget.title.isEmpty
+                          ? widget.language.isEmpty
+                                ? 'text'
+                                : widget.language
+                          : widget.title,
+                      style: const TextStyle(
+                        color: Color(0xffd2dbea),
+                        fontFamily: 'monospace',
+                        fontSize: 12.8,
+                        fontFamilyFallback: [
+                          'PingFang SC',
+                          'Noto Sans CJK SC',
+                          'Microsoft YaHei',
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              TextButton.icon(
-                onPressed: copy,
-                icon: Icon(copied ? Icons.check : Icons.copy, size: 16),
-                label: SiteText(copied ? '已复制' : '复制代码'),
-              ),
-            ],
+                TextButton.icon(
+                  onPressed: copy,
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xffd2dbea),
+                  ),
+                  icon: Icon(copied ? Icons.check : Icons.copy, size: 16),
+                  label: SiteText(copied ? '已复制' : '复制代码'),
+                ),
+              ],
+            ),
           ),
-          const Divider(height: 1),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.all(16),
@@ -808,9 +869,14 @@ class _NativeCodeBlockState extends State<NativeCodeBlock> {
               TextSpan(children: spans),
               style: TextStyle(
                 fontFamily: 'monospace',
-                fontSize: 14,
-                height: 1.55,
-                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 14.08,
+                fontFamilyFallback: const [
+                  'PingFang SC',
+                  'Noto Sans CJK SC',
+                  'Microsoft YaHei',
+                ],
+                height: 1.7,
+                color: articleCodeInk,
               ),
             ),
           ),

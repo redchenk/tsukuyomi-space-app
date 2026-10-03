@@ -32,7 +32,9 @@ class RoomNavigation extends StatelessWidget {
       onGo: onGo,
       onLogin: onAccount ?? () {},
       onTheme: onTheme,
-      username: room?.account?.displayName,
+      username: room?.sessionExpired == true
+          ? null
+          : room?.account?.displayName,
       role: room?.sessionExpired == true ? null : room?.account?.role,
     );
   }

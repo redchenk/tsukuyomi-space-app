@@ -302,10 +302,21 @@ void main() {
     tester,
   ) async {
     await reader(tester, ':spoiler[<secret>]');
-    expect(find.text('<secret>'), findsNothing);
-    await tester.tap(find.text('剧透内容（点击显示）'));
+    final text = tester.widget<Text>(find.text('<secret>'));
+    expect(text.style!.color, Colors.transparent);
+    await tester.tap(find.byKey(const Key('article-spoiler-toggle')));
     await tester.pumpAndSettle();
     expect(find.text('<secret>'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('<secret>')).style!.color,
+      isNot(Colors.transparent),
+    );
+    await tester.tap(find.byKey(const Key('article-spoiler-toggle')));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<Text>(find.text('<secret>')).style!.color,
+      Colors.transparent,
+    );
     expect(tester.takeException(), isNull);
   });
   testWidgets(
