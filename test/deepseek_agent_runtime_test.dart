@@ -309,7 +309,10 @@ void main() {
       final agent = DesktopAgentController(
         room,
         runtimeDataDirectory: '${root.path}/runtime',
-        nativeResponseTimeout: const Duration(seconds: 2),
+        // Windows can spend more than two seconds loading the provider after
+        // the OpenCode server is ready, especially beside another runtime test.
+        // Exercise a received 429, rather than racing a silent startup timeout.
+        nativeResponseTimeout: const Duration(seconds: 10),
       );
       final workspace = await Directory('${root.path}/workspace').create();
       addTearDown(() async {
@@ -320,7 +323,12 @@ void main() {
         await root.delete(recursive: true);
       });
       await agent.selectWorkspace(workspace.path);
-      await agent.send('保存文件').timeout(const Duration(seconds: 15));
+      await agent.send('保存文件').timeout(const Duration(seconds: 35));
+      expect(
+        nativeRequests,
+        greaterThan(0),
+        reason: 'The native request must reach the rate-limited provider',
+      );
       expect(agent.error, contains('HTTP 429'));
       expect(structured, 0);
       final count = nativeRequests;
