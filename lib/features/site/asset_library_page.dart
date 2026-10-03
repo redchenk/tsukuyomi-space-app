@@ -1113,7 +1113,7 @@ class _AssetLibraryPageState extends State<AssetLibraryPage>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(g('更多标签', 'More tags', 'ほかのタグ')),
+                    Flexible(child: Text(g('更多标签', 'More tags', 'ほかのタグ'))),
                     const Icon(Icons.expand_more, size: 15),
                   ],
                 ),
