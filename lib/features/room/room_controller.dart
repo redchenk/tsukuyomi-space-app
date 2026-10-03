@@ -709,6 +709,9 @@ class RoomController extends ChangeNotifier {
         llm.systemOverride = '';
         llm.referenceContext = '';
         llm.siteCookie = site.cookie;
+        llm.tools = workspace.modelTools(image);
+        llm.executeTool = (call) => workspace.executeModelTool(call, image);
+        llm.cancelTools = workspace.tools.cancel;
         llm.image = settings.option('visionMode', 'auto') == 'mcp'
             ? null
             : image;

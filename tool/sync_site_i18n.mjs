@@ -42,7 +42,13 @@ for (const language of ['zh','ja','en']) {
     const key = `nativeUi.${crypto.createHash('sha1').update(zh).digest('hex').slice(0,12)}`;
     extras[language][key] = ({zh,ja,en})[language].replaceAll('\\n','\n');
   }
+  extras[language].nativeMcpEndpoint = {zh:'MCP 端点',ja:'MCP エンドポイント',en:'MCP endpoint'}[language];
+  extras[language].nativeMcpTransport = {zh:'MCP 连接方式',ja:'MCP 接続方式',en:'MCP transport'}[language];
+  extras[language].nativeMcpRest = {zh:'REST 桥接',ja:'REST ブリッジ',en:'REST bridge'}[language];
+  extras[language].nativeMcpHint = {zh:'支持 REST 桥接和 Streamable HTTP，自动完成 MCP 握手。搜索和当前图片理解按白名单调用；工具结果仅作为参考资料。',ja:'REST ブリッジと Streamable HTTP に対応し、MCP の接続処理を自動で行います。検索と添付画像の理解は許可リストに従います。ツールの結果は参考情報です。',en:'Supports REST bridges and Streamable HTTP with automatic MCP initialization. Search and current image understanding follow the allowlist; tool results are reference material.'}[language];
   extras[language].nativeEditorCharacters = {zh:'{count} 字符 · 草稿自动保存在当前站点与账号下',ja:'{count}文字 · 下書きは現在のサイトとアカウントに自動保存されます',en:'{count} characters · Drafts save automatically for this site and account'}[language];
+  extras[language].nativeEditorPreviewSync = {zh:'预览与发布后的文章使用同一套排版。',ja:'プレビューと公開後の記事は同じ書式を使用します。',en:'The preview uses the same typography as the published article.'}[language];
+  extras[language].nativeEditorPreviewEmpty = {zh:'写下内容，这里会显示文章效果。',ja:'本文を書くと、ここに記事のプレビューが表示されます。',en:'Start writing to see your article here.'}[language];
   extras[language].nativeAuthResendSeconds = {zh:'{count}s 后重发',ja:'{count}秒後に再送',en:'Resend in {count}s'}[language];
   extras[language].nativeLive2DAudienceQueue = {zh:'{count} 条留言等待回应',ja:'{count}件のメッセージが返答待ち',en:'{count} messages waiting for a response'}[language];
   extras[language].nativeAssetPagination = {zh:'{total} 项 · 第 {page} / {pages} 页',ja:'{total}件 · {page} / {pages}ページ',en:'{total} items · Page {page} / {pages}'}[language];

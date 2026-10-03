@@ -6,12 +6,64 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tsukuyomi_space_app/core/models.dart';
+import 'package:tsukuyomi_space_app/core/locale_controller.dart';
+import 'package:tsukuyomi_space_app/core/site_localization.dart';
 import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
 import 'package:tsukuyomi_space_app/features/settings/settings_page.dart';
 
 import 'support/fakes.dart';
 
 void main() {
+  for (final language in LocaleController.languages) {
+    for (final width in [390.0, 1280.0]) {
+      testWidgets(
+        'MCP transport can be selected and saved in $language at $width',
+        (tester) async {
+          tester.view.physicalSize = Size(width, 1000);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          final storage = MemoryStorage();
+          final locale = LocaleController(storage);
+          await locale.setLanguage(language);
+          final c = RoomController(
+            storage: storage,
+            chat: FakeChat(),
+            site: FakeSite(),
+            voice: SilentVoice(),
+          );
+          await c.initialize();
+          addTearDown(c.dispose);
+          addTearDown(locale.dispose);
+          await tester.pumpWidget(
+            SiteLocaleScope(
+              controller: locale,
+              child: MaterialApp(
+                home: RoomSettingsPage(controller: c, initialSection: 'mcp'),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final selector = find.byKey(const ValueKey('mcpTransport:rest'));
+          await tester.ensureVisible(selector);
+          expect(
+            find.text(siteMessage(language, 'nativeMcpTransport')),
+            findsOneWidget,
+          );
+          await tester.tap(selector);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Streamable HTTP').last);
+          await tester.pumpAndSettle();
+          await tester.tap(
+            find.text(siteMessage(language, 'nativeUi.00141cfef200')),
+          );
+          await tester.pumpAndSettle();
+          expect(storage.value.option('mcpTransport'), 'streamable-http');
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
   for (final width in [320.0, 390.0, 861.0, 1280.0]) {
     for (final section in roomSections.keys) {
       testWidgets(

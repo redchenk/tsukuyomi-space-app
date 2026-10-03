@@ -11,6 +11,7 @@ import '../../core/models.dart';
 import '../../core/site_routes.dart';
 import '../../core/llm_client.dart';
 import '../../core/room_protocol.dart';
+import '../../core/room_tools.dart';
 import '../../core/room_reference.dart';
 import '../../core/room_archive.dart';
 import '../../core/voice_service.dart';
@@ -230,7 +231,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       }
       if (s.flag('mcpEnabled') &&
           s.option('mcpEndpoint') != '/api/mcp/token-plan') {
-        endpointUri(s.option('mcpEndpoint'));
+        roomMcpEndpoint(s);
       }
       await c.configure(s);
       if (mounted) {
@@ -1011,6 +1012,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         final type = options['mcpProvider'];
         setState(() {
           options['mcpEnabled'] = true;
+          options['mcpTransport'] = 'rest';
           fields['mcpAuthHeader']!.text = 'Authorization';
           if (type == 'minimax-token-plan') {
             fields['mcpEndpoint']!.text = '/api/mcp/token-plan';
@@ -1025,7 +1027,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         });
       }),
       const SizedBox(height: 18),
-      _field('mcpEndpoint', 'MCP REST 端点'),
+      _field('mcpEndpoint', siteTr(context, 'nativeMcpEndpoint')),
+      _selectOption('mcpTransport', siteTr(context, 'nativeMcpTransport'), {
+        'rest': siteTr(context, 'nativeMcpRest'),
+        'streamable-http': 'Streamable HTTP',
+      }, fallback: 'rest'),
       _field('mcpKey', 'MCP API Key', secret: true),
       _field('mcpAuthHeader', '鉴权 Header'),
       _field('mcpApiHost', 'API Host'),
@@ -1035,7 +1041,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         'local': 'Local',
       }, fallback: 'url'),
       _field('mcpAllowlist', '工具白名单（逗号分隔）'),
-      _hint('支持 JSON-RPC tools/list 与 tools/call。搜索和图片理解会按白名单调用；工具结果仅作为参考资料。'),
+      _hint(siteTr(context, 'nativeMcpHint')),
       _button('测试并发现工具', () async {
         final r = await c.workspace.tools.call(
           _value(),

@@ -143,8 +143,22 @@ Future<RoomController> contextController(
   return c;
 }
 
-http.Response contextReply() => http.Response(
-  jsonEncode({'reply': '这是完整回复。'}),
+http.Response contextReply(http.Request request) => http.Response(
+  jsonEncode(
+    request.url.path == '/api/chat'
+        ? {
+            'message': {'content': '这是完整回复。'},
+            'done': true,
+          }
+        : {
+            'choices': [
+              {
+                'message': {'content': '这是完整回复。'},
+                'finish_reason': 'stop',
+              },
+            ],
+          },
+  ),
   200,
   headers: {'content-type': 'application/json'},
 );
@@ -230,7 +244,7 @@ void main() {
             );
             expect(body['messages'].last['content'], '当前问题');
             expect(request.headers['cookie'], isNull);
-            return contextReply();
+            return contextReply(request);
           }),
         );
         final site = ContextSite();
@@ -258,7 +272,7 @@ void main() {
         final system =
             jsonDecode(request.body)['messages'][0]['content'] as String;
         expect(system, isNot(contains('"source":"memories"')));
-        return contextReply();
+        return contextReply(request);
       }),
     );
     final site = ContextSite();
@@ -282,7 +296,7 @@ void main() {
           jsonDecode(request.body)['messages'][0]['content'],
           isNot(contains('云端事实')),
         );
-        return contextReply();
+        return contextReply(request);
       }),
     );
     final site = ContextSite();
@@ -311,7 +325,7 @@ void main() {
             system.substring(system.indexOf(roomContextIntroduction)).length,
             lessThanOrEqualTo(8000),
           );
-          return contextReply();
+          return contextReply(request);
         }),
       );
       final site = ContextSite();
@@ -345,7 +359,7 @@ void main() {
             jsonDecode(request.body)['messages'][0]['content'],
             isNot(contains('云端事实')),
           );
-          return contextReply();
+          return contextReply(request);
         }),
       );
       final site = ContextSite()..memoryFails = true;
@@ -374,7 +388,7 @@ void main() {
       final llm = LlmClient(
         clientFactory: () => MockClient((request) async {
           requests++;
-          return contextReply();
+          return contextReply(request);
         }),
       );
       final site = ContextSite()
@@ -400,7 +414,7 @@ void main() {
       final llm = LlmClient(
         clientFactory: () => MockClient((request) async {
           requests++;
-          return contextReply();
+          return contextReply(request);
         }),
       );
       final site = ContextSite()

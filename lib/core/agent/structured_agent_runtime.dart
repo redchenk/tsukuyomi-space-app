@@ -220,6 +220,7 @@ class StructuredAgentRuntime implements AgentRuntime {
         result = await gateway.call(
           name,
           Map<String, dynamic>.from(action['arguments'] as Map),
+          callId: '$turn-$step',
         );
       } catch (error) {
         if (epoch != _epoch) throw const ApiFailure('Agent 已停止');

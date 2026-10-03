@@ -318,7 +318,7 @@ class OpenCodeAgentRuntime implements AgentRuntime {
     emit(AgentEvent('modelProgress', '正在启动 Agent'));
     await start(session);
     if (_cancelled) throw const ApiFailure('Agent 已停止');
-    _bridge?.provider.clearFailure();
+    _bridge?.provider.beginTurn();
     _bridge?.provider.onProgress = emit;
     final done = Completer<void>();
     unawaited(
@@ -480,6 +480,7 @@ class OpenCodeAgentRuntime implements AgentRuntime {
       await subscription.cancel();
       client.close();
       _bridge?.provider.onProgress = null;
+      _bridge?.provider.endTurn();
       if (identical(_eventsClient, client)) _eventsClient = null;
     }
   }

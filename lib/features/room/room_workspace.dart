@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../core/models.dart';
+import '../../core/model_protocol.dart';
 import '../../core/room_archive.dart';
 import '../../core/room_context.dart';
 import '../../core/room_protocol.dart';
@@ -30,6 +31,26 @@ class RoomWorkspace extends ChangeNotifier {
   final RoomController c;
   late final RoomArchive archive;
   final tools = RoomTools();
+  List<Map<String, dynamic>> modelTools(Map<String, dynamic>? image) =>
+      allowedRoomModelTools(c.settings, hasImage: image != null);
+  Future<Map<String, dynamic>> executeModelTool(
+    ModelCall call,
+    Map<String, dynamic>? image,
+  ) async {
+    if (!modelTools(image).any((t) => t['name'] == call.name)) {
+      throw const ApiFailure('模型工具未授权');
+    }
+    final args = roomModelArguments(call);
+    if (call.name == 'understand_image') args['image_url'] = image!['dataUrl'];
+    final content = await tools.tool(
+      c.settings,
+      call.name,
+      args,
+      cookie: c.site.cookie,
+    );
+    return {'content': content, 'isError': false};
+  }
+
   Map<String, dynamic> world = {}, profile = {};
   Map<String, dynamic>? sharedWorld;
   Map<String, dynamic> get currentWorld => sharedWorld ?? world;

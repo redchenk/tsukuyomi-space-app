@@ -5,23 +5,43 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../models.dart';
+import '../model_protocol.dart';
 import '../room_protocol.dart';
 import 'agent_types.dart';
-import 'agent_progress.dart';
 import 'agent_limits.dart';
 
-/// Keeps Room's exact endpoints/headers/keys out of the sidecar configuration.
-/// OpenCode sees an OpenAI-compatible API; all four Room protocols retain tools.
+/// The sidecar receives visible text/tools; provider state stays in this bridge.
 class AgentProviderBridge {
-  AgentProviderBridge(this.settings, {http.Client Function()? clientFactory})
-    : _factory = clientFactory ?? http.Client.new;
+  AgentProviderBridge(
+    this.settings, {
+    http.Client Function()? clientFactory,
+    this.totalTimeout = const Duration(seconds: 180),
+    this.idleTimeout = const Duration(seconds: 45),
+  }) : _factory = clientFactory ?? http.Client.new;
   final RoomSettings settings;
   final http.Client Function() _factory;
+  final Duration totalTimeout, idleTimeout;
   final _active = <http.Client>{};
+  final _states = <String, ModelCompletion>{};
+  int _epoch = 0, _sequence = 0;
   ApiFailure? lastFailure;
   AgentEmit? onProgress;
+  static const limits = ModelLimits(
+    textBytes: agentMaxModelBytes,
+    argumentBytes: agentMaxActionChars,
+    eventBytes: agentMaxJsonBytes,
+    wireBytes: agentMaxStreamBytes,
+  );
   void clearFailure() => lastFailure = null;
+  void beginTurn() {
+    _states.clear();
+    clearFailure();
+  }
+
+  void endTurn() => _states.clear();
   void cancel() {
+    _epoch++;
+    _states.clear();
     for (final client in _active) {
       client.close();
     }
@@ -30,409 +50,338 @@ class AgentProviderBridge {
 
   Map<String, dynamic> _requestBody(
     Map<String, dynamic> input, {
-    bool stream = false,
+    required bool stream,
   }) {
-    final endpoint = roomChatEndpoint(settings.llmUrl);
-    final protocol = roomProtocol(endpoint);
-    final messages = (input['messages'] as List).cast<Map>();
-    final tools = (input['tools'] as List? ?? []).cast<Map>();
-    final body = <String, dynamic>{};
-    switch (protocol) {
-      case 'responses':
-        body.addAll({
-          'model': settings.model,
-          'stream': stream,
-          'instructions': messages
-              .where((m) => m['role'] == 'system')
-              .map((m) => m['content'])
-              .join('\n'),
-          'input': [
-            for (final m in messages)
-              if (m['role'] == 'tool')
-                {
-                  'type': 'function_call_output',
-                  'call_id': m['tool_call_id'],
-                  'output': m['content'],
-                }
-              else if (m['role'] != 'system') ...[
-                if (m['content'] != null && m['content'] != '')
-                  {'role': m['role'], 'content': m['content']},
-                for (final call in m['tool_calls'] as List? ?? [])
-                  {
-                    'type': 'function_call',
-                    'call_id': call['id'],
-                    'name': call['function']['name'],
-                    'arguments': call['function']['arguments'],
-                  },
-              ],
-          ],
-          if (tools.isNotEmpty)
-            'tools': [
-              for (final tool in tools)
-                {
-                  'type': 'function',
-                  ...Map<String, dynamic>.from(tool['function'] as Map),
-                },
-            ],
-        });
-      case 'anthropic':
-        final converted = <Map<String, dynamic>>[];
-        for (final m in messages.where((m) => m['role'] != 'system')) {
-          final role = m['role'] == 'tool' ? 'user' : m['role'];
-          final content = <Map<String, dynamic>>[
-            if (m['role'] == 'tool')
+    final protocol = roomProtocol(roomChatEndpoint(settings.llmUrl));
+    final raw = (input['messages'] as List).cast<Map>();
+    final lastUser = raw.lastIndexWhere((m) => m['role'] == 'user');
+    final messages = <Map<String, dynamic>>[],
+        responseInput = <Map<String, dynamic>>[];
+    final systems = <String>[], names = <String, String>{};
+    final pending = <String>{}, resolved = <String>{};
+    for (var index = 0; index < raw.length; index++) {
+      final m = raw[index], role = m['role'];
+      if (role == 'system' || role == 'developer') {
+        systems.add(modelText(m['content']));
+        continue;
+      }
+      if (!['assistant', 'user', 'tool'].contains(role)) {
+        throw const ApiFailure('Agent 消息角色无效');
+      }
+      // Completed tasks retain visible conversation, not obsolete tool/state chains.
+      if (index < lastUser && role == 'tool') continue;
+      final calls = index < lastUser
+          ? <Map>[]
+          : (m['tool_calls'] as List? ?? []).cast<Map>();
+      if (role == 'tool') {
+        final id = m['tool_call_id'] as String? ?? '';
+        if (!pending.remove(id) || !resolved.add(id)) {
+          throw const ApiFailure('Agent 工具结果与调用不匹配');
+        }
+        final content = modelText(m['content']);
+        var isError = m['isError'] == true;
+        try {
+          final data = jsonDecode(content);
+          if (data is Map) {
+            isError |=
+                data['error'] != null ||
+                data['declined'] == true ||
+                data['isError'] == true ||
+                data['exitCode'] is int && data['exitCode'] != 0;
+          }
+        } catch (_) {}
+        if (protocol == 'responses') {
+          responseInput.add({
+            'type': 'function_call_output',
+            'call_id': id,
+            'output': content,
+          });
+        } else if (protocol == 'anthropic') {
+          messages.add({
+            'role': 'user',
+            'content': [
               {
                 'type': 'tool_result',
-                'tool_use_id': m['tool_call_id'],
-                'content': m['content'],
-              }
-            else ...[
-              if (m['content'] != null && m['content'] != '')
-                {'type': 'text', 'text': m['content']},
-              for (final call in m['tool_calls'] as List? ?? [])
-                {
-                  'type': 'tool_use',
-                  'id': call['id'],
-                  'name': call['function']['name'],
-                  'input': jsonDecode(call['function']['arguments'] as String),
-                },
+                'tool_use_id': id,
+                'content': content,
+                'is_error': isError,
+              },
             ],
-          ];
-          if (content.isEmpty) continue;
-          if (converted.isNotEmpty && converted.last['role'] == role) {
-            (converted.last['content'] as List).addAll(content);
-          } else {
-            converted.add({'role': role, 'content': content});
+          });
+        } else {
+          messages.add({
+            'role': 'tool',
+            if (protocol == 'ollama')
+              'tool_name': names[id]
+            else
+              'tool_call_id': id,
+            'content': content,
+          });
+        }
+        continue;
+      }
+      if (pending.isNotEmpty) throw const ApiFailure('Agent 工具结果不完整');
+      final text = modelText(m['content']);
+      ModelCompletion? state;
+      if (calls.isNotEmpty) {
+        if (calls.length > 6) throw const ApiFailure('Agent 工具调用数量过多');
+        for (final c in calls) {
+          final call = ModelCall(
+            c['id'] as String? ?? '',
+            c['function']?['name'] as String? ?? '',
+            c['function']?['arguments'] as String? ?? '{}',
+            maxBytes: limits.argumentBytes,
+          );
+          if (!pending.add(call.id) || resolved.contains(call.id)) {
+            throw const ApiFailure('Agent 工具调用标识重复');
+          }
+          names[call.id] = call.name;
+          final cached = _states[call.id];
+          if (cached != null) {
+            if (!cached.calls.any(
+              (p) =>
+                  p.id == call.id &&
+                  p.name == call.name &&
+                  modelArgumentKey(p.arguments) ==
+                      modelArgumentKey(call.arguments),
+            )) {
+              throw const ApiFailure('Agent 工具调用内容已改变');
+            }
+            state ??= cached;
+            if (!identical(state, cached)) {
+              throw const ApiFailure('Agent 工具续接分组无效');
+            }
           }
         }
-        body.addAll({
-          'model': settings.model,
-          'stream': stream,
-          'max_tokens': 8192,
-          'system': messages
-              .where((m) => m['role'] == 'system')
-              .map((m) => m['content'])
-              .join('\n'),
-          'messages': converted,
-          if (tools.isNotEmpty)
-            'tools': [
-              for (final tool in tools)
+        if (state != null &&
+            state.calls
+                .map((c) => c.id)
+                .toSet()
+                .difference(pending)
+                .isNotEmpty) {
+          throw const ApiFailure('Agent 工具续接不完整');
+        }
+      }
+      if (protocol == 'responses') {
+        if (state != null) {
+          responseInput.addAll(state.items);
+        } else {
+          if (text.isNotEmpty) {
+            responseInput.add({'role': role, 'content': text});
+          }
+          for (final c in calls) {
+            responseInput.add({
+              'type': 'function_call',
+              'call_id': c['id'],
+              'name': c['function']['name'],
+              'arguments': c['function']['arguments'],
+            });
+          }
+        }
+      } else if (protocol == 'anthropic') {
+        final content =
+            state?.items ??
+            [
+              if (text.isNotEmpty) {'type': 'text', 'text': text},
+              for (final c in calls)
                 {
-                  'name': tool['function']['name'],
-                  'description': tool['function']['description'] ?? '',
-                  'input_schema': tool['function']['parameters'],
+                  'type': 'tool_use',
+                  'id': c['id'],
+                  'name': c['function']['name'],
+                  'input': jsonDecode(c['function']['arguments'] as String),
                 },
-            ],
-        });
-      case 'ollama':
-        body.addAll({
-          'model': settings.model,
-          'stream': stream,
-          'messages': [
-            for (final m in messages)
+            ];
+        if (content.isNotEmpty) {
+          messages.add({'role': role, 'content': content});
+        }
+      } else {
+        final item = <String, dynamic>{
+          'role': role,
+          'content': text.isEmpty && calls.isNotEmpty ? null : text,
+          if (calls.isNotEmpty) 'tool_calls': calls,
+        };
+        if (state != null &&
+            state.items.firstOrNull?['reasoning_content'] is String) {
+          item['reasoning_content'] = state.items.first['reasoning_content'];
+        }
+        if (protocol == 'ollama' && calls.isNotEmpty) {
+          if (state?.items.firstOrNull?['thinking'] is String) {
+            item['thinking'] = state!.items.first['thinking'];
+          }
+          item['tool_calls'] = [
+            for (final c in calls)
               {
-                ...Map<String, dynamic>.from(m),
-                if (m['tool_calls'] is List)
-                  'tool_calls': [
-                    for (final call in m['tool_calls'] as List)
-                      {
-                        ...Map<String, dynamic>.from(call as Map),
-                        'function': {
-                          ...Map<String, dynamic>.from(call['function'] as Map),
-                          'arguments': jsonDecode(
-                            call['function']['arguments'] as String,
-                          ),
-                        },
-                      },
-                  ],
+                'function': {
+                  'name': c['function']['name'],
+                  'arguments': jsonDecode(c['function']['arguments'] as String),
+                },
+              },
+          ];
+        }
+        messages.add(item);
+      }
+    }
+    if (pending.isNotEmpty) throw const ApiFailure('Agent 工具调用没有配对结果');
+    final tools = (input['tools'] as List? ?? []).cast<Map>();
+    final body = <String, dynamic>{'model': settings.model, 'stream': stream};
+    if (protocol == 'responses') {
+      body.addAll({
+        'instructions': systems.join('\n'),
+        'input': responseInput,
+        'store': false,
+        if (tools.isNotEmpty)
+          'tools': [
+            for (final t in tools)
+              {
+                'type': 'function',
+                ...Map<String, dynamic>.from(t['function'] as Map),
+                'strict': false,
               },
           ],
-          if (tools.isNotEmpty) 'tools': tools,
-        });
-      default:
-        body.addAll({...input, 'model': settings.model, 'stream': stream});
-        if (!stream) body.remove('stream_options');
+      });
+    } else if (protocol == 'anthropic') {
+      final merged = <Map<String, dynamic>>[];
+      for (final item in messages) {
+        if (merged.isNotEmpty && merged.last['role'] == item['role']) {
+          (merged.last['content'] as List).addAll(item['content'] as List);
+        } else {
+          merged.add(item);
+        }
+      }
+      body.addAll({
+        'system': systems.join('\n'),
+        'messages': merged,
+        'max_tokens': input['max_tokens'] ?? 8192,
+        if (tools.isNotEmpty)
+          'tools': [
+            for (final t in tools)
+              {
+                'name': t['function']['name'],
+                'description': t['function']['description'] ?? '',
+                'input_schema': t['function']['parameters'],
+              },
+          ],
+      });
+    } else {
+      body['messages'] = [
+        if (systems.isNotEmpty)
+          {'role': 'system', 'content': systems.join('\n')},
+        ...messages,
+      ];
+      if (tools.isNotEmpty) body['tools'] = tools;
+      if (protocol == 'openai') {
+        for (final key in [
+          'temperature',
+          'top_p',
+          'max_tokens',
+          'max_completion_tokens',
+          'stop',
+          'seed',
+        ]) {
+          if (input.containsKey(key)) body[key] = input[key];
+        }
         if (RegExp(
           'moonshot|kimi',
           caseSensitive: false,
         ).hasMatch('${settings.llmUrl} ${settings.model}')) {
           body['temperature'] = 1;
         }
+      }
     }
+    modelBound(body, agentMaxJsonBytes);
     return body;
   }
 
-  Future<Map<String, dynamic>> complete(Map<String, dynamic> input) async {
-    final endpoint = roomChatEndpoint(settings.llmUrl);
-    final protocol = roomProtocol(endpoint);
-    final messages = (input['messages'] as List).cast<Map>();
-    final body = _requestBody(input);
-    final client = _factory();
-    _active.add(client);
-    try {
-      final request = http.Request('POST', endpoint)
-        ..followRedirects = false
-        ..headers.addAll(roomChatHeaders(settings, endpoint))
-        ..body = jsonEncode(body);
-      final response = await client
-          .send(request)
-          .timeout(const Duration(seconds: 180));
-      final bytes = <int>[];
-      await for (final chunk in response.stream.timeout(
-        const Duration(seconds: 45),
-      )) {
-        bytes.addAll(chunk);
-        if (bytes.length > agentMaxJsonBytes) {
-          throw const ApiFailure('Agent 模型返回内容过大');
-        }
-      }
-      if (response.statusCode != 200) {
-        final reason = utf8.decode(bytes, allowMalformed: true).toLowerCase();
-        if ([400, 422].contains(response.statusCode) &&
-            RegExp(r'tool|function').hasMatch(reason) &&
-            RegExp(r'unsupported|not support|not allowed|unknown|unexpected')
-                .hasMatch(reason)) {
-          throw ApiFailure(
-            'tools unsupported: 请使用结构化兼容模式',
-            status: response.statusCode,
-          );
-        }
-        throw providerFailure('Agent 模型', response.statusCode);
-      }
-      final data = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
-      final reasons = [
-        data['stop_reason'],
-        for (final choice in data['choices'] as List? ?? [])
-          choice['finish_reason'],
-      ];
-      if (data['error'] != null ||
-          ['failed', 'incomplete'].contains(data['status']) ||
-          reasons.any(
-            (reason) =>
-                ['length', 'max_tokens', 'content_filter'].contains(reason),
+  void _remember(ModelCompletion value) {
+    for (final call in value.calls) {
+      final prior = _states[call.id];
+      if (prior != null &&
+          !prior.calls.any(
+            (p) =>
+                p.id == call.id &&
+                p.name == call.name &&
+                modelArgumentKey(p.arguments) ==
+                    modelArgumentKey(call.arguments),
           )) {
-        throw const ApiFailure('Agent 模型回复未完整结束，任务已停止');
+        throw const ApiFailure('模型重复使用了不同内容的工具调用标识');
       }
-      final message = <String, dynamic>{'role': 'assistant', 'content': ''};
-      final calls = <Map<String, dynamic>>[];
-      if (protocol == 'responses') {
-        for (final output in data['output'] as List? ?? []) {
-          if (output['type'] == 'function_call') {
-            calls.add({
-              'id': output['call_id'],
-              'type': 'function',
-              'function': {
-                'name': output['name'],
-                'arguments': output['arguments'],
-              },
-            });
-          } else {
-            for (final part in output['content'] as List? ?? []) {
-              if (part['type'] == 'output_text') {
-                message['content'] += part['text'] as String;
-              }
-            }
-          }
-        }
-      } else if (protocol == 'anthropic') {
-        for (final part in data['content'] as List? ?? []) {
-          if (part['type'] == 'text') {
-            message['content'] += part['text'] as String;
-          }
-          if (part['type'] == 'tool_use') {
-            calls.add({
-              'id': part['id'],
-              'type': 'function',
-              'function': {
-                'name': part['name'],
-                'arguments': jsonEncode(part['input']),
-              },
-            });
-          }
-        }
-      } else if (protocol == 'ollama') {
-        message['content'] = data['message']?['content'] ?? '';
-        var index = 0;
-        for (final call in data['message']?['tool_calls'] as List? ?? []) {
-          calls.add({
-            'id': call['id'] ?? 'call_${messages.length}_${++index}',
-            'type': 'function',
-            'function': {
-              'name': call['function']['name'],
-              'arguments': jsonEncode(call['function']['arguments']),
-            },
-          });
-        }
-      } else {
-        final choices = data['choices'] as List? ?? [];
-        if (choices.isEmpty) throw const ApiFailure('Agent 模型没有返回回复');
-        message.addAll(
-          Map<String, dynamic>.from(choices.first['message'] as Map),
-        );
-        calls.addAll(
-          (message.remove('tool_calls') as List? ?? []).map(
-            (c) => Map<String, dynamic>.from(c as Map),
-          ),
-        );
-      }
-      if (calls.isNotEmpty) message['tool_calls'] = calls;
-      return {
-        'id': data['id'] ?? 'chatcmpl-room',
-        'object': 'chat.completion',
-        'created': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        'model': settings.model,
-        'choices': [
-          {
-            'index': 0,
-            'message': message,
-            'finish_reason': calls.isEmpty ? 'stop' : 'tool_calls',
-          },
-        ],
-        'usage': {
-          'prompt_tokens': 0,
-          'completion_tokens': 0,
-          'total_tokens': 0,
-        },
-      };
-    } catch (error) {
-      if (error is ApiFailure) lastFailure = error;
-      rethrow;
-    } finally {
-      client.close();
-      _active.remove(client);
+      _states[call.id] = value;
     }
-  }
-
-  Future<void> handle(HttpRequest request, Map<String, dynamic> input) async {
-    if (input['stream'] == true &&
-        roomProtocol(roomChatEndpoint(settings.llmUrl)) == 'openai') {
-      return _forwardOpenAiStream(request, input);
-    }
-    onProgress?.call(AgentEvent('modelProgress', '正在连接模型'));
-    final data = await complete(input);
-    onProgress?.call(
-      AgentEvent('modelProgress', '模型已返回回复', data: {'activity': true}),
+    modelBound(
+      _states.values.toSet().map((c) => c.continuation).toList(),
+      agentMaxModelBytes,
     );
-    if (input['stream'] != true) {
-      request.response.headers.contentType = ContentType.json;
-      request.response.write(jsonEncode(data));
-    } else {
-      request.response.headers.set(
-        'Content-Type',
-        'text/event-stream; charset=utf-8',
-      );
-      final choice = (data['choices'] as List).first as Map;
-      final message = choice['message'] as Map;
-      final chunks = [
-        {
-          'role': 'assistant',
-          'content': message['content'] ?? '',
-          if (message['tool_calls'] is List)
-            'tool_calls': [
-              for (var i = 0; i < (message['tool_calls'] as List).length; i++)
-                {
-                  'index': i,
-                  ...Map<String, dynamic>.from(message['tool_calls'][i] as Map),
-                },
-            ],
-        },
-      ];
-      for (final delta in chunks) {
-        request.response.write(
-          'data: ${jsonEncode({
-            'id': data['id'],
-            'object': 'chat.completion.chunk',
-            'created': data['created'],
-            'model': data['model'],
-            'choices': [
-              {'index': 0, 'delta': delta, 'finish_reason': null},
-            ],
-          })}\n\n',
-        );
-      }
-      request.response.write(
-        'data: ${jsonEncode({
-          'id': data['id'],
-          'object': 'chat.completion.chunk',
-          'created': data['created'],
-          'model': data['model'],
-          'choices': [
-            {'index': 0, 'delta': {}, 'finish_reason': choice['finish_reason']},
-          ],
-        })}\n\ndata: [DONE]\n\n',
-      );
-    }
-    await request.response.close();
   }
 
-  Future<void> _forwardOpenAiStream(
-    HttpRequest incoming,
-    Map<String, dynamic> input,
-  ) async {
-    final endpoint = roomChatEndpoint(settings.llmUrl), client = _factory();
+  Map<String, dynamic> _completion(ModelCompletion value) => {
+    'id': 'chatcmpl-room-${++_sequence}',
+    'object': 'chat.completion',
+    'created': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    'model': settings.model,
+    'choices': [
+      {
+        'index': 0,
+        'message': {
+          'role': 'assistant',
+          'content': value.reply,
+          if (value.calls.isNotEmpty)
+            'tool_calls': value.calls.map((c) => c.openAi).toList(),
+        },
+        'finish_reason': value.calls.isEmpty ? 'stop' : 'tool_calls',
+      },
+    ],
+    'usage': {
+      'prompt_tokens':
+          value.usage['prompt_tokens'] ?? value.usage['input_tokens'] ?? 0,
+      'completion_tokens':
+          value.usage['completion_tokens'] ?? value.usage['output_tokens'] ?? 0,
+      'total_tokens':
+          value.usage['total_tokens'] ??
+          ((value.usage['prompt_tokens'] ?? value.usage['input_tokens'] ?? 0)
+                  as num) +
+              ((value.usage['completion_tokens'] ??
+                      value.usage['output_tokens'] ??
+                      0)
+                  as num),
+    },
+  };
+
+  Future<ModelCompletion> _run(
+    Map<String, dynamic> input, {
+    required bool stream,
+    Future<void> Function(ModelWireEvent)? onEvent,
+  }) async {
+    final endpoint = roomChatEndpoint(settings.llmUrl),
+        protocol = roomProtocol(endpoint);
+    final client = _factory(), epoch = _epoch;
     _active.add(client);
-    var opened = false;
     var expired = false;
-    final deadline = Timer(const Duration(seconds: 180), () {
+    final deadline = Timer(totalTimeout, () {
       expired = true;
       client.close();
     });
-    String phase = '';
-    void progress(Map delta) {
-      final next =
-          (delta['content'] is String &&
-              (delta['content'] as String).isNotEmpty)
-          ? 'answer'
-          : (delta['reasoning_content'] as String? ?? '').isNotEmpty
-          ? 'reasoning'
-          : (delta['tool_calls'] as List? ?? []).isNotEmpty
-          ? 'tools'
-          : '';
-      if (next.isEmpty) return;
-      onProgress?.call(
-        AgentEvent(
-          'modelProgress',
-          switch (next) {
-            'reasoning' => '模型正在整理任务',
-            'tools' => '正在准备工具操作',
-            _ => '正在生成回复',
-          },
-          data: {'activity': true, 'phase': next, 'transition': next != phase},
-        ),
-      );
-      phase = next;
-    }
-
-    Future<void> write(Map<String, dynamic> chunk) async {
-      if (!opened) {
-        incoming.response.headers.set(
-          'Content-Type',
-          'text/event-stream; charset=utf-8',
-        );
-        incoming.response.headers.set('Cache-Control', 'no-cache');
-        incoming.response.bufferOutput = false;
-        opened = true;
-      }
-      incoming.response.write('data: ${jsonEncode(chunk)}\n\n');
-      await incoming.response.flush();
+    void check() {
+      if (epoch != _epoch) throw const ApiFailure('Agent 已停止');
+      if (expired) throw const ApiFailure('Agent 模型响应超时', status: 504);
     }
 
     Future<List<int>> read(http.StreamedResponse response) async {
       final bytes = <int>[];
-      await for (final chunk in response.stream.timeout(
-        const Duration(seconds: 45),
-      )) {
+      await for (final chunk in response.stream.timeout(idleTimeout)) {
+        check();
         bytes.addAll(chunk);
         if (bytes.length > agentMaxJsonBytes) {
           throw const ApiFailure('Agent 模型返回内容过大');
         }
       }
+      check();
       return bytes;
     }
 
     try {
       onProgress?.call(AgentEvent('modelProgress', '正在连接模型'));
-      Future<http.StreamedResponse> send(Map<String, dynamic> body) => client
+      final body = _requestBody(input, stream: stream);
+      Future<http.StreamedResponse> send() => client
           .send(
             http.Request('POST', endpoint)
               ..followRedirects = false
@@ -440,144 +389,182 @@ class AgentProviderBridge {
               ..body = jsonEncode(body),
           )
           .timeout(const Duration(seconds: 30));
-      final body = _requestBody(input, stream: true);
-      var response = await send(body);
+      var response = await send();
       if (response.statusCode != 200) {
         final reason = utf8
             .decode(await read(response), allowMalformed: true)
             .toLowerCase();
-        if ([400, 422].contains(response.statusCode) &&
+        if (stream &&
+            [400, 422].contains(response.statusCode) &&
             RegExp(r'stream').hasMatch(reason) &&
-            RegExp(r'unsupported|not support|not allowed|must be false')
+            RegExp(
+              r'unsupported|not support|not allowed|must be false|does not support',
+            ).hasMatch(reason)) {
+          body['stream'] = false;
+          response = await send();
+        } else if ([400, 422].contains(response.statusCode) &&
+            RegExp(r'tool|function').hasMatch(reason) &&
+            RegExp(r'unsupported|not support|not allowed|unknown|unexpected')
                 .hasMatch(reason)) {
-          final nonStreaming = {...body, 'stream': false}
-            ..remove('stream_options');
-          response = await send(nonStreaming);
+          throw ApiFailure(
+            'tools unsupported: 请使用结构化兼容模式',
+            status: response.statusCode,
+          );
         } else {
-          if ([400, 422].contains(response.statusCode) &&
-              RegExp(r'tool|function').hasMatch(reason) &&
-              RegExp(r'unsupported|not support|not allowed|unknown|unexpected')
-                  .hasMatch(reason)) {
-            throw ApiFailure(
-              'tools unsupported: 请使用结构化兼容模式',
-              status: response.statusCode,
-            );
-          }
           throw providerFailure('Agent 模型', response.statusCode);
         }
       }
       if (response.statusCode != 200) {
         throw providerFailure('Agent 模型', response.statusCode);
       }
-      if (!(response.headers['content-type'] ?? '').contains(
-        'text/event-stream',
-      )) {
-        final value = jsonDecode(utf8.decode(await read(response))) as Map;
-        if (value['error'] != null) throw const ApiFailure('Agent 模型服务返回错误');
-        final choice = (value['choices'] as List).first as Map;
-        final message = choice['message'] as Map;
-        progress(message);
-        final calls = message['tool_calls'] as List? ?? [];
-        await write({
-          'id': value['id'] ?? 'chatcmpl-room',
-          'object': 'chat.completion.chunk',
-          'model': settings.model,
-          'created': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          'choices': [
-            {
-              'index': 0,
-              'delta': {
-                ...message,
-                if (calls.isNotEmpty)
-                  'tool_calls': [
-                    for (var i = 0; i < calls.length; i++)
-                      {
-                        'index': i,
-                        ...Map<String, dynamic>.from(calls[i] as Map),
-                      },
-                  ],
-              },
-              'finish_reason': null,
-            },
-          ],
-        });
-        await write({
-          'id': value['id'] ?? 'chatcmpl-room',
-          'object': 'chat.completion.chunk',
-          'model': settings.model,
-          'choices': [
-            {
-              'index': 0,
-              'delta': {},
-              'finish_reason':
-                  choice['finish_reason'] ??
-                  (calls.isEmpty ? 'stop' : 'tool_calls'),
-            },
-          ],
-        });
-      } else {
-        var size = 0, payloadBytes = 0, finished = false;
-        final bytes = response.stream.timeout(const Duration(seconds: 45)).map((
-          chunk,
-        ) {
-          size += chunk.length;
-          if (size > agentMaxStreamBytes) {
-            throw const ApiFailure('Agent 模型流量超过安全上限');
-          }
-          return chunk;
-        });
-        await for (final chunk in decodeAgentSse(bytes)) {
-          if (chunk['agentStreamDone'] == true) break;
-          if (chunk['error'] != null) throw const ApiFailure('Agent 模型流式回复失败');
-          for (final raw in chunk['choices'] as List? ?? []) {
-            final choice = raw as Map;
-            if (choice['index'] != null && choice['index'] != 0) continue;
-            final delta = choice['delta'] as Map? ?? {};
-            for (final text in [
-              delta['content'],
-              delta['reasoning_content'],
-              for (final call in delta['tool_calls'] as List? ?? [])
-                call['function']?['arguments'],
-            ]) {
-              if (text is String) payloadBytes += utf8.encode(text).length;
-            }
-            if (payloadBytes > agentMaxModelBytes) {
-              throw const ApiFailure('Agent 模型正文超过 8 MiB');
-            }
-            progress(delta);
-            final finish = choice['finish_reason'];
-            if (finish != null) {
-              if (!['stop', 'tool_calls', 'function_call'].contains(finish)) {
-                throw const ApiFailure('Agent 模型回复未完整结束');
-              }
-              finished = true;
-            }
-          }
-          await write(chunk);
+      final contentType = response.headers['content-type'] ?? '';
+      ModelCompletion? value;
+      if (contentType.contains('application/json') ||
+          !stream ||
+          body['stream'] == false) {
+        value = ModelCompletion.json(
+          jsonDecode(utf8.decode(await read(response))) as Map,
+          protocol,
+          limits: limits,
+          allowTools: true,
+          callPrefix: 'ollama_${++_sequence}',
+        );
+        if (value.reply.isNotEmpty) {
+          await onEvent?.call(ModelWireEvent('text', text: value.reply));
         }
-        if (!finished) throw const ApiFailure('Agent 模型连接中断，回复未完成');
+      } else {
+        await for (final event in decodeModelStream(
+          response.stream.timeout(idleTimeout).map((chunk) {
+            check();
+            return chunk;
+          }),
+          protocol,
+          limits: limits,
+          allowTools: true,
+          callPrefix: 'ollama_${++_sequence}',
+        )) {
+          check();
+          if (event.type == 'complete') {
+            value = event.completion;
+          } else {
+            final phase = event.type == 'text' ? 'answer' : event.text;
+            onProgress?.call(
+              AgentEvent(
+                'modelProgress',
+                phase == 'reasoning'
+                    ? '模型正在整理任务'
+                    : phase == 'tools'
+                    ? '正在准备工具操作'
+                    : '正在生成回复',
+                data: {'activity': true, 'phase': phase},
+              ),
+            );
+            await onEvent?.call(event);
+          }
+        }
       }
-      incoming.response.write('data: [DONE]\n\n');
-      await incoming.response.flush();
+      check();
+      if (value == null) throw const ModelIncompleteFailure('Agent 模型没有完整返回结果');
+      _remember(value);
+      return value;
     } catch (error) {
       final failure = error is ApiFailure
           ? error
           : expired || error is TimeoutException
           ? const ApiFailure('Agent 模型响应超时', status: 504)
-          : const ApiFailure('Agent 模型连接或流式协议异常', status: 502);
+          : const ApiFailure('Agent 模型连接或协议异常', status: 502);
       lastFailure = failure;
-      if (!opened) throw failure;
-      try {
-        await write({
-          'error': {'message': failure.message},
-        });
-      } catch (_) {
-        // Cancellation closes the streaming connection before this error reply.
-      }
+      throw failure;
     } finally {
       deadline.cancel();
       client.close();
       _active.remove(client);
+    }
+  }
+
+  Future<Map<String, dynamic>> complete(Map<String, dynamic> input) async =>
+      _completion(await _run(input, stream: false));
+
+  Future<void> handle(HttpRequest request, Map<String, dynamic> input) async {
+    if (input['stream'] != true) {
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode(await complete(input)));
+      await request.response.close();
+      return;
+    }
+    var opened = false;
+    final id = 'chatcmpl-room-${++_sequence}';
+    Future<void> write(Map<String, dynamic> chunk) async {
+      if (!opened) {
+        request.response.headers.set(
+          'Content-Type',
+          'text/event-stream; charset=utf-8',
+        );
+        request.response.headers.set('Cache-Control', 'no-cache');
+        request.response.bufferOutput = false;
+        opened = true;
+      }
+      request.response.write(
+        'data: ${jsonEncode({'id': id, 'object': 'chat.completion.chunk', 'model': settings.model, ...chunk})}\n\n',
+      );
+      await request.response.flush();
+    }
+
+    try {
+      final value = await _run(
+        input,
+        stream: true,
+        onEvent: (event) async {
+          if (event.type == 'text') {
+            await write({
+              'choices': [
+                {
+                  'index': 0,
+                  'delta': {'content': event.text},
+                  'finish_reason': null,
+                },
+              ],
+            });
+          }
+        },
+      );
+      if (value.calls.isNotEmpty) {
+        await write({
+          'choices': [
+            {
+              'index': 0,
+              'delta': {
+                'tool_calls': [
+                  for (var i = 0; i < value.calls.length; i++)
+                    {'index': i, ...value.calls[i].openAi},
+                ],
+              },
+              'finish_reason': null,
+            },
+          ],
+        });
+      }
+      await write({
+        'choices': [
+          {
+            'index': 0,
+            'delta': {},
+            'finish_reason': value.calls.isEmpty ? 'stop' : 'tool_calls',
+          },
+        ],
+      });
+      await write({'choices': [], 'usage': _completion(value)['usage']});
+      request.response.write('data: [DONE]\n\n');
+      await request.response.flush();
+    } catch (error) {
+      if (!opened) rethrow;
+      try {
+        await write({
+          'error': {'message': lastFailure?.message ?? 'Agent 模型请求失败'},
+        });
+      } catch (_) {}
+    } finally {
+      if (opened) await request.response.close();
     }
   }
 }

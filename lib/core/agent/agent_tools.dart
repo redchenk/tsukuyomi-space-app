@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math';
 
 import '../models.dart';
+import '../model_protocol.dart';
 import 'agent_types.dart';
 import 'agent_limits.dart';
 
@@ -105,10 +106,12 @@ class ToolGateway {
   int _epoch = 0, _calls = 0;
   Future<void> _queue = Future.value();
   bool _cancelled = false;
+  final _ledger = <String, ({String signature, Future<dynamic> result})>{};
   int get calls => _calls;
   void begin() {
     _cancelled = false;
     _calls = 0;
+    _ledger.clear();
     _epoch++;
   }
 
@@ -122,13 +125,27 @@ class ToolGateway {
     if (_cancelled || epoch != _epoch) throw const ApiFailure('Agent 操作已取消');
   }
 
-  Future<dynamic> call(String name, Map<String, dynamic> arguments) {
+  Future<dynamic> call(
+    String name,
+    Map<String, dynamic> arguments, {
+    String? callId,
+  }) {
     final epoch = _epoch;
-    final result = _queue.then((_) => _execute(name, arguments, epoch));
+    _check(epoch);
+    final signature = jsonEncode([name, modelArgumentKey(arguments)]);
+    final prior = callId == null ? null : _ledger[callId];
+    if (prior != null) {
+      if (prior.signature != signature) throw const ApiFailure('重复工具调用的内容不匹配');
+      return prior.result;
+    }
+    final result = _queue.then((_) => _execute(name, arguments, epoch, callId));
     _queue = result.then<void>(
       (_) {},
       onError: (Object error, StackTrace stack) {},
     );
+    if (callId != null) {
+      _ledger[callId] = (signature: signature, result: result);
+    }
     return result;
   }
 
@@ -136,6 +153,7 @@ class ToolGateway {
     String name,
     Map<String, dynamic> arguments,
     int epoch,
+    String? callId,
   ) async {
     _check(epoch);
     final tool = tools[name];
@@ -159,7 +177,7 @@ class ToolGateway {
         'toolStart',
         name,
         id: id,
-        data: {'arguments': arguments, 'state': 'running'},
+        data: {'arguments': arguments, 'state': 'running', 'callId': ?callId},
       ),
     );
     try {

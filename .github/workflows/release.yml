@@ -98,7 +98,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: redchenk/tsukuyomi-space
-          ref: 6487ceb5c0c7729f522c546467a84d5734bd70b6
+          ref: 87fbe74b28edcd3e2bda7939caf578fc49b1b6b5
           path: build/site-fixture-source
       - uses: actions/setup-node@v4
         with:
@@ -264,7 +264,7 @@ jobs:
             windows) RUNTIME=build/windows/x64/runner/Release/agent ;;
             linux) RUNTIME=build/linux/x64/release/bundle/agent ;;
           esac
-          flutter test --no-pub test/desktop_agent_test.dart test/deepseek_agent_runtime_test.dart test/agent_svg_test.dart --dart-define=RUN_AGENT_TESTS=true --dart-define=AGENT_BUNDLE_PATH="$RUNTIME"
+          flutter test --no-pub test/desktop_agent_test.dart test/deepseek_agent_runtime_test.dart test/agent_svg_test.dart test/model_agent_protocol_test.dart test/mcp_protocol_test.dart --dart-define=RUN_AGENT_TESTS=true --dart-define=AGENT_BUNDLE_PATH="$RUNTIME"
       - uses: actions/upload-artifact@v4
         with:
           name: installers-${{ matrix.target }}

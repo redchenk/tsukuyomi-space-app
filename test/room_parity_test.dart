@@ -146,7 +146,15 @@ void main() {
         clientFactory: () => MockClient((req) async {
           requests.add(req);
           return http.Response(
-            '{"jsonrpc":"2.0","result":{"content":[{"type":"text","text":"result"}]}}',
+            jsonEncode({
+              'jsonrpc': '2.0',
+              'id': jsonDecode(req.body)['id'],
+              'result': {
+                'content': [
+                  {'type': 'text', 'text': 'result'},
+                ],
+              },
+            }),
             200,
           );
         }),

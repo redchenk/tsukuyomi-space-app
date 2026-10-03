@@ -141,7 +141,7 @@ void main() {
   });
 
   test(
-    'native bridge forwards real SSE deltas and reasoning before upstream completion',
+    'native bridge streams visible text and private activity before upstream completion',
     () => HttpOverrides.runWithHttpOverrides(() async {
       final root = await Directory.systemTemp.createTemp('agent-stream-');
       final release = Completer<void>(), requestSeen = Completer<void>();
@@ -234,7 +234,8 @@ void main() {
       final chunks = <Map<String, dynamic>>[];
       final subscription = decodeAgentSse(response.stream).listen((chunk) {
         chunks.add(chunk);
-        if (chunk['choices']?[0]?['delta']?['content'] == '开始检查' &&
+        if ((chunk['choices'] as List? ?? []).isNotEmpty &&
+            chunk['choices'][0]['delta']?['content'] == '开始检查' &&
             !firstText.isCompleted) {
           firstText.complete();
         }
@@ -249,6 +250,7 @@ void main() {
       release.complete();
       await subscription.asFuture<void>();
       expect(chunks.last['agentStreamDone'], true);
+      expect(jsonEncode(chunks), isNot(contains('private provider state')));
     }, _RealHttpOverrides()),
   );
 

@@ -64,27 +64,23 @@ class AgentBridge {
       final params = Map<String, dynamic>.from(body['params'] as Map? ?? {});
       final dynamic result = switch (body['method']) {
         'initialize' => {
-          'protocolVersion': '2024-11-05',
+          'protocolVersion':
+              [
+                '2025-11-25',
+                '2025-06-18',
+                '2025-03-26',
+                '2024-11-05',
+              ].contains(params['protocolVersion'])
+              ? params['protocolVersion']
+              : '2025-11-25',
           'capabilities': {'tools': {}},
-          'serverInfo': {'name': 'tsukuyomi', 'version': '0.6.5'},
+          'serverInfo': {'name': 'tsukuyomi', 'version': '0.6.7'},
         },
         'ping' => {},
         'tools/list' => {
           'tools': gateway.tools.values.map((t) => t.toJson()).toList(),
         },
-        'tools/call' => {
-          'content': [
-            {
-              'type': 'text',
-              'text': jsonEncode(
-                await gateway.call(
-                  params['name'] as String,
-                  Map<String, dynamic>.from(params['arguments'] as Map? ?? {}),
-                ),
-              ),
-            },
-          ],
-        },
+        'tools/call' => await _toolResult(params, id),
         _ => throw const FormatException('Unknown MCP method'),
       };
       request.response.headers.contentType = ContentType.json;
@@ -135,6 +131,29 @@ class AgentBridge {
         // The caller has disconnected and cannot receive a response.
       }
     }
+  }
+
+  Future<Map<String, dynamic>> _toolResult(
+    Map<String, dynamic> params,
+    dynamic id,
+  ) async {
+    final result = await gateway.call(
+      params['name'] as String,
+      Map<String, dynamic>.from(params['arguments'] as Map? ?? {}),
+      callId: 'mcp:$id',
+    );
+    final failed =
+        result is Map &&
+        (result['error'] != null ||
+            result['declined'] == true ||
+            result['isError'] == true ||
+            result['exitCode'] is int && result['exitCode'] != 0);
+    return {
+      'content': [
+        {'type': 'text', 'text': jsonEncode(result)},
+      ],
+      if (failed) 'isError': true,
+    };
   }
 
   Future<void> dispose() async {

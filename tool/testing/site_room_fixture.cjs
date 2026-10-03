@@ -4,6 +4,7 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const root = path.resolve(process.argv[2] || '../tsukuyomi-space');
 process.env.PORT = process.env.PORT || '4184';
+require('./model_protocol_fixture.cjs');
 require(path.join(root, 'tests/e2e-server.cjs'));
 const storage = require(path.join(root, 'backend/services/object-storage.js'));
 const objects = new Map();

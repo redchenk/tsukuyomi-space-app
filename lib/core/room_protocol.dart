@@ -1,6 +1,5 @@
-import 'dart:convert';
-
 import 'models.dart';
+import 'model_protocol.dart';
 
 Uri roomChatEndpoint(String value) {
   var uri = endpointUri(value);
@@ -10,6 +9,14 @@ Uri roomChatEndpoint(String value) {
       path.endsWith('/api/chat') ||
       path.endsWith('/chat/completions')) {
     return uri.replace(path: path);
+  }
+  if (uri.host == 'api.anthropic.com') {
+    return uri.replace(
+      path: path.endsWith('/v1') ? '$path/messages' : '$path/v1/messages',
+    );
+  }
+  if (path.endsWith('/anthropic')) {
+    return uri.replace(path: '$path/v1/messages');
   }
   if (uri.port == 11434 && (path.isEmpty || path == '/api')) {
     return uri.replace(path: '/api/chat');
@@ -27,7 +34,7 @@ String roomProtocol(Uri uri) => uri.path.endsWith('/responses')
 Map<String, String> roomChatHeaders(RoomSettings s, Uri uri) => {
   'Content-Type': 'application/json',
   'Accept': 'text/event-stream',
-  if (uri.host == 'api.anthropic.com') ...{
+  if (roomProtocol(uri) == 'anthropic') ...{
     'anthropic-version': '2023-06-01',
     if (s.apiKey.isNotEmpty) 'x-api-key': s.apiKey,
   } else if (s.apiKey.isNotEmpty)
@@ -55,6 +62,7 @@ Map<String, dynamic> roomChatBody(
     return {
       'model': s.model,
       'instructions': system,
+      'store': false,
       'input': [
         ...history,
         {
@@ -199,88 +207,11 @@ Stream<String> decodeRoomStream(
   int maxChars = 200000,
   int maxEventChars = 1024 * 1024,
 }) async* {
-  final lines = bytes.transform(utf8.decoder).transform(const LineSplitter());
-  var completed = false, event = 'message', received = '', size = 0;
-  final data = <String>[];
-  String consume(String raw) {
-    if (raw == '[DONE]') {
-      completed = true;
-      return '';
-    }
-    if (raw.trim().isEmpty) return '';
-    final p = jsonDecode(raw) as Map;
-    validateCompletion(p);
-    if (event == 'error') throw const ApiFailure('模型流式请求失败');
-    String delta = '', finalText = '';
-    switch (protocol) {
-      case 'ollama':
-        delta = p['message']?['content'] ?? p['response'] ?? '';
-        completed = p['done'] == true;
-      case 'anthropic':
-        if (p['type'] == 'content_block_delta' &&
-            p['delta']?['type'] == 'text_delta') {
-          delta = p['delta']['text'] ?? '';
-        }
-        if (p['type'] == 'message_stop') completed = true;
-      case 'responses':
-        if (p['type'] == 'response.output_text.delta') delta = p['delta'] ?? '';
-        if (p['type'] == 'response.completed') {
-          validateCompletion(p['response'] as Map? ?? {});
-          completed = true;
-          finalText = payloadText(p['response']);
-        }
-      case 'proxy':
-        if (event == 'delta') delta = p['text'] ?? '';
-        if (event == 'done') {
-          completed = true;
-          finalText = p['reply'] ?? '';
-        }
-      default:
-        for (final c in p['choices'] as List? ?? []) {
-          if (c['index'] != null && c['index'] != 0) continue;
-          final value = c['delta']?['content'];
-          if (value is String) delta += value;
-          if (value is List) {
-            delta += value
-                .where((v) => v['type'] == 'text')
-                .map((v) => v['text'] ?? '')
-                .join();
-          }
-          if (c['finish_reason'] == 'stop') completed = true;
-        }
-    }
-    if (finalText.isNotEmpty && received.isEmpty) delta = finalText;
-    received += delta;
-    if (received.length > maxChars) throw const ApiFailure('回复过长，请缩短请求');
-    return delta;
+  await for (final event in decodeModelStream(
+    bytes,
+    protocol,
+    limits: ModelLimits(textBytes: maxChars * 4, eventBytes: maxEventChars),
+  )) {
+    if (event.type == 'text') yield event.text;
   }
-
-  await for (final line in lines) {
-    if (protocol == 'ollama') {
-      if (line.length > maxEventChars) throw const ApiFailure('模型事件过大');
-      final delta = consume(line);
-      if (delta.isNotEmpty) yield delta;
-    } else if (line.isEmpty) {
-      if (data.isNotEmpty) {
-        final delta = consume(data.join('\n'));
-        data.clear();
-        size = 0;
-        if (delta.isNotEmpty) yield delta;
-      }
-      event = 'message';
-    } else if (line.startsWith('data:')) {
-      final v = line.substring(5).trimLeft();
-      size += v.length;
-      if (size > maxEventChars) throw const ApiFailure('模型事件过大');
-      data.add(v);
-    } else if (line.startsWith('event:')) {
-      event = line.substring(6).trim();
-    }
-    if (completed) return;
-  }
-  if (data.isNotEmpty) {
-    final delta = consume(data.join('\n'));
-    if (delta.isNotEmpty) yield delta;
-  }
-  if (!completed) throw const ModelIncompleteFailure('连接中断，未完成的回复没有保存');
 }

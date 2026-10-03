@@ -1,0 +1,47 @@
+{
+  "version": "0.6.7+13",
+  "tag": "v0.6.7-beta.1",
+  "validated_at": "2026-10-03T07:51:05.976722+00:00",
+  "website_ref": "87fbe74b28edcd3e2bda7939caf578fc49b1b6b5",
+  "astrbot_design_ref": "a6265fa6c9471d499574c119edeba54a125db314",
+  "local_regression": {
+    "passed": 666,
+    "skipped": 0,
+    "layout_scenarios": 840,
+    "new_cases": {
+      "model_agent": 31,
+      "mcp": 27,
+      "settings": 6,
+      "website_proxy": 3
+    }
+  },
+  "tools": {
+    "release": 37,
+    "agent": 3
+  },
+  "analysis": "No issues found",
+  "command": "RUN_SITE_FIXTURE=1 flutter test --no-pub --concurrency=1 --dart-define=RUN_CUBISM_TESTS=true --dart-define=RUN_WEBSITE_INTEGRATION=true --dart-define=RUN_AGENT_TESTS=true --dart-define=CAPTURE_UI=true",
+  "logs": [
+    {
+      "name": "tsukuyomi-v067-full-delivery.log",
+      "sha256": "7d04c47a485b808909c4012671144f54bcdb7157c3aefb61d5b2301fb5fd20f7"
+    },
+    {
+      "name": "tsukuyomi-v067-analysis-seventh.log",
+      "sha256": "be341c3a57bd89c580d48bbe2636a067ba4240bbc6d10ea201795c3df5ceec3e"
+    },
+    {
+      "name": "tsukuyomi-v067-release-tools.log",
+      "sha256": "5b6acaa48044197b6aba4639cc5037c3415c2987b271d08a5606bef700436417"
+    },
+    {
+      "name": "tsukuyomi-v067-agent-tools.log",
+      "sha256": "edb4e2159c923ea45a32656078835cdf531c3d7b414c670dd786978875cb0678"
+    }
+  ],
+  "limits": [
+    "Model HTTP transports are controlled fixtures, not paid provider acceptance",
+    "iOS signing and all-device GPU/input acceptance are not performed",
+    "Windows without PSEC must refuse commands"
+  ]
+}

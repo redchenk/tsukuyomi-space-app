@@ -1,12 +1,14 @@
 # 月读空间 · Flutter 原生客户端
 
-Tsukuyomi Space 的独立 Flutter 客户端。0.6.6 Room / 桌面 Agent 测试版提供原生 Room、统一认证、内容阅读与创作、社区、游戏和管理页面，直接连接原网站 API。
+Tsukuyomi Space 的独立 Flutter 客户端。0.6.7 Room / 桌面 Agent 测试版提供原生 Room、统一认证、内容阅读与创作、社区、游戏和管理页面，直接连接原网站 API。
 
 整站原生页面包含入口、Hub、Wiki、图库、附件库、编辑器、像素工坊、辉夜跑酷、友链、公开主页、管理后台和 Live2D 工作台，支持跨设备事件、中文／日语／英语、全站搜索及八千代导览。后台只向有效登录的 admin／super_admin 显示和开放；本地、合并与云端记忆来源跟进原站最新逻辑。实现与验收边界见 [整站迁移记录](docs/native-full-site-implementation-2026-09-30.md)。
 
 下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。发布包包括 Android APK、macOS Universal DMG、Windows 安装程序、Linux DEB 和供用户自签的 iOS IPA。
 
 所有平台打开即进入 Room，不播放 Access 动画。默认关闭演示；首次使用在聊天区填写模型地址、名称和 Key，保存后直接真实聊天。已有配置直接可用，本地历史先加载，登录与同步随后执行。升级保留独立演示历史。
+
+0.6.7 跟进网站的 AstrBot 分层设计，统一四类 LLM 的实时输出、私有状态续接、工具结果与 MCP 握手。协议核对和验证见 [原生 LLM / Agent 协议](docs/native-llm-agent-protocol-v0.6.7.md)。
 
 0.6.6 补齐文章 Markdown 预览排版和登录头像，验证记录见 [预览与头像修复](docs/native-preview-avatar-v0.6.6.md)。
 
@@ -76,7 +78,7 @@ flutter run -d macos
 - **API Key**：只在服务需要时填写，不使用 GitHub 令牌。
 - **语音回复**：可选。选择服务预设，填写对应地址、模型、音色和独立密钥，先试听再保存。
 
-聊天支持 OpenAI 兼容 Chat Completions / Responses、Anthropic Messages、Ollama 和网站代理，处理 **SSE、NDJSON 和完整 JSON**。UTF-8 分片、CRLF、结束标记、超时、取消和截断均有测试。设置中的 MCP 可列出工具，并按白名单在发送前调用搜索与图片理解，将结果加入模型上下文。未完成回复不写入历史，保留用户输入供重试。桌面 Enter 发送、Shift + Enter 换行，也支持 ⌘ Enter / Ctrl Enter；⌘ K / Ctrl K 打开本机历史搜索。移动端回车换行，点击按钮发送。
+聊天支持 OpenAI 兼容 Chat Completions / Responses、Anthropic Messages、Ollama 和网站代理，处理 **SSE、NDJSON 和完整 JSON**。UTF-8 分片、CRLF、结束标记、超时、取消和截断均有测试。设置中的 MCP 支持 REST 桥接与 Streamable HTTP 握手。模型可在对话中按白名单调用搜索和当前图片理解，工具结果配对后继续流式回复；原有关键词预读保留兼容。未完成回复不写入历史，保留用户输入供重试。桌面 Enter 发送、Shift + Enter 换行，也支持 ⌘ Enter / Ctrl Enter；⌘ K / Ctrl K 打开本机历史搜索。移动端回车换行，点击按钮发送。
 
 TTS 支持 OpenAI 兼容、MiMo、MiniMax、ElevenLabs、GPT-SoVITS 和网站代理，设置中可独立试听与停止。WAV/MP3 解码后分析真实 PCM 的 20ms RMS 音量包络，并与播放器时间对齐控制口型；仅解码不可用时采用降级包络。真实供应商音色与音素级口型仍需验收。语音失败不撤销已保存的文字对话。
 

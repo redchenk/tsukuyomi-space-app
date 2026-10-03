@@ -135,7 +135,34 @@ void main() {
             expect(messages.last['content'], contains('[较早内容省略]'));
             expect(messages.every((item) => item.length == 2), isTrue);
             return http.Response(
-              jsonEncode({'reply': 'ok'}),
+              jsonEncode(
+                proxy
+                    ? {'reply': 'ok'}
+                    : switch (protocol) {
+                        'responses' => {
+                          'status': 'completed',
+                          'output_text': 'ok',
+                        },
+                        'anthropic' => {
+                          'content': [
+                            {'type': 'text', 'text': 'ok'},
+                          ],
+                          'stop_reason': 'end_turn',
+                        },
+                        'ollama' => {
+                          'message': {'content': 'ok'},
+                          'done': true,
+                        },
+                        _ => {
+                          'choices': [
+                            {
+                              'message': {'content': 'ok'},
+                              'finish_reason': 'stop',
+                            },
+                          ],
+                        },
+                      },
+              ),
               200,
               headers: {'content-type': 'application/json'},
             );
