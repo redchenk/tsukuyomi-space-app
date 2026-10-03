@@ -238,6 +238,55 @@ String wireFixture(String protocol) {
 
 void main() {
   test(
+    'bridge rejects model call ID reuse before exposing another tool execution',
+    () async {
+      final provider = AgentProviderBridge(
+        const RoomSettings(model: 'fixture'),
+        clientFactory: () => MockClient(
+          (req) async => http.Response(
+            jsonEncode(fixture('openai')),
+            200,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          ),
+        ),
+      )..beginTurn();
+      final first = await provider.complete({
+        'messages': [
+          {'role': 'user', 'content': '执行'},
+        ],
+      });
+      final assistant = first['choices'][0]['message'];
+      await expectLater(
+        provider.complete({
+          'messages': [
+            {'role': 'user', 'content': '执行'},
+            assistant,
+            {'role': 'tool', 'tool_call_id': 'read1', 'content': '操作已完成'},
+          ],
+        }),
+        throwsA(
+          isA<ApiFailure>().having(
+            (e) => e.message,
+            'duplicate model ID',
+            contains('重复使用'),
+          ),
+        ),
+      );
+      provider.endTurn();
+      provider.beginTurn();
+      // A separate task can start a fresh call-ID namespace.
+      expect(
+        (await provider.complete({
+          'messages': [
+            {'role': 'user', 'content': '新任务'},
+          ],
+        }))['choices'][0]['message']['tool_calls'],
+        hasLength(1),
+      );
+      provider.cancel();
+    },
+  );
+  test(
     'legacy reply envelopes remain compatible while empty replies still fail',
     () {
       for (final protocol in ['openai', 'responses', 'anthropic', 'ollama']) {

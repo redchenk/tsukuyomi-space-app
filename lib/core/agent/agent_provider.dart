@@ -295,15 +295,10 @@ class AgentProviderBridge {
   void _remember(ModelCompletion value) {
     for (final call in value.calls) {
       final prior = _states[call.id];
-      if (prior != null &&
-          !prior.calls.any(
-            (p) =>
-                p.id == call.id &&
-                p.name == call.name &&
-                modelArgumentKey(p.arguments) ==
-                    modelArgumentKey(call.arguments),
-          )) {
-        throw const ApiFailure('模型重复使用了不同内容的工具调用标识');
+      if (prior != null) {
+        // OpenCode creates a new MCP request ID for a new model call. Reject
+        // reused model IDs here, before another side effect can reach MCP.
+        throw const ApiFailure('模型重复使用工具调用标识，操作已停止');
       }
       _states[call.id] = value;
     }

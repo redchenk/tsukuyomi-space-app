@@ -1,15 +1,15 @@
 {
   "version": "0.6.7+13",
   "tag": "v0.6.7-beta.1",
-  "validated_at": "2026-10-03T07:51:05.976722+00:00",
+  "validated_at": "2026-10-03T08:22:59.316725+00:00",
   "website_ref": "87fbe74b28edcd3e2bda7939caf578fc49b1b6b5",
   "astrbot_design_ref": "a6265fa6c9471d499574c119edeba54a125db314",
   "local_regression": {
-    "passed": 666,
+    "passed": 667,
     "skipped": 0,
     "layout_scenarios": 840,
     "new_cases": {
-      "model_agent": 31,
+      "model_agent": 32,
       "mcp": 27,
       "settings": 6,
       "website_proxy": 3
@@ -23,20 +23,24 @@
   "command": "RUN_SITE_FIXTURE=1 flutter test --no-pub --concurrency=1 --dart-define=RUN_CUBISM_TESTS=true --dart-define=RUN_WEBSITE_INTEGRATION=true --dart-define=RUN_AGENT_TESTS=true --dart-define=CAPTURE_UI=true",
   "logs": [
     {
-      "name": "tsukuyomi-v067-full-delivery.log",
-      "sha256": "7d04c47a485b808909c4012671144f54bcdb7157c3aefb61d5b2301fb5fd20f7"
+      "name": "tsukuyomi-v067-full-ledger-final.log",
+      "sha256": "b80316aae78b867774933e035d10b699505e34a3c3dd5c931c7a4608f69ad836"
     },
     {
-      "name": "tsukuyomi-v067-analysis-seventh.log",
-      "sha256": "be341c3a57bd89c580d48bbe2636a067ba4240bbc6d10ea201795c3df5ceec3e"
+      "name": "tsukuyomi-v067-analysis-ledger-final.log",
+      "sha256": "2751dd430f76d377fee5c771dcf7e076da090a7ac0f6f6aefa6c25f8eeac79f4"
     },
     {
-      "name": "tsukuyomi-v067-release-tools.log",
-      "sha256": "5b6acaa48044197b6aba4639cc5037c3415c2987b271d08a5606bef700436417"
+      "name": "tsukuyomi-v067-release-tools-final.log",
+      "sha256": "5489c31dea69e760d5ff5a0f2148fe4e791c4a1b2fadf39d8a5ec6093d0fc5b6"
     },
     {
       "name": "tsukuyomi-v067-agent-tools.log",
       "sha256": "edb4e2159c923ea45a32656078835cdf531c3d7b414c670dd786978875cb0678"
+    },
+    {
+      "name": "tsukuyomi-v067-native-ledger-final.log",
+      "sha256": "511ff2bbb888610f5f4949d3052d6336490f88b6abcf208042512333fb278935"
     }
   ],
   "limits": [
@@ -52,5 +56,10 @@
     "windows_fixture_hold_after_text_seconds": 11,
     "desktop_ci_concurrency": 1,
     "sha256": "4e3021b0a64b7b36bf6821331e93843f1a63f4bd7570e385d6c6ccdf273dbf26"
+  },
+  "native_runtime_regression": {
+    "passed": 109,
+    "skipped": 0,
+    "command": "flutter test --no-pub --concurrency=1 test/desktop_agent_test.dart test/deepseek_agent_runtime_test.dart test/agent_svg_test.dart test/model_agent_protocol_test.dart test/mcp_protocol_test.dart --dart-define=RUN_AGENT_TESTS=true"
   }
 }
