@@ -43,5 +43,14 @@
     "Model HTTP transports are controlled fixtures, not paid provider acceptance",
     "iOS signing and all-device GPU/input acceptance are not performed",
     "Windows without PSEC must refuse commands"
-  ]
+  ],
+  "ci_timing_regression": {
+    "passed": 3,
+    "skipped": 0,
+    "command": "flutter test --no-pub test/deepseek_agent_runtime_test.dart --concurrency=1 --dart-define=RUN_AGENT_TESTS=true",
+    "windows_fixture_first_activity_seconds": 10,
+    "windows_fixture_hold_after_text_seconds": 11,
+    "desktop_ci_concurrency": 1,
+    "sha256": "4e3021b0a64b7b36bf6821331e93843f1a63f4bd7570e385d6c6ccdf273dbf26"
+  }
 }

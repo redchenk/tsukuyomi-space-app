@@ -124,7 +124,9 @@ void main() {
       final agent = DesktopAgentController(
         room,
         runtimeDataDirectory: '${root.path}/runtime',
-        nativeResponseTimeout: const Duration(seconds: 2),
+        // Windows CI needs time for the native SDK and MCP discovery. Still
+        // hold the response past this budget to verify that text cancels it.
+        nativeResponseTimeout: Duration(seconds: Platform.isWindows ? 10 : 2),
       );
       final workspace = await Directory('${root.path}/workspace').create();
       addTearDown(() async {
@@ -147,10 +149,12 @@ void main() {
       });
       const task = '保存文件，并说明结果';
       final result = agent.send(task);
-      await firstText.future.timeout(const Duration(seconds: 15));
+      await firstText.future.timeout(const Duration(seconds: 30));
       expect(finishFirst.isCompleted, false);
       expect(await File('${workspace.path}/pelican.svg').exists(), false);
-      await Future<void>.delayed(const Duration(seconds: 3));
+      await Future<void>.delayed(
+        Duration(seconds: Platform.isWindows ? 11 : 3),
+      );
       expect(agent.status, 'OpenCode');
       expect(nativeRequests, 1);
       finishFirst.complete();

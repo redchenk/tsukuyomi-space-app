@@ -53,4 +53,4 @@ jobs:
       - run: flutter pub get
       - run: python tool/agent/prepare_runtime.py --target '${{ matrix.target }}'
       - name: Exercise fixed runtime, permissions and recovery
-        run: flutter test --no-pub test/desktop_agent_test.dart test/deepseek_agent_runtime_test.dart test/agent_svg_test.dart test/model_agent_protocol_test.dart test/mcp_protocol_test.dart --dart-define=RUN_AGENT_TESTS=true --dart-define=AGENT_BUNDLE_PATH=build/agent-runtime
+        run: flutter test --no-pub --concurrency=1 test/desktop_agent_test.dart test/deepseek_agent_runtime_test.dart test/agent_svg_test.dart test/model_agent_protocol_test.dart test/mcp_protocol_test.dart --dart-define=RUN_AGENT_TESTS=true --dart-define=AGENT_BUNDLE_PATH=build/agent-runtime
