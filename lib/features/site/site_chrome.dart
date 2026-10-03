@@ -198,6 +198,9 @@ class SiteChromeController extends ChangeNotifier with WidgetsBindingObserver {
   /// Failures leave the marker untouched. A later navigation, identity change or
   /// visible resume retries; no periodic background visit writes are scheduled.
   Future<Map<String, dynamic>?> recordDailyView() {
+    if (Uri.tryParse(_viewPath)?.path == '/fushi/astrbot/callback') {
+      return Future.value(null);
+    }
     if (_disposed || !_visible || room.loading || room.busy || api == null) {
       return Future.value(null);
     }
@@ -236,7 +239,9 @@ class SiteChromeController extends ChangeNotifier with WidgetsBindingObserver {
         return null;
       }
       final result = await api!.request(current, 'POST', '/api/stats/view', {
-        'path': path.isEmpty ? '/' : path,
+        'path': Uri.tryParse(path)?.path.isNotEmpty == true
+            ? Uri.parse(path).path
+            : '/',
       });
       if (result['success'] != true || !_currentView(current, marker)) {
         return null;

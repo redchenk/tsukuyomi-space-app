@@ -110,6 +110,124 @@ Future<void> mount(
 }
 
 void main() {
+  testWidgets('Room workspace notifications keep Hub preview widgets stable', (
+    tester,
+  ) async {
+    final site = HubSite(
+      (method, path, body) async =>
+          path == '/api/settings' ? publicSettings : preview(),
+    );
+    final c = await controller(site);
+    addTearDown(c.dispose);
+    await mount(tester, c);
+    final before = tester.widget<HubPixelPreview>(find.byType(HubPixelPreview));
+    final calls = List.of(site.calls);
+    for (var i = 0; i < 30; i++) {
+      c.workspace.changed();
+      await tester.pump();
+    }
+    expect(
+      tester.widget<HubPixelPreview>(find.byType(HubPixelPreview)),
+      same(before),
+    );
+    expect(site.calls, calls);
+    // The same page must still react to real account changes.
+    await c.login('bob', 'test');
+    await tester.pumpAndSettle();
+    expect(
+      site.calls.where((call) => call == 'GET /api/hub-preview').length,
+      2,
+    );
+  });
+
+  testWidgets(
+    'pixel texture retains transparency and refreshes changed artwork',
+    (tester) async {
+      final pixels = [0, 1, -1, 0];
+      final artwork = <String, dynamic>{
+        'id': 9,
+        'width': 2,
+        'height': 2,
+        'background_color': '#112233',
+        'palette': ['#fff', '#aef2ff'],
+        'pixels': pixels,
+      };
+      Future<ui.Image> render(Map<String, dynamic> value) async {
+        await tester.pumpWidget(
+          Directionality(
+            textDirection: TextDirection.ltr,
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: HubPixelPreview(artwork: value),
+            ),
+          ),
+        );
+        final imageFinder = find.descendant(
+          of: find.byType(HubPixelPreview),
+          matching: find.byType(RawImage),
+        );
+        for (var i = 0; i < 50; i++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)),
+          );
+          await tester.pump();
+          final image = tester.widget<RawImage>(imageFinder).image;
+          if (image != null) return image;
+        }
+        throw StateError('Pixel texture did not decode');
+      }
+
+      final first = await render(artwork);
+      final bytes = await tester.runAsync(
+        () => first.toByteData(format: ui.ImageByteFormat.rawRgba),
+      );
+      expect(bytes!.buffer.asUint8List(), [
+        255,
+        255,
+        255,
+        255,
+        174,
+        242,
+        255,
+        255,
+        0,
+        0,
+        0,
+        0,
+        255,
+        255,
+        255,
+        255,
+      ]);
+      final unchanged = await render({...artwork, 'title': '只改变标题'});
+      expect(unchanged, same(first));
+      pixels[0] = 1;
+      final next = await render({...artwork});
+      expect(next, isNot(same(first)));
+      final changed = await tester.runAsync(
+        () => next.toByteData(format: ui.ImageByteFormat.rawRgba),
+      );
+      expect(changed!.buffer.asUint8List().take(4), [174, 242, 255, 255]);
+      expect(
+        tester
+            .widget<ColoredBox>(
+              find.descendant(
+                of: find.byType(HubPixelPreview),
+                matching: find.byType(ColoredBox),
+              ),
+            )
+            .color,
+        const Color(0xff112233),
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   test('pixel preview decodes the website byte plus one format', () {
     final data = HubPixelData.fromMap({
       'width': 2,

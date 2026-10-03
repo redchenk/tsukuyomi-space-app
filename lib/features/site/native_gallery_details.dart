@@ -1,4 +1,14 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+
+import '../../core/room_files.dart';
+import 'gallery_copy.dart';
+import 'native_asset_service.dart';
+import 'site_widgets.dart';
 
 import '../../core/models.dart';
 import '../../core/site_client.dart';
@@ -50,25 +60,43 @@ class NativeGalleryImage extends StatelessWidget {
     this.cookie,
     this.height = 200,
     this.preview = true,
+    this.fit = BoxFit.contain,
   });
   final Map asset;
   final String site;
   final String? cookie;
-  final double height;
+  final double? height;
   final bool preview;
+  final BoxFit fit;
 
   @override
   Widget build(BuildContext context) {
     final urls = galleryImageUrls(asset, site, preview: preview);
-    Widget imageAt(int index) => index >= urls.length
-        ? const Center(child: Icon(Icons.broken_image_outlined))
-        : Image.network(
-            urls[index],
-            headers: galleryMediaHeaders(urls[index], site, cookie),
-            fit: BoxFit.contain,
-            errorBuilder: (_, _, _) => imageAt(index + 1),
-          );
-    return SizedBox(height: height, width: double.infinity, child: imageAt(0));
+    return LayoutBuilder(
+      builder: (context, box) {
+        final width = box.maxWidth.isFinite
+            ? box.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final cacheWidth = (width * MediaQuery.devicePixelRatioOf(context))
+            .ceil()
+            .clamp(1, preview ? 1200 : 2560);
+        Widget imageAt(int index) => index >= urls.length
+            ? const Center(child: Icon(Icons.broken_image_outlined))
+            : Image.network(
+                urls[index],
+                headers: galleryMediaHeaders(urls[index], site, cookie),
+                fit: fit,
+                cacheWidth: cacheWidth,
+                filterQuality: FilterQuality.low,
+                errorBuilder: (_, _, _) => imageAt(index + 1),
+              );
+        return SizedBox(
+          height: height,
+          width: double.infinity,
+          child: imageAt(0),
+        );
+      },
+    );
   }
 }
 
@@ -307,4 +335,438 @@ class NativeUserLevelBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+String galleryImageTitle(Map asset) => nativeAssetName(asset).replaceFirst(
+  RegExp(r'\.(?:png|jpe?g|webp|gif|avif|heic)$', caseSensitive: false),
+  '',
+);
+
+List<String> galleryTags(Map asset) {
+  final metadata = asset['metadata'];
+  final tags = metadata is Map ? metadata['tags'] : null;
+  return tags is List ? tags.whereType<String>().take(12).toList() : const [];
+}
+
+/// Redirects may cross to the public CDN. Recompute cookies for each hop.
+Future<Uint8List> downloadGalleryBytes(
+  Map asset,
+  String site,
+  String? cookie, {
+  http.Client? client,
+  bool Function()? isCurrent,
+}) async {
+  final urls = galleryImageUrls(asset, site, preview: false);
+  if (urls.isEmpty) throw const ApiFailure('图片没有可用的下载地址');
+  final connection = client ?? http.Client();
+  try {
+    var target = Uri.parse(urls.first);
+    for (var hop = 0; hop < 6; hop++) {
+      if (isCurrent?.call() == false) {
+        throw const ApiFailure('账号已切换，请重试', status: 409);
+      }
+      final request = http.Request('GET', target)..followRedirects = false;
+      request.headers.addAll(
+        galleryMediaHeaders('$target', site, cookie) ?? const {},
+      );
+      final response = await connection
+          .send(request)
+          .timeout(const Duration(seconds: 30));
+      if ([301, 302, 303, 307, 308].contains(response.statusCode)) {
+        final location = response.headers['location'];
+        await response.stream.listen(null).cancel();
+        if (location == null) throw const ApiFailure('图片重定向地址无效');
+        target = target.resolve(location);
+        if (!['http', 'https'].contains(target.scheme)) {
+          throw const ApiFailure('图片重定向地址无效');
+        }
+        continue;
+      }
+      if (response.statusCode != 200) {
+        throw ApiFailure('图片下载失败', status: response.statusCode);
+      }
+      if ((response.contentLength ?? 0) > maxAttachmentBytes) {
+        throw const ApiFailure('单个文件不能超过 100 MB');
+      }
+      final bytes = BytesBuilder(copy: false);
+      await for (final part in response.stream.timeout(
+        const Duration(seconds: 30),
+      )) {
+        if (isCurrent?.call() == false) {
+          throw const ApiFailure('账号已切换，请重试', status: 409);
+        }
+        if (bytes.length + part.length > maxAttachmentBytes) {
+          throw const ApiFailure('单个文件不能超过 100 MB');
+        }
+        bytes.add(part);
+      }
+      return bytes.takeBytes();
+    }
+    throw const ApiFailure('图片重定向次数过多');
+  } finally {
+    if (client == null) connection.close();
+  }
+}
+
+class NativeGalleryViewer extends StatefulWidget {
+  const NativeGalleryViewer({
+    super.key,
+    required this.initial,
+    required this.assets,
+    required this.site,
+    required this.cookie,
+    required this.manage,
+    required this.level,
+    required this.onProfile,
+    required this.onCopy,
+    required this.onDelete,
+    required this.canDelete,
+    required this.isCurrent,
+  });
+  final Map<String, dynamic> initial;
+  final List<Map<String, dynamic>> assets;
+  final String site;
+  final String? cookie;
+  final bool manage;
+  final int Function(Map<String, dynamic>) level;
+  final ValueChanged<Map<String, dynamic>> onProfile;
+  final Future<bool> Function(Map<String, dynamic>) onCopy;
+  final Future<void> Function(Map<String, dynamic>) onDelete;
+  final bool Function(Map<String, dynamic>) canDelete;
+  final bool Function() isCurrent;
+  @override
+  State<NativeGalleryViewer> createState() => _NativeGalleryViewerState();
+}
+
+class _NativeGalleryViewerState extends State<NativeGalleryViewer> {
+  late Map<String, dynamic> selected = widget.initial;
+  final closeFocus = FocusNode();
+  http.Client? downloadClient;
+  String status = '';
+  bool downloading = false;
+  int get index =>
+      widget.assets.indexWhere((asset) => asset['id'] == selected['id']);
+  bool get canBrowse => index >= 0 && widget.assets.length > 1;
+  String g(String zh, String en, String ja) => galleryCopy(context, zh, en, ja);
+  @override
+  void dispose() {
+    downloadClient?.close();
+    closeFocus.dispose();
+    super.dispose();
+  }
+
+  void browse(int direction) {
+    if (!canBrowse) return;
+    setState(
+      () =>
+          selected = widget.assets[(index + direction) % widget.assets.length],
+    );
+  }
+
+  Future<void> download() async {
+    if (downloading) return;
+    final asset = selected;
+    final client = http.Client();
+    downloadClient = client;
+    setState(() {
+      downloading = true;
+      status = '';
+    });
+    try {
+      final bytes = await downloadGalleryBytes(
+        asset,
+        widget.site,
+        widget.cookie,
+        client: client,
+        isCurrent: () => mounted && widget.isCurrent(),
+      );
+      if (!mounted || !widget.isCurrent()) return;
+      final saved = await exportRoomFile(
+        context,
+        bytes,
+        nativeAssetName(asset).replaceAll(RegExp(r'[/\\]'), '_'),
+        '${asset['mime_type'] ?? 'image/jpeg'}',
+      );
+      if (mounted && saved) {
+        setState(() => status = g('图片已保存', 'Image saved', '画像を保存しました'));
+      }
+    } catch (e) {
+      if (mounted && widget.isCurrent()) setState(() => status = '$e');
+    } finally {
+      client.close();
+      if (identical(downloadClient, client)) downloadClient = null;
+      if (mounted) setState(() => downloading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = selected, colors = Theme.of(context).colorScheme;
+    final tags = galleryTags(asset), metadata = mapOf(asset['metadata']);
+    final username = '${asset['owner_username'] ?? ''}'.trim();
+    final width = metadata['width'] ?? asset['width'];
+    final height = metadata['height'] ?? asset['height'];
+    final urls = galleryImageUrls(asset, widget.site, preview: false);
+    return Shortcuts(
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.arrowLeft): _GalleryBrowseIntent(-1),
+        SingleActivator(LogicalKeyboardKey.arrowRight): _GalleryBrowseIntent(1),
+        SingleActivator(LogicalKeyboardKey.escape): DismissIntent(),
+      },
+      child: Actions(
+        actions: {
+          _GalleryBrowseIntent: CallbackAction<_GalleryBrowseIntent>(
+            onInvoke: (intent) {
+              browse(intent.direction);
+              return null;
+            },
+          ),
+          DismissIntent: CallbackAction<DismissIntent>(
+            onInvoke: (_) {
+              Navigator.of(context).pop();
+              return null;
+            },
+          ),
+        },
+        child: Dialog(
+          key: const Key('gallery-viewer'),
+          insetPadding: const EdgeInsets.all(12),
+          clipBehavior: Clip.antiAlias,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 1040,
+              maxHeight: MediaQuery.sizeOf(context).height - 24,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            g('图片预览', 'Image preview', '画像プレビュー'),
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        if (canBrowse) ...[
+                          IconButton(
+                            key: const Key('gallery-viewer-previous'),
+                            tooltip: g('上一张图片', 'Previous image', '前の画像'),
+                            onPressed: () => browse(-1),
+                            icon: const Icon(Icons.arrow_back, size: 18),
+                          ),
+                          Text(
+                            '${index + 1} / ${widget.assets.length}',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          IconButton(
+                            key: const Key('gallery-viewer-next'),
+                            tooltip: g('下一张图片', 'Next image', '次の画像'),
+                            onPressed: () => browse(1),
+                            icon: const Icon(Icons.arrow_forward, size: 18),
+                          ),
+                        ],
+                        IconButton(
+                          key: const Key('gallery-viewer-close'),
+                          focusNode: closeFocus,
+                          autofocus: true,
+                          tooltip: g(
+                            '关闭图片预览',
+                            'Close image preview',
+                            'プレビューを閉じる',
+                          ),
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.close, size: 20),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ColoredBox(
+                    color: colors.surfaceContainerLowest,
+                    child: InteractiveViewer(
+                      key: ValueKey(asset['id']),
+                      minScale: 1,
+                      maxScale: 5,
+                      child: NativeGalleryImage(
+                        asset: asset,
+                        site: widget.site,
+                        cookie: widget.cookie,
+                        preview: false,
+                        height:
+                            (MediaQuery.sizeOf(context).height *
+                                    (MediaQuery.sizeOf(context).width < 720
+                                        ? .42
+                                        : .55))
+                                .clamp(120, 580),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          galleryImageTitle(asset),
+                          key: const Key('gallery-viewer-title'),
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            height: 1.5,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            TextButton(
+                              onPressed: username.isEmpty
+                                  ? null
+                                  : () => widget.onProfile(asset),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  NativeGalleryAvatar(
+                                    asset: asset,
+                                    site: widget.site,
+                                    cookie: widget.cookie,
+                                    size: 22,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      username.isEmpty
+                                          ? g(
+                                              '站点归档',
+                                              'Site archive',
+                                              'サイトアーカイブ',
+                                            )
+                                          : galleryUploaderName(asset),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if ('${asset['owner_id'] ?? ''}'
+                                      .isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    NativeUserLevelBadge(
+                                      level: widget.level(asset),
+                                      compact: true,
+                                      showTitle: false,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            Text(
+                              dateText(asset['created_at']),
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            if (width is num &&
+                                height is num &&
+                                width > 0 &&
+                                height > 0)
+                              Text(
+                                '$width × $height',
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                          ],
+                        ),
+                        if (tags.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              for (final tag in tags)
+                                Chip(
+                                  label: Text(
+                                    tag,
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            if (widget.manage)
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  final copied = await widget.onCopy(asset);
+                                  if (mounted && copied) {
+                                    setState(
+                                      () => status = g(
+                                        'Markdown 已复制',
+                                        'Markdown copied',
+                                        'Markdown をコピーしました',
+                                      ),
+                                    );
+                                  }
+                                },
+                                icon: const Icon(Icons.copy, size: 16),
+                                label: const Text('Markdown'),
+                              ),
+                            OutlinedButton.icon(
+                              onPressed: urls.isEmpty
+                                  ? null
+                                  : () => openSiteLink(widget.site, urls.first),
+                              icon: const Icon(Icons.open_in_new, size: 16),
+                              label: Text(
+                                g('打开原图', 'Open original', '元の画像を開く'),
+                              ),
+                            ),
+                            FilledButton.icon(
+                              onPressed: downloading ? null : download,
+                              icon: const Icon(Icons.download, size: 16),
+                              label: Text(
+                                downloading
+                                    ? g('正在下载…', 'Downloading…', 'ダウンロード中…')
+                                    : g('下载', 'Download', 'ダウンロード'),
+                              ),
+                            ),
+                            if (widget.manage && widget.canDelete(asset))
+                              TextButton.icon(
+                                onPressed: () => widget.onDelete(asset),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 16,
+                                ),
+                                label: Text(g('删除', 'Delete', '削除')),
+                              ),
+                          ],
+                        ),
+                        if (status.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Text(status),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GalleryBrowseIntent extends Intent {
+  const _GalleryBrowseIntent(this.direction);
+  final int direction;
 }

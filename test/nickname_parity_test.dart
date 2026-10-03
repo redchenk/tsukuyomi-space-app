@@ -97,6 +97,7 @@ void main() {
         find.byKey(const Key('account-nickname')),
         '🌙 新昵称',
       );
+      await tester.pump();
       await tester.ensureVisible(find.text('保存资料'));
       await tester.tap(find.text('保存资料'));
       await tester.pumpAndSettle();
@@ -107,13 +108,14 @@ void main() {
       expect(room.account!.role, 'user');
       expect(room.scope, scope);
       expect(room.site.cookie, cookie);
-      await tester.ensureVisible(find.text('查看公开主页'));
-      await tester.tap(find.text('查看公开主页'));
+      await tester.ensureVisible(find.text('公开主页'));
+      await tester.tap(find.text('公开主页'));
       expect(targets, ['/users/alice']);
       await tester.enterText(
         find.byKey(const Key('account-nickname')),
         'bad\u202e',
       );
+      await tester.pump();
       await tester.ensureVisible(find.text('保存资料'));
       await tester.tap(find.text('保存资料'));
       await tester.pumpAndSettle();

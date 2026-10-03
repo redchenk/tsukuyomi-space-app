@@ -167,7 +167,7 @@ void main() {
     await mount(tester);
     Navigator.of(tester.element(find.byType(RoomPage))).pushNamed('/plaza');
     await tester.pumpAndSettle();
-    final entry = find.text('友链', findRichText: true);
+    final entry = find.byKey(const Key('plaza-friend-links'));
     await tester.ensureVisible(entry);
     await tester.tap(entry);
     await tester.pumpAndSettle();

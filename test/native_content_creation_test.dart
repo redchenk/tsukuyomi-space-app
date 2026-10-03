@@ -597,7 +597,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final upload = find.widgetWithText(FilledButton, '上传文件');
+      final upload = find.byKey(const Key('gallery-upload'));
       await tester.ensureVisible(upload);
       await tester.tap(upload);
       // Pump fake-zone continuations between real file/codec/isolate events.

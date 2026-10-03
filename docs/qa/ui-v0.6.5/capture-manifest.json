@@ -1,0 +1,269 @@
+{
+  "capture_date": "2026-10-03 Asia/Shanghai",
+  "web_source_commit": "6487ceb5c0c7729f522c546467a84d5734bd70b6",
+  "captures": [
+    {
+      "file": "web-gallery-desktop.webp",
+      "source": "artifacts/ui-parity-2026-10-03/web-gallery-desktop.jpg",
+      "source_kind": "Browser: production yachiyo.hk for Gallery/Plaza; isolated source fixture for User Center",
+      "source_width": 1280,
+      "source_height": 900,
+      "width": 1280,
+      "height": 900,
+      "sha256": "ddbd2139d8e2be3e040a22392d2616d23f2da778bd5e3b0e9965a7c8f9c33a02",
+      "source_sha256": "8316ddf37c83d50e5fbffd41b20c728bfb9afac1e70ee9ddc3204b22c80998ca"
+    },
+    {
+      "file": "web-gallery-mobile.webp",
+      "source": "artifacts/ui-parity-2026-10-03/web-gallery-mobile.jpg",
+      "source_kind": "Browser: production yachiyo.hk for Gallery/Plaza; isolated source fixture for User Center",
+      "source_width": 390,
+      "source_height": 844,
+      "width": 390,
+      "height": 844,
+      "sha256": "344c108a76da2af408aec6517717fb2382ba31737342e3393d1b0733ea2042f1",
+      "source_sha256": "c81499e678b638489bc774ab93f46a169f0e84eae485dce46b8abd0f010bb848"
+    },
+    {
+      "file": "web-gallery-preview.webp",
+      "source": "artifacts/ui-parity-2026-10-03/web-gallery-preview.jpg",
+      "source_kind": "Browser: production yachiyo.hk for Gallery/Plaza; isolated source fixture for User Center",
+      "source_width": 1280,
+      "source_height": 900,
+      "width": 1280,
+      "height": 900,
+      "sha256": "a2668d3aae3843b0b22522b0d22caddf05ef01ab1e1111a1007d7f7ce0b4ba01",
+      "source_sha256": "09b1515413aa7f8415edc9ff7f8e513ca8be08c3a169ff236cf4d208b715e4dc"
+    },
+    {
+      "file": "web-plaza-desktop.webp",
+      "source": "artifacts/ui-parity-2026-10-03/web-plaza-desktop.jpg",
+      "source_kind": "Browser: production yachiyo.hk for Gallery/Plaza; isolated source fixture for User Center",
+      "source_width": 1280,
+      "source_height": 900,
+      "width": 1280,
+      "height": 900,
+      "sha256": "b96cd8a0015a42c6391d0f5807811a00997b99b858c1e1271ddf4ce8990ff595",
+      "source_sha256": "4b150fd19a7ca5705c0dd2ae7eaccb17d84c3d1c0ae35ce2f5b1df899b28e9b5"
+    },
+    {
+      "file": "web-plaza-mobile.webp",
+      "source": "artifacts/ui-parity-2026-10-03/web-plaza-mobile.jpg",
+      "source_kind": "Browser: production yachiyo.hk for Gallery/Plaza; isolated source fixture for User Center",
+      "source_width": 390,
+      "source_height": 844,
+      "width": 390,
+      "height": 844,
+      "sha256": "8e710db69e7c89db27a12277052a46af5717f067b70a7c70bba81af813908a53",
+      "source_sha256": "ce44db876a1121793134192d6bb351fcc6b0c7eab7dd210b21b5b1cd21aefcac"
+    },
+    {
+      "file": "web-user-desktop.webp",
+      "source": "artifacts/ui-parity-2026-10-03/web-user-desktop.jpg",
+      "source_kind": "Browser: production yachiyo.hk for Gallery/Plaza; isolated source fixture for User Center",
+      "source_width": 1280,
+      "source_height": 900,
+      "width": 1280,
+      "height": 900,
+      "sha256": "a775b25d63452940540a74a8feeba9b1c065ca6687efd4506da09f6ada6c2bd4",
+      "source_sha256": "8d3ea08a8d255da25283d6346b50d9f6043ef708c165ef01c73dbf01913c92d5"
+    },
+    {
+      "file": "web-user-mobile.webp",
+      "source": "artifacts/ui-parity-2026-10-03/web-user-mobile.jpg",
+      "source_kind": "Browser: production yachiyo.hk for Gallery/Plaza; isolated source fixture for User Center",
+      "source_width": 390,
+      "source_height": 844,
+      "width": 390,
+      "height": 844,
+      "sha256": "77cf78a01c0be9cb482678906bf853797e49dd50bd954853d35934cb2ec18918",
+      "source_sha256": "673a774b0331f69ac683d886b906ff82aa7d8ad61b4cb7d6e7498dbfe4bf7756"
+    },
+    {
+      "file": "native-gallery-desktop.webp",
+      "source": "artifacts/native-site-parity/gallery-desktop.png",
+      "source_kind": "Flutter widget capture with system fonts, strict API fixture, decoded local artwork",
+      "source_width": 1280,
+      "source_height": 900,
+      "width": 1280,
+      "height": 900,
+      "sha256": "294ada862b028d9ac19c28d2c81d3da8dc19d203fb0f4e1dc90b7d3faa8ccada",
+      "source_sha256": "71f96348a14a714af6475a55bbce8147392c55a6514157231e86c5384dd63a91"
+    },
+    {
+      "file": "native-gallery-mobile.webp",
+      "source": "artifacts/native-site-parity/gallery-mobile.png",
+      "source_kind": "Flutter widget capture with system fonts, strict API fixture, decoded local artwork",
+      "source_width": 390,
+      "source_height": 844,
+      "width": 390,
+      "height": 844,
+      "sha256": "68619c3b1a4e051521c4e12ccc9e1430a13e16c46c7f11ecf817ab93443d9a3f",
+      "source_sha256": "a6142d9c1a2454e85c42646fffeacaa76cf9478c5e381100a497b9c4c1bc191f"
+    },
+    {
+      "file": "native-user-desktop.webp",
+      "source": "artifacts/native-site-parity/user-desktop.png",
+      "source_kind": "Flutter widget capture with system fonts, strict API fixture, decoded local artwork",
+      "source_width": 1280,
+      "source_height": 900,
+      "width": 1280,
+      "height": 900,
+      "sha256": "f88c494d5197720bd04120ad86ac9fb30219a9565edbe2deba62835a1526c8e7",
+      "source_sha256": "1a7145894b76ab60088436bfdf94f8464172d21ca60b542d00fb6818992277ad"
+    },
+    {
+      "file": "native-user-mobile.webp",
+      "source": "artifacts/native-site-parity/user-mobile.png",
+      "source_kind": "Flutter widget capture with system fonts, strict API fixture, decoded local artwork",
+      "source_width": 390,
+      "source_height": 844,
+      "width": 390,
+      "height": 844,
+      "sha256": "2bc5176de13a98595f57d75c5a2b59bb104d4c09f616119c38e9c9973e7a2833",
+      "source_sha256": "7182ca2b15a50000bb4328e3f3a86d671c803cbd567b913df7b68324971038da"
+    },
+    {
+      "file": "native-editor-desktop.webp",
+      "source": "artifacts/native-site-parity/editor-desktop.png",
+      "source_kind": "Flutter widget capture with system fonts, strict API fixture, decoded local artwork",
+      "source_width": 1280,
+      "source_height": 900,
+      "width": 1280,
+      "height": 900,
+      "sha256": "f32af12f1ac5257a6e4dd8c903e5f5c01d14571673dc7c939d5e0b1f06ecf9ba",
+      "source_sha256": "bc0ac92cc5a1eac0a79fd91119ee5ed83b3363d5d3efb59b7cc10254e00127de"
+    },
+    {
+      "file": "native-editor-mobile.webp",
+      "source": "artifacts/native-site-parity/editor-mobile.png",
+      "source_kind": "Flutter widget capture with system fonts, strict API fixture, decoded local artwork",
+      "source_width": 390,
+      "source_height": 844,
+      "width": 390,
+      "height": 844,
+      "sha256": "2869cb9b598aa76af88d248b3bee85bfde322a8c48ccb9236be87e513b13169b",
+      "source_sha256": "dc0c89186fc9621f3e8b6bbd1bc47978a6233256b946b3dcb06b228df481c426"
+    },
+    {
+      "file": "native-plaza-1280-dark.webp",
+      "source": "artifacts/ui-parity-2026-10-03/matrix/plaza-1280-dark.png",
+      "source_kind": "Flutter responsive matrix; API snapshots, missing remote assets retain fallback state",
+      "source_width": 1280,
+      "source_height": 900,
+      "width": 1280,
+      "height": 900,
+      "sha256": "6c71dd4ecf50f48c5b907f09fb8b681ffb99a89836423145aee9f209f147bcd6",
+      "source_sha256": "1e7219b56ae3c9bbe4d5ecff2a34991fb0bfb7b817b91be933682f05aaf388a4"
+    },
+    {
+      "file": "native-plaza-390-light.webp",
+      "source": "artifacts/ui-parity-2026-10-03/matrix/plaza-390-light.png",
+      "source_kind": "Flutter responsive matrix; API snapshots, missing remote assets retain fallback state",
+      "source_width": 390,
+      "source_height": 900,
+      "width": 390,
+      "height": 900,
+      "sha256": "c365b6ceac1febdf299ae5a2748b813870535f5916bb97b393cfc9c188f5215f",
+      "source_sha256": "682672c7877cef3cb3d8cd69a041ee45c7f81db7aa630b0595c822fdc4f60abd"
+    },
+    {
+      "file": "native-stage-1280-dark.webp",
+      "source": "artifacts/ui-parity-2026-10-03/matrix/stage-1280-dark.png",
+      "source_kind": "Flutter responsive matrix; API snapshots, missing remote assets retain fallback state",
+      "source_width": 1280,
+      "source_height": 900,
+      "width": 1280,
+      "height": 900,
+      "sha256": "08da90bcad0a671de69e9c65d606685e32fbd17e77b7b01fc0271f92d4d2e72d",
+      "source_sha256": "e2e818a1ce45c7792015cf6c91be4acb0d3bcd3b11dca025fab2c16ffc1b2884"
+    },
+    {
+      "file": "native-stage-390-light.webp",
+      "source": "artifacts/ui-parity-2026-10-03/matrix/stage-390-light.png",
+      "source_kind": "Flutter responsive matrix; API snapshots, missing remote assets retain fallback state",
+      "source_width": 390,
+      "source_height": 900,
+      "width": 390,
+      "height": 900,
+      "sha256": "4424de759c675e917b38ebec9bc064ced8fa6f2d0a3a689e23e678ebaded61bf",
+      "source_sha256": "71bde9b93c93614bcca9d58ce06b45380d7b5c554a67b22c26e047b1ff0ba9cf"
+    },
+    {
+      "file": "native-hub-1280-dark.webp",
+      "source": "artifacts/ui-parity-2026-10-03/matrix/hub-1280-dark.png",
+      "source_kind": "Flutter responsive matrix; API snapshots, missing remote assets retain fallback state",
+      "source_width": 1280,
+      "source_height": 900,
+      "width": 1280,
+      "height": 900,
+      "sha256": "50293724c68e3f39825a28af9250716f80365c97876e74d7257642292516273c",
+      "source_sha256": "960b78ab1ebebdf0c9551a6e85a68142f0a7e53aed6bdcc3323b5a385e720293"
+    },
+    {
+      "file": "native-hub-390-light.webp",
+      "source": "artifacts/ui-parity-2026-10-03/matrix/hub-390-light.png",
+      "source_kind": "Flutter responsive matrix; API snapshots, missing remote assets retain fallback state",
+      "source_width": 390,
+      "source_height": 900,
+      "width": 390,
+      "height": 900,
+      "sha256": "40578533af1e086e17ef5822578d196fa1f9dccb5763fb5c313346444336d50e",
+      "source_sha256": "d0714a9f6ff28e81e1e3956cc947df83b59eaadae8d75c69d8c9a269f7605671"
+    },
+    {
+      "file": "native-hub-window.webp",
+      "source": "artifacts/ui-parity-2026-10-03/native-hub-window.png",
+      "source_kind": "Actual macOS QA window; isolated source fixture and ephemeral local settings",
+      "source_width": 2560,
+      "source_height": 1658,
+      "width": 1280,
+      "height": 829,
+      "sha256": "b8e47323ccba24c651c26ed4c2a952b7e060f15482f88d15cb0f951c7afae3c5",
+      "source_sha256": "f2429ad35a9061c2a47b45e7d5a021b858fe69ce6a1bd6dd682d14cc75e9465b"
+    },
+    {
+      "file": "native-menu-window.webp",
+      "source": "artifacts/ui-parity-2026-10-03/native-menu-window.png",
+      "source_kind": "Actual macOS QA window; isolated source fixture and ephemeral local settings",
+      "source_width": 2560,
+      "source_height": 1658,
+      "width": 1280,
+      "height": 829,
+      "sha256": "5ab56da955d98b1155a31544a1779d1e944323e26c10771b92281d58868a937b",
+      "source_sha256": "b8c28dfc2efdd9b1b4bb22af71e6db10bfbea35e5dc60cbe573054083325f8f5"
+    },
+    {
+      "file": "native-user-window.webp",
+      "source": "artifacts/ui-parity-2026-10-03/native-user-window.png",
+      "source_kind": "Actual macOS QA window; isolated source fixture and ephemeral local settings",
+      "source_width": 2560,
+      "source_height": 1658,
+      "width": 1280,
+      "height": 829,
+      "sha256": "ab844d7f01cc2eaa3f7b8ae3da117b3b7c903f7c435e8d648a5eed37339e29b0",
+      "source_sha256": "8508610b5a868c1010b4fe92cf0675d9eed0327258127a4dffa52716c6dd710c"
+    },
+    {
+      "file": "compare-gallery.webp",
+      "source_kind": "Side by side, full frames scaled equally; fixture data differs; no pixel identity claim",
+      "width": 1280,
+      "height": 482,
+      "sha256": "d30d66a83952298c06a05730a0a4ce9933b3e67d9fcc92ebe2ee081e2a60ec95"
+    },
+    {
+      "file": "compare-user.webp",
+      "source_kind": "Side by side, full frames scaled equally; fixture data differs; no pixel identity claim",
+      "width": 1280,
+      "height": 482,
+      "sha256": "ae66a2d3d2dc98b3213d967270813bee4b7e90392a01b43dc5f52b81e758f8e9"
+    },
+    {
+      "file": "compare-plaza.webp",
+      "source_kind": "Side by side, full frames scaled equally; fixture data differs; no pixel identity claim",
+      "width": 1280,
+      "height": 482,
+      "sha256": "c0c6ea90ffb5dd5dfc2723310f803eb4268d8184f593b1e1174bbd1f7fd8fce1"
+    }
+  ]
+}

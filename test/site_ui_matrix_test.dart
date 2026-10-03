@@ -187,7 +187,7 @@ void main() {
                       format: ui.ImageByteFormat.png,
                     );
                     final output = File(
-                      'artifacts/ui-parity-2026-10-01/matrix/${path.substring(1).replaceAll('/', '-')}-${width.toInt()}-$theme.png',
+                      '${const String.fromEnvironment('UI_CAPTURE_DIR', defaultValue: 'artifacts/ui-parity-2026-10-03')}/matrix/${path.substring(1).replaceAll('/', '-')}-${width.toInt()}-$theme.png',
                     );
                     await output.parent.create(recursive: true);
                     await output.writeAsBytes(

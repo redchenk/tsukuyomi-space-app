@@ -1,0 +1,256 @@
+{
+  "label": "trajectory-after",
+  "workspace_notification_interval_ms": 32,
+  "scene": "macOS profile; native Hub hero, 3 cards, dense 96x54 pixel artwork, 3 greetings; 12 alternating pointer flings (500 px at 2200 px/s) with native ballistic scrolling; three runs",
+  "runs": [
+    {
+      "run": 1,
+      "frames": 901,
+      "sample_duration_ms": 15118,
+      "scroll_distance_px": 10244.748792977425,
+      "scroll_extent_px": 805.0,
+      "gestures": [
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1234
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1232
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1233
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1235
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1231
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1235
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1233
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1235
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1231
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1235
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1231
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1236
+        }
+      ],
+      "workspace_notifications": 472,
+      "preview_widget_changes": 0,
+      "cold_settle_ms": 125,
+      "cold_frames": 9,
+      "cold_ui_p95_ms": 11.407,
+      "cold_raster_p95_ms": 16.233,
+      "ui_p95_ms": 1.791,
+      "raster_p95_ms": 4.108,
+      "frames_over_16_7_ms": 0,
+      "rss_bytes": 189825024,
+      "image_cache_bytes": 15616752,
+      "logical_width": 1280.0,
+      "logical_height": 797.0,
+      "device_pixel_ratio": 2.0
+    },
+    {
+      "run": 2,
+      "frames": 902,
+      "sample_duration_ms": 15118,
+      "scroll_distance_px": 10244.748792977422,
+      "scroll_extent_px": 805.0,
+      "gestures": [
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1234
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1231
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1235
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1234
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1232
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1234
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1232
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1235
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1232
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1235
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1232
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1234
+        }
+      ],
+      "workspace_notifications": 472,
+      "preview_widget_changes": 0,
+      "cold_settle_ms": 132,
+      "cold_frames": 9,
+      "cold_ui_p95_ms": 5.245,
+      "cold_raster_p95_ms": 0.939,
+      "ui_p95_ms": 1.672,
+      "raster_p95_ms": 4.037,
+      "frames_over_16_7_ms": 0,
+      "rss_bytes": 215662592,
+      "image_cache_bytes": 15616752,
+      "logical_width": 1280.0,
+      "logical_height": 797.0,
+      "device_pixel_ratio": 2.0
+    },
+    {
+      "run": 3,
+      "frames": 903,
+      "sample_duration_ms": 15118,
+      "scroll_distance_px": 10244.748792977429,
+      "scroll_extent_px": 805.0,
+      "gestures": [
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1233
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1233
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1235
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1233
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1231
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1235
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1232
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1235
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1232
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1235
+        },
+        {
+          "from": 0.0,
+          "to": 805.0,
+          "duration_ms": 1231
+        },
+        {
+          "from": 805.0,
+          "to": 0.0,
+          "duration_ms": 1235
+        }
+      ],
+      "workspace_notifications": 472,
+      "preview_widget_changes": 0,
+      "cold_settle_ms": 132,
+      "cold_frames": 14,
+      "cold_ui_p95_ms": 5.878,
+      "cold_raster_p95_ms": 1.658,
+      "ui_p95_ms": 1.75,
+      "raster_p95_ms": 4.1,
+      "frames_over_16_7_ms": 0,
+      "rss_bytes": 178241536,
+      "image_cache_bytes": 15616752,
+      "logical_width": 1280.0,
+      "logical_height": 797.0,
+      "device_pixel_ratio": 2.0
+    }
+  ]
+}

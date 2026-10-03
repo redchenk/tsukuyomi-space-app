@@ -60,6 +60,31 @@ const _visitor = 'tsukuyomi_visitor=7e141183-3081-4b57-94c3-b9b9d4043e58';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('OAuth callback parameters are excluded from visit recording', () async {
+    final site = _ViewSite();
+    final room = RoomController(
+      storage: MemoryStorage(),
+      site: site,
+      chat: FakeChat(),
+      voice: SilentVoice(),
+    );
+    await room.initialize();
+    final chrome = SiteChromeController(
+      room,
+      initialPath:
+          '/fushi/astrbot/callback?code=private-code&state=private-state',
+    );
+    chrome.setVisible(true);
+    addTearDown(() {
+      chrome.dispose();
+      room.dispose();
+    });
+    expect(await chrome.recordDailyView(), isNull);
+    expect(site.views, isEmpty);
+    await chrome.routeChanged('/room?secret=never-recorded#private');
+    await chrome.recordDailyView();
+    expect(site.views.single.body, {'path': '/room'});
+  });
   test('daily visit uses Hong Kong midnight and account scope, independently of admin role', () async {
     final room = await _room(_ViewSite());
     var now = DateTime.utc(2026, 9, 29, 15, 59, 59);
@@ -102,7 +127,7 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(site.views, hasLength(1));
     expect(site.views.single.method, 'POST');
-    expect(site.views.single.body, {'path': '/plaza?topic=moon#message-42'});
+    expect(site.views.single.body, {'path': '/plaza'});
     site.delayed!.complete({
       'success': true,
       'data': {'todayViews': 12},
@@ -230,10 +255,10 @@ void main() {
     await chrome.routeChanged('/stage?search=Moon');
     await chrome.recordDailyView();
     expect(site.views.length, failed + 1);
-    expect(site.views.last.body, {'path': '/stage?search=Moon'});
+    expect(site.views.last.body, {'path': '/stage'});
     await room.logout();
     await chrome.recordDailyView();
-    expect(site.views.last.body, {'path': '/stage?search=Moon'});
+    expect(site.views.last.body, {'path': '/stage'});
   });
   test('visitor Cookie restores securely, is scoped to the origin and survives logout', () async {
     const origin = 'https://example.com';

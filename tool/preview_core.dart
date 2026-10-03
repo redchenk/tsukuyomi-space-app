@@ -26,7 +26,12 @@ Future<void> main() async {
     defaultValue: 'zh',
   );
   if (fixture) {
-    storage.value = const RoomSettings(siteUrl: 'http://127.0.0.1:4184');
+    storage.value = const RoomSettings(
+      siteUrl: String.fromEnvironment(
+        'PREVIEW_SITE',
+        defaultValue: 'http://127.0.0.1:4184',
+      ),
+    );
   }
   final controller = RoomController(
     storage: storage,

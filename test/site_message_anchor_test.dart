@@ -100,7 +100,9 @@ ScrollController _scroll(WidgetTester tester) => tester
 
 void _expectVisible(WidgetTester tester, String content) {
   final text = find.byWidgetPredicate(
-    (widget) => widget is SelectableText && widget.data == content,
+    (widget) =>
+        widget is SelectableText &&
+        (widget.data ?? widget.textSpan?.toPlainText()) == content,
   );
   expect(text, findsOneWidget);
   final rect = tester.getRect(text);
@@ -303,7 +305,7 @@ void main() {
       await tester.pumpAndSettle();
       final copy = find.descendant(
         of: find.byKey(const ValueKey('site-message-104')),
-        matching: find.text('复制链接'),
+        matching: find.byTooltip('复制链接'),
       );
       await tester.ensureVisible(copy);
       await tester.tap(copy);

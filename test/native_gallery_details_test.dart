@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:tsukuyomi_space_app/core/models.dart';
 import 'package:tsukuyomi_space_app/core/locale_controller.dart';
 import 'package:tsukuyomi_space_app/core/site_client.dart';
 import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
@@ -46,6 +49,104 @@ Future<RoomController> _room(_LevelSite site) async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'gallery titles strip known image extensions and tags reject nonstrings',
+    () {
+      expect(
+        galleryImageTitle({
+          'metadata': {'title': 'Moon.JPEG'},
+        }),
+        'Moon',
+      );
+      expect(
+        galleryImageTitle({
+          'metadata': {'title': 'Moon.txt'},
+        }),
+        'Moon.txt',
+      );
+      expect(
+        galleryTags({
+          'metadata': {
+            'tags': ['Moon', 9, null, 'Night'],
+          },
+        }),
+        ['Moon', 'Night'],
+      );
+      expect(
+        galleryTags({
+          'metadata': {'tags': List.generate(20, (i) => '$i')},
+        }),
+        hasLength(12),
+      );
+    },
+  );
+  test('gallery download strips cookies across redirects and preserves binary bytes', () async {
+    final requests = <http.Request>[];
+    final client = MockClient((request) async {
+      requests.add(request);
+      return requests.length == 1
+          ? http.Response(
+              '',
+              302,
+              headers: {'location': 'https://cdn.example/image'},
+            )
+          : http.Response.bytes([1, 2, 3], 200);
+    });
+    addTearDown(client.close);
+    final result = await downloadGalleryBytes(
+      {'access_url': '/image'},
+      'https://site.example',
+      'session=abc',
+      client: client,
+    );
+    expect(result, [1, 2, 3]);
+    expect(requests.first.headers['cookie'], 'session=abc');
+    expect(requests.last.headers['cookie'], isNull);
+  });
+  test('gallery download rejects account changes and oversized responses before saving', () async {
+    final client = MockClient.streaming(
+      (_, _) async => http.StreamedResponse(
+        const Stream.empty(),
+        200,
+        contentLength: 104857601,
+      ),
+    );
+    addTearDown(client.close);
+    await expectLater(
+      downloadGalleryBytes(
+        {'access_url': '/image'},
+        'https://site.example',
+        null,
+        client: client,
+        isCurrent: () => false,
+      ),
+      throwsA(isA<ApiFailure>().having((e) => e.status, 'status', 409)),
+    );
+    await expectLater(
+      downloadGalleryBytes(
+        {'access_url': '/image'},
+        'https://site.example',
+        null,
+        client: client,
+      ),
+      throwsA(isA<ApiFailure>()),
+    );
+    // A malformed or excessive redirect chain also cannot produce a saved file.
+    final redirect = MockClient(
+      (_) async =>
+          http.Response('', 302, headers: {'location': 'file:///tmp/image'}),
+    );
+    addTearDown(redirect.close);
+    await expectLater(
+      downloadGalleryBytes(
+        {'access_url': '/image'},
+        'https://site.example',
+        null,
+        client: redirect,
+      ),
+      throwsA(isA<ApiFailure>()),
+    );
+  });
   test('gallery tries preview then original once and limits cookies to its own origin', () {
     const site = 'https://example.com';
     expect(

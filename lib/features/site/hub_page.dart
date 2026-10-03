@@ -36,7 +36,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
   late final SiteRepository _repo;
   final _greeting = TextEditingController();
   Map<String, dynamic> _data = {}, _settings = {};
-  String _scope = '', _error = '', _notice = '', _feedback = '';
+  String _scope = '', _siteUrl = '', _error = '', _notice = '', _feedback = '';
   bool _loading = true, _submitting = false, _feedbackError = false;
   int _request = 0, _draftRequest = 0;
   RoomController get c => widget.controller;
@@ -53,6 +53,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
       accountId: () => c.account?.id,
     );
     _scope = _repo.scope;
+    _siteUrl = c.settings.siteUrl;
     c.addListener(_accountChanged);
     _restoreGreeting();
     _load();
@@ -77,8 +78,9 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
 
   void _accountChanged() {
     if (!mounted) return;
-    if (_scope != _repo.scope) {
+    if (_scope != _repo.scope || _siteUrl != c.settings.siteUrl) {
       _scope = _repo.scope;
+      _siteUrl = c.settings.siteUrl;
       _request++;
       _data = {};
       _settings = {};
@@ -88,7 +90,8 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
       _restoreGreeting();
       _load();
     }
-    setState(() {});
+    // Chat/workspace/voice changes are unrelated to this public preview. The
+    // shell observes account details itself; only a different scope reloads it.
   }
 
   @override
@@ -238,7 +241,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _hero(),
+        RepaintBoundary(child: _hero()),
         const SizedBox(height: 20),
         _announcement(),
         const SizedBox(height: 26),
@@ -252,11 +255,11 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
             child: Center(child: CircularProgressIndicator()),
           )
         else if (_data.isNotEmpty) ...[
-          _scenes(),
+          RepaintBoundary(child: _scenes()),
           const SizedBox(height: 20),
-          _plaza(),
+          RepaintBoundary(child: _plaza()),
         ],
-        _stats(),
+        RepaintBoundary(child: _stats()),
       ],
     ),
   );
@@ -285,11 +288,23 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
                     colors: [Colors.transparent, Colors.black],
                     stops: [0, .3],
                   ).createShader(bounds),
-                  child: Image.asset(
-                    'assets/images/yachiyo-hub-stand.png',
-                    fit: BoxFit.cover,
-                    alignment: const Alignment(.22, 0),
-                    semanticLabel: '月见八千代',
+                  child: LayoutBuilder(
+                    builder: (context, imageBox) {
+                      final coverWidth = imageBox.maxHeight * 1923 / 1081;
+                      return Image.asset(
+                        'assets/images/yachiyo-hub-stand.png',
+                        cacheWidth:
+                            ((coverWidth > imageBox.maxWidth
+                                        ? coverWidth
+                                        : imageBox.maxWidth) *
+                                    MediaQuery.devicePixelRatioOf(context))
+                                .ceil()
+                                .clamp(1, 1923),
+                        fit: BoxFit.cover,
+                        alignment: const Alignment(.22, 0),
+                        semanticLabel: '月见八千代',
+                      );
+                    },
                   ),
                 ),
               ),
@@ -504,26 +519,36 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
     String image = '',
     Map<String, dynamic>? artwork,
   }) {
-    final fallback = Image.asset(
-      path == '/stage'
-          ? 'assets/images/room-bg.webp'
-          : 'assets/images/tsukuyomi-bg.webp',
-      fit: BoxFit.cover,
-    );
-    Widget media = fallback;
-    if (artwork != null) {
-      media = HubPixelPreview(artwork: artwork);
-    } else if (image.isNotEmpty) {
-      final target = endpointUri(c.settings.siteUrl).resolve(image);
-      if (['https', 'http'].contains(target.scheme) &&
-          target.userInfo.isEmpty) {
-        media = Image.network(
+    final media = LayoutBuilder(
+      builder: (context, box) {
+        if (artwork != null) return HubPixelPreview(artwork: artwork);
+        // Cover images are landscape; bound their decoded height to the card's
+        // physical height so a small card does not retain the full source bitmap.
+        final cacheHeight =
+            (box.maxHeight * MediaQuery.devicePixelRatioOf(context))
+                .ceil()
+                .clamp(1, 1600);
+        final fallback = Image.asset(
+          path == '/stage'
+              ? 'assets/images/room-bg.webp'
+              : 'assets/images/tsukuyomi-bg.webp',
+          fit: BoxFit.cover,
+          cacheHeight: cacheHeight,
+        );
+        if (image.isEmpty) return fallback;
+        final target = endpointUri(c.settings.siteUrl).resolve(image);
+        if (!['https', 'http'].contains(target.scheme) ||
+            target.userInfo.isNotEmpty) {
+          return fallback;
+        }
+        return Image.network(
           '$target',
           fit: BoxFit.cover,
+          cacheHeight: cacheHeight,
           errorBuilder: (_, _, _) => fallback,
         );
-      }
-    }
+      },
+    );
     return Semantics(
       label: '$label：$title',
       button: true,

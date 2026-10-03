@@ -1,0 +1,45 @@
+{
+  "label": "fling-after",
+  "scene": "macOS profile; native Hub hero, 3 cards, dense 96x54 pixel artwork, 3 greetings; 12 alternating pointer flings (500 px at 2200 px/s) with native ballistic scrolling; three runs",
+  "runs": [
+    {
+      "run": 1,
+      "frames": 895,
+      "sample_duration_ms": 15116,
+      "ui_p95_ms": 0.941,
+      "raster_p95_ms": 3.842,
+      "frames_over_16_7_ms": 0,
+      "rss_bytes": 141524992,
+      "image_cache_bytes": 15616752,
+      "logical_width": 1280.0,
+      "logical_height": 797.0,
+      "device_pixel_ratio": 2.0
+    },
+    {
+      "run": 2,
+      "frames": 892,
+      "sample_duration_ms": 15133,
+      "ui_p95_ms": 0.944,
+      "raster_p95_ms": 3.535,
+      "frames_over_16_7_ms": 0,
+      "rss_bytes": 166477824,
+      "image_cache_bytes": 15616752,
+      "logical_width": 1280.0,
+      "logical_height": 797.0,
+      "device_pixel_ratio": 2.0
+    },
+    {
+      "run": 3,
+      "frames": 892,
+      "sample_duration_ms": 15116,
+      "ui_p95_ms": 0.952,
+      "raster_p95_ms": 3.578,
+      "frames_over_16_7_ms": 0,
+      "rss_bytes": 145195008,
+      "image_cache_bytes": 15616752,
+      "logical_width": 1280.0,
+      "logical_height": 797.0,
+      "device_pixel_ratio": 2.0
+    }
+  ]
+}

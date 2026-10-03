@@ -17,6 +17,7 @@ import 'native_auth_page.dart';
 import 'native_gallery_details.dart';
 import 'native_site_shell.dart';
 import 'site_widgets.dart';
+import 'user_center_copy.dart';
 
 class UserCenterPage extends StatefulWidget {
   const UserCenterPage({
@@ -32,7 +33,8 @@ class UserCenterPage extends StatefulWidget {
   State<UserCenterPage> createState() => _UserCenterPageState();
 }
 
-class _UserCenterPageState extends State<UserCenterPage> {
+class _UserCenterPageState extends State<UserCenterPage>
+    with WidgetsBindingObserver {
   RoomController get c => widget.controller;
   String get _accountScope =>
       '${endpointUri(c.settings.siteUrl).origin}:${c.account?.id ?? 'guest'}';
@@ -40,6 +42,63 @@ class _UserCenterPageState extends State<UserCenterPage> {
   int _epoch = 0, _page = 1;
   bool _loading = true, _saving = false;
   Map<String, dynamic> _profile = {}, _growth = {};
+  final _navigationSearch = TextEditingController();
+  final _contentPanelKey = GlobalKey();
+  final _contentFocus = FocusNode();
+  final _loadingTabs = <String>{};
+  final _panelErrors = <String, String>{};
+  DateTime? _lastArticleRefresh;
+  bool _syncingProfile = false;
+  bool? _routeCurrent;
+  String _copy(String key) => userCenterCopy(context, key);
+  bool get _profileDirty =>
+      _nickname.text !=
+          userDisplayName(_profile, fallback: c.account?.displayName ?? '') ||
+      _bio.text != textOf(_profile, 'bio');
+  bool get _refreshing => _loading || _loadingTabs.isNotEmpty;
+  void _profileEdited() {
+    if (mounted && !_syncingProfile) setState(() {});
+  }
+
+  void _resetProfile({bool clearNotice = true}) {
+    _syncingProfile = true;
+    _nickname.text = userDisplayName(
+      _profile,
+      fallback: c.account?.displayName ?? '',
+    );
+    _bio.text = textOf(_profile, 'bio');
+    _syncingProfile = false;
+    if (mounted && clearNotice) setState(() => _notice = '');
+  }
+
+  Future<void> _refreshAccount() async {
+    if (!_profileDirty && !_saving && !_refreshing) await _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final current = ModalRoute.isCurrentOf(context) ?? true;
+    if (_routeCurrent == false && current && _tab == 'articles') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && loggedIn) _loadContent('articles');
+      });
+    }
+    _routeCurrent = current;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _tab == 'articles' &&
+        loggedIn &&
+        (_lastArticleRefresh == null ||
+            DateTime.now().difference(_lastArticleRefresh!) >=
+                const Duration(milliseconds: 1500))) {
+      _loadContent('articles');
+    }
+  }
+
   int get _growthLevel {
     final summary = mapOf(_growth['summary']);
     final raw = summary['level'] ?? _growth['level'];
@@ -82,6 +141,9 @@ class _UserCenterPageState extends State<UserCenterPage> {
     super.initState();
     _scope = '$_accountScope:${c.sessionExpired}:${c.loading}';
     c.addListener(_accountChanged);
+    WidgetsBinding.instance.addObserver(this);
+    _nickname.addListener(_profileEdited);
+    _bio.addListener(_profileEdited);
     _load();
   }
 
@@ -93,6 +155,10 @@ class _UserCenterPageState extends State<UserCenterPage> {
       _profile = {};
       _growth = {};
       _content.clear();
+      _loadingTabs.clear();
+      _panelErrors.clear();
+      _lastArticleRefresh = null;
+      _navigationSearch.clear();
       for (final field in [
         _nickname,
         _bio,
@@ -115,6 +181,9 @@ class _UserCenterPageState extends State<UserCenterPage> {
   void dispose() {
     _epoch++;
     c.removeListener(_accountChanged);
+    WidgetsBinding.instance.removeObserver(this);
+    _navigationSearch.dispose();
+    _contentFocus.dispose();
     for (final field in [
       _nickname,
       _bio,
@@ -128,7 +197,9 @@ class _UserCenterPageState extends State<UserCenterPage> {
     super.dispose();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool resetProfile = false}) async {
+    final keepProfileEdits =
+        _profile.isNotEmpty && _profileDirty && !resetProfile;
     final epoch = ++_epoch, scope = _accountScope;
     if (mounted) {
       setState(() {
@@ -145,53 +216,26 @@ class _UserCenterPageState extends State<UserCenterPage> {
       if (!mounted || epoch != _epoch || scope != _accountScope) return;
       await c.updateAccountProfile(profile);
       if (!mounted || epoch != _epoch || scope != _accountScope) return;
-      setState(() {
-        _profile = profile;
-        _nickname.text = userDisplayName(
-          profile,
-          fallback: c.account!.displayName,
-        );
-        _bio.text = textOf(profile, 'bio');
-      });
-      // Each panel reports its own failure; an optional endpoint cannot hide a
-      // successfully loaded profile or erase another panel's existing results.
-      final tab = _tab;
-      if (tab == 'profile') {
-        await Future.wait([
-          () async {
+      setState(() => _profile = profile);
+      if (!keepProfileEdits) _resetProfile(clearNotice: false);
+      await Future.wait([
+        () async {
+          try {
             final growth = mapOf(
               (await _request('GET', '/api/growth/me'))['data'],
             );
             if (mounted && epoch == _epoch && scope == _accountScope) {
               setState(() => _growth = growth);
             }
-          }(),
-          () async {
-            final data = (await _request('GET', '/api/user/articles'))['data'];
+          } catch (_) {
             if (mounted && epoch == _epoch && scope == _accountScope) {
-              setState(
-                () => _content['articles'] = rowsOf(
-                  data is List ? data : mapOf(data)['items'],
-                ),
-              );
+              setState(() => _growth = {});
             }
-          }(),
-        ]);
-      } else if (tab != 'security') {
-        final path = switch (tab) {
-          'articles' =>
-            '/api/user/articles/live/${DateTime.now().millisecondsSinceEpoch}',
-          'messages' => '/api/messages/mine?limit=100',
-          'bookmarks' => '/api/user/bookmarks?limit=80',
-          'pixel' => '/api/pixel-art/manage?limit=100',
-          _ => '/api/user/articles',
-        };
-        final data = (await _request('GET', path))['data'];
-        final rows = rowsOf(data is List ? data : mapOf(data)['items']);
-        if (mounted && epoch == _epoch && scope == _accountScope) {
-          setState(() => _content[tab] = rows);
-        }
-      }
+          }
+        }(),
+        for (final tab in ['articles', 'messages', 'bookmarks', 'pixel'])
+          _loadContent(tab),
+      ]);
     } catch (e) {
       if (mounted && epoch == _epoch && scope == _accountScope) {
         setState(() => _error = '$e');
@@ -203,6 +247,46 @@ class _UserCenterPageState extends State<UserCenterPage> {
     }
   }
 
+  Future<void> _loadContent(String tab) async {
+    if (!loggedIn || _loadingTabs.contains(tab)) return;
+    final scope = _accountScope, epoch = _epoch;
+    setState(() {
+      _loadingTabs.add(tab);
+      _panelErrors.remove(tab);
+    });
+    if (tab == 'articles') _lastArticleRefresh = DateTime.now();
+    try {
+      final path = switch (tab) {
+        'articles' =>
+          '/api/user/articles/live/${DateTime.now().microsecondsSinceEpoch}',
+        'messages' => '/api/messages/mine?limit=100',
+        'bookmarks' => '/api/user/bookmarks?limit=80',
+        'pixel' => '/api/pixel-art/manage?limit=100',
+        _ => throw ArgumentError.value(tab),
+      };
+      final result = await _request('GET', path);
+      if (result['success'] == false) {
+        throw ApiFailure(textOf(result, 'message', '加载失败'));
+      }
+      final data = result['data'];
+      if (mounted && scope == _accountScope && epoch == _epoch) {
+        setState(
+          () => _content[tab] = rowsOf(
+            data is List ? data : mapOf(data)['items'],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted && scope == _accountScope && epoch == _epoch) {
+        setState(() => _panelErrors[tab] = '$e');
+      }
+    } finally {
+      if (mounted && scope == _accountScope && epoch == _epoch) {
+        setState(() => _loadingTabs.remove(tab));
+      }
+    }
+  }
+
   Future<void> _write(
     String method,
     String path,
@@ -210,7 +294,7 @@ class _UserCenterPageState extends State<UserCenterPage> {
     String notice, {
     bool reload = true,
   }) async {
-    if (_saving || _loading) return;
+    if (_saving || _loading || _loadingTabs.contains(_tab)) return;
     final scope = _accountScope, epoch = _epoch;
     setState(() {
       _saving = true;
@@ -221,7 +305,15 @@ class _UserCenterPageState extends State<UserCenterPage> {
       await _request(method, path, body);
       if (!mounted || scope != _accountScope || epoch != _epoch) return;
       setState(() => _notice = notice);
-      if (reload) await _load();
+      if (reload) {
+        if (_tab == 'profile' || _tab == 'security') {
+          await _load(
+            resetProfile: method == 'PUT' && path == '/api/user/profile',
+          );
+        } else {
+          await _loadContent(_tab);
+        }
+      }
     } catch (e) {
       if (mounted && scope == _accountScope && epoch == _epoch) {
         setState(() => _error = '$e');
@@ -306,6 +398,7 @@ class _UserCenterPageState extends State<UserCenterPage> {
   }
 
   Future<void> _password() async {
+    final scope = _accountScope;
     final password = _newPassword.text;
     if (password.length < 8 ||
         password != _confirmPassword.text ||
@@ -326,7 +419,7 @@ class _UserCenterPageState extends State<UserCenterPage> {
       '密码已更新',
       reload: false,
     );
-    if (mounted && _error.isEmpty) {
+    if (mounted && scope == _accountScope && _error.isEmpty) {
       _currentPassword.clear();
       _newPassword.clear();
       _confirmPassword.clear();
@@ -382,102 +475,186 @@ class _UserCenterPageState extends State<UserCenterPage> {
     }
   }
 
-  Widget _profileView() => NativeSiteSection(
-    title: '个人资料',
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextField(
-          key: const Key('account-nickname'),
-          controller: _nickname,
-          enabled: !_saving && !_loading,
-          decoration: InputDecoration(labelText: siteTranslate(context, '昵称')),
-        ),
-        const SizedBox(height: 8),
-        const SiteText('1–32 个字符，可随时修改、可重名，不影响登录账号。'),
-        const SizedBox(height: 20),
-        TextFormField(
-          key: ValueKey('account-username-${_profile['id']}'),
-          initialValue: textOf(_profile, 'username'),
-          enabled: false,
-          readOnly: true,
-          decoration: InputDecoration(
-            labelText: siteTranslate(context, '登录用户名'),
+  Widget _profileView() => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      _sectionHeading(
+        '个人资料',
+        Icons.person_outline,
+        subtitle: _copy('profileHint'),
+      ),
+      TextField(
+        key: const Key('account-nickname'),
+        controller: _nickname,
+        enabled: !_saving && !_loading,
+        decoration: InputDecoration(labelText: siteTranslate(context, '昵称')),
+      ),
+      const SizedBox(height: 8),
+      SiteText(
+        '1–32 个字符，可随时修改、可重名，不影响登录账号。',
+        style: TextStyle(fontSize: 11, color: RoomStyle(context).muted),
+      ),
+      const SizedBox(height: 22),
+      TextField(
+        key: const Key('account-bio'),
+        controller: _bio,
+        enabled: !_saving && !_loading,
+        maxLines: 4,
+        maxLength: 300,
+        decoration: InputDecoration(labelText: siteTranslate(context, '个人简介')),
+      ),
+      const SizedBox(height: 12),
+      Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _profileDirty ? Icons.edit_outlined : Icons.check,
+                size: 15,
+                color: RoomStyle(context).muted,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  _copy(_profileDirty ? 'unsaved' : 'saved'),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: RoomStyle(context).muted,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          key: ValueKey('account-id-${_profile['id']}'),
-          initialValue: textOf(_profile, 'id'),
-          enabled: false,
-          readOnly: true,
-          decoration: InputDecoration(
-            labelText: siteTranslate(context, '用户 ID（不可修改）'),
+          OutlinedButton(
+            key: const Key('account-reset-profile'),
+            onPressed: !_profileDirty || _saving ? null : _resetProfile,
+            child: Text(_copy('discard')),
           ),
-        ),
-        const SizedBox(height: 16),
-        TextFormField(
-          key: ValueKey('account-email-${_profile['email']}'),
-          initialValue: textOf(_profile, 'email', '未绑定邮箱'),
-          enabled: false,
-          readOnly: true,
-          decoration: InputDecoration(labelText: siteTranslate(context, '邮箱')),
-        ),
-        const SizedBox(height: 20),
-        TextField(
-          controller: _bio,
-          maxLines: 4,
-          maxLength: 300,
-          decoration: InputDecoration(
-            labelText: siteTranslate(context, '个人简介'),
-          ),
-        ),
-        const SizedBox(height: 10),
-        FilledButton(
-          onPressed: _saving || _loading
-              ? null
-              : () {
-                  final invalid = nicknameError(_nickname.text);
-                  if (invalid != null) {
-                    setState(() => _error = invalid);
-                    return;
-                  }
-                  _write('PUT', '/api/user/profile', {
+          FilledButton.icon(
+            key: const Key('account-save-profile'),
+            onPressed:
+                !_profileDirty ||
+                    _saving ||
+                    _loading ||
+                    nicknameError(_nickname.text) != null
+                ? null
+                : () => _write('PUT', '/api/user/profile', {
                     'bio': _bio.text,
                     'nickname': _nickname.text.trim(),
-                  }, '个人资料已保存');
-                },
-          child: const SiteText('保存资料'),
-        ),
-        const SizedBox(height: 18),
+                  }, '个人资料已保存'),
+            icon: const Icon(Icons.check, size: 17),
+            label: const SiteText('保存资料'),
+          ),
+        ],
+      ),
+      const SizedBox(height: 28),
+      const Divider(height: 1),
+      ExpansionTile(
+        key: const Key('account-information'),
+        tilePadding: EdgeInsets.zero,
+        title: Text(_copy('accountInfo'), style: const TextStyle(fontSize: 12)),
+        children: [
+          for (final field in [
+            ('登录用户名', textOf(_profile, 'username')),
+            ('用户 ID（不可修改）', textOf(_profile, 'id')),
+            ('邮箱', textOf(_profile, 'email', '未绑定邮箱')),
+            ('加入时间', dateText(_profile['created_at'])),
+            ('账户角色', siteTranslate(context, _roleLabel)),
+          ])
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SiteText(
+                    field.$1,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: RoomStyle(context).muted,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SelectableText(
+                    field.$2,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+      if (c.account?.isAdministrator == true)
         Wrap(
           spacing: 12,
           runSpacing: 12,
           children: [
             OutlinedButton(
-              onPressed: () => widget.onGo(
-                '/users/${Uri.encodeComponent(textOf(_profile, 'username'))}',
-              ),
-              child: const SiteText('查看公开主页'),
+              onPressed: () => widget.onGo('/admin'),
+              child: const SiteText('内容管理'),
             ),
-            if (c.account?.isAdministrator == true) ...[
-              OutlinedButton(
-                onPressed: () => widget.onGo('/admin'),
-                child: const SiteText('内容管理'),
-              ),
-              OutlinedButton(
-                onPressed: () => widget.onGo('/terminal'),
-                child: const SiteText('管理终端'),
-              ),
-            ],
+            OutlinedButton(
+              onPressed: () => widget.onGo('/terminal'),
+              child: const SiteText('管理终端'),
+            ),
           ],
         ),
-      ],
-    ),
+    ],
+  );
+
+  Widget _sectionHeading(
+    String title,
+    IconData icon, {
+    String? subtitle,
+    bool translate = true,
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SiteText(
+                  title,
+                  translate: translate,
+                  style: const TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 7),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.7,
+                      color: RoomStyle(context).muted,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Icon(icon, color: RoomStyle(context).accent, size: 24),
+        ],
+      ),
+      const SizedBox(height: 22),
+      const Divider(height: 1),
+      const SizedBox(height: 24),
+    ],
   );
   Widget _security() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
+      _sectionHeading('账户安全', Icons.shield_outlined),
       NativeSiteSection(
         title: '密码安全',
         child: Column(
@@ -529,16 +706,22 @@ class _UserCenterPageState extends State<UserCenterPage> {
                   onPressed: _saving
                       ? null
                       : () async {
+                          final scope = _accountScope;
                           if (!await _confirm(
                             '解绑 QQ',
                             '解绑后可继续使用邮箱和密码登录。请在当前密码框输入密码以确认。',
                           )) {
                             return;
                           }
+                          if (!mounted || scope != _accountScope || !loggedIn) {
+                            return;
+                          }
                           await _write('POST', '/api/auth/oauth/qq/unlink', {
                             'currentPassword': _currentPassword.text,
                           }, 'QQ 已解绑');
-                          _currentPassword.clear();
+                          if (mounted && scope == _accountScope) {
+                            _currentPassword.clear();
+                          }
                         },
                   child: const SiteText('解绑 QQ'),
                 ),
@@ -583,31 +766,61 @@ class _UserCenterPageState extends State<UserCenterPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
+        _sectionHeading(_tabLabel(_tab), _tabs[_tab]!.$2, translate: false),
+        TextField(
+          key: const Key('account-content-search'),
+          controller: _search,
+          onChanged: (_) => setState(() => _page = 1),
+          decoration: InputDecoration(
+            labelText: _tab == 'articles'
+                ? siteTr(context, 'ucSearchArticles')
+                : siteTranslate(context, '搜索我的内容'),
+            prefixIcon: const Icon(Icons.search),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
           children: [
-            Expanded(
-              child: TextField(
-                controller: _search,
-                onChanged: (_) => setState(() => _page = 1),
-                decoration: InputDecoration(
-                  labelText: siteTranslate(context, '搜索我的内容'),
-                  prefixIcon: Icon(Icons.search),
-                ),
+            OutlinedButton.icon(
+              key: const Key('account-content-refresh'),
+              onPressed: _saving || _loadingTabs.contains(_tab)
+                  ? null
+                  : () => _loadContent(_tab),
+              icon: const Icon(Icons.refresh, size: 17),
+              label: Text(
+                _tab == 'articles'
+                    ? _copy('refreshArticles')
+                    : siteTranslate(context, '刷新'),
               ),
             ),
             if (_tab == 'articles')
-              TextButton(
+              FilledButton.icon(
                 onPressed: () => widget.onGo('/editor'),
-                child: const SiteText('写文章'),
+                icon: const Icon(Icons.edit_outlined, size: 17),
+                label: const SiteText('写文章'),
               ),
             if (_tab == 'pixel')
-              TextButton(
+              FilledButton.icon(
                 onPressed: () => widget.onGo('/pixel'),
-                child: const SiteText('创作像素画'),
+                icon: const Icon(Icons.palette_outlined, size: 17),
+                label: const SiteText('创作像素画'),
               ),
           ],
         ),
         const SizedBox(height: 16),
+        if (_loadingTabs.contains(_tab)) const LinearProgressIndicator(),
+        if (_panelErrors[_tab] case final String error)
+          nativeSiteFeedback(
+            context,
+            error,
+            error: true,
+            retry: () => _loadContent(_tab),
+          ),
         for (final row in rows.skip((page - 1) * 10).take(10))
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -620,7 +833,8 @@ class _UserCenterPageState extends State<UserCenterPage> {
                         ? textOf(row, 'article_title', '月读广场')
                         : textOf(row, 'title', '未命名'),
                     style: const TextStyle(
-                      fontSize: 20,
+                      fontSize: 15,
+                      height: 1.7,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -631,10 +845,63 @@ class _UserCenterPageState extends State<UserCenterPage> {
                   if (_tab == 'pixel')
                     SizedBox(height: 180, child: HubPixelPreview(artwork: row)),
                   const SizedBox(height: 8),
-                  Text(
-                    '${textOf(row, 'status')} · ${dateText(row['created_at'])}',
-                  ),
                   Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: RoomStyle(context).selected,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          _tab == 'bookmarks'
+                              ? 'bookmarked'
+                              : textOf(row, 'status', 'published'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: RoomStyle(context).muted,
+                          ),
+                        ),
+                      ),
+                      if (textOf(row, 'category').isNotEmpty)
+                        Text(
+                          textOf(row, 'category'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: RoomStyle(context).muted,
+                          ),
+                        ),
+                      if (_tab == 'articles')
+                        Text(
+                          '${siteTr(context, 'ucReading')} ${row['view_count'] ?? 0}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: RoomStyle(context).muted,
+                          ),
+                        ),
+                      Text(
+                        dateText(
+                          _tab == 'bookmarks'
+                              ? row['bookmarked_at']
+                              : row['created_at'],
+                        ),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: RoomStyle(context).muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                       TextButton(
                         onPressed: () => widget.onGo(
@@ -659,13 +926,16 @@ class _UserCenterPageState extends State<UserCenterPage> {
                         ),
                       if (_tab == 'messages')
                         TextButton(
-                          onPressed: _saving ? null : () => _editMessage(row),
+                          onPressed: _saving || _loadingTabs.contains(_tab)
+                              ? null
+                              : () => _editMessage(row),
                           child: const SiteText('编辑'),
                         ),
                       TextButton(
-                        onPressed: _saving
+                        onPressed: _saving || _loadingTabs.contains(_tab)
                             ? null
                             : () async {
+                                final scope = _accountScope, tab = _tab;
                                 if (!await _confirm(
                                   _tab == 'bookmarks' ? '取消收藏' : '删除内容',
                                   _tab == 'bookmarks'
@@ -674,7 +944,13 @@ class _UserCenterPageState extends State<UserCenterPage> {
                                 )) {
                                   return;
                                 }
-                                final path = switch (_tab) {
+                                if (!mounted ||
+                                    scope != _accountScope ||
+                                    tab != _tab ||
+                                    !loggedIn) {
+                                  return;
+                                }
+                                final path = switch (tab) {
                                   'articles' =>
                                     '/api/user/articles/${row['id']}',
                                   'messages' => '/api/messages/${row['id']}',
@@ -696,10 +972,59 @@ class _UserCenterPageState extends State<UserCenterPage> {
               ),
             ),
           ),
-        if (rows.isEmpty && !_loading)
-          const Padding(
-            padding: EdgeInsets.all(40),
-            child: Center(child: SiteText('暂无内容')),
+        if (rows.isEmpty &&
+            !_loading &&
+            !_loadingTabs.contains(_tab) &&
+            !_panelErrors.containsKey(_tab))
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 12),
+            child: Column(
+              children: [
+                Text(
+                  _search.text.trim().isNotEmpty
+                      ? _copy('noMatches')
+                      : _tab == 'articles'
+                      ? siteTr(context, 'ucNoArticles')
+                      : siteTranslate(context, '暂无内容'),
+                  textAlign: TextAlign.center,
+                ),
+                if (_tab == 'articles' && _search.text.trim().isEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    siteTr(context, 'ucNoArticlesHint'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: RoomStyle(context).muted,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: () => widget.onGo('/editor'),
+                    icon: const Icon(Icons.edit_outlined, size: 17),
+                    label: const SiteText('新建投稿'),
+                  ),
+                ],
+                if (_search.text.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _copy('searchHint'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: RoomStyle(context).muted,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() {
+                      _search.clear();
+                      _page = 1;
+                    }),
+                    child: Text(_copy('clearSearch')),
+                  ),
+                ],
+              ],
+            ),
           ),
         Wrap(
           alignment: WrapAlignment.center,
@@ -735,46 +1060,58 @@ class _UserCenterPageState extends State<UserCenterPage> {
   }
 
   Widget _hero() => SiteCard(
+    padding: const EdgeInsets.all(22),
     child: LayoutBuilder(
       builder: (context, box) {
-        final narrow = box.maxWidth < 800;
+        final scale = MediaQuery.textScalerOf(context).scale(1);
+        final mobile = box.maxWidth < 660 * scale;
+        final compact = box.maxWidth < 1090 * scale;
+        final avatarSize = mobile
+            ? 56.0
+            : compact
+            ? 68.0
+            : 76.0;
         final info = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Chip(
-              avatar: Icon(
-                c.account!.isAdministrator
-                    ? Icons.workspace_premium_outlined
-                    : Icons.person_outline,
-                size: 15,
+            if (!mobile) ...[
+              Text(
+                'YOUR SPACE',
+                style: TextStyle(
+                  fontSize: 10,
+                  letterSpacing: 1.6,
+                  color: RoomStyle(context).muted,
+                ),
               ),
-              label: SiteText(_roleLabel, style: const TextStyle(fontSize: 12)),
-              visualDensity: VisualDensity.compact,
+              const SizedBox(height: 8),
+            ],
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  userDisplayName(_profile, fallback: c.account!.displayName),
+                  style: TextStyle(
+                    fontSize: mobile ? 23 : 30,
+                    height: 1.3,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (_growth.isNotEmpty)
+                  TextButton(
+                    key: const Key('account-growth-link'),
+                    onPressed: () => widget.onGo('/growth'),
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(44, 36),
+                      alignment: Alignment.centerLeft,
+                    ),
+                    child: NativeUserLevelBadge(level: _growthLevel),
+                  ),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              userDisplayName(_profile, fallback: c.account!.displayName),
-              style: TextStyle(
-                fontSize: narrow ? 28 : 38,
-                fontWeight: FontWeight.w600,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-            TextButton(
-              key: const Key('account-growth-link'),
-              onPressed: () => widget.onGo('/growth'),
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(44, 36),
-                alignment: Alignment.centerLeft,
-              ),
-              child: NativeUserLevelBadge(level: _growthLevel),
-            ),
-            Text(
-              textOf(_profile, 'email', '未绑定邮箱'),
-              style: const TextStyle(fontSize: 12),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 9),
             SiteText(
               textOf(_profile, 'bio').isEmpty
                   ? '还没有个人简介。'
@@ -782,108 +1119,88 @@ class _UserCenterPageState extends State<UserCenterPage> {
               translate: textOf(_profile, 'bio').isEmpty,
               style: TextStyle(
                 fontSize: 13,
-                height: 1.6,
+                height: 1.7,
                 color: RoomStyle(context).muted,
               ),
             ),
+            const SizedBox(height: 14),
+            _statistics(),
           ],
         );
-        final avatar = SizedBox(
-          width: 112,
-          child: Column(
-            children: [
-              SiteAvatar(
-                value: textOf(_profile, 'avatar'),
-                name: userDisplayName(
-                  _profile,
-                  fallback: c.account!.displayName,
-                ),
-                site: c.settings.siteUrl,
-                size: 96,
+        final avatar = Tooltip(
+          message: _copy('avatarHint'),
+          child: InkWell(
+            key: const Key('account-upload-avatar'),
+            onTap: _saving || _loading ? null : _avatar,
+            customBorder: const CircleBorder(),
+            child: SizedBox(
+              width: avatarSize + 4,
+              height: avatarSize + 4,
+              child: Stack(
+                children: [
+                  SiteAvatar(
+                    value: textOf(_profile, 'avatar'),
+                    name: userDisplayName(
+                      _profile,
+                      fallback: c.account!.displayName,
+                    ),
+                    site: c.settings.siteUrl,
+                    size: avatarSize,
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      width: 27,
+                      height: 27,
+                      decoration: BoxDecoration(
+                        color: RoomStyle(context).accent,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.surface,
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.edit_outlined,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              TextButton.icon(
-                onPressed: _saving || _loading ? null : _avatar,
-                icon: const Icon(Icons.upload_outlined, size: 16),
-                label: const SiteText('上传头像', style: TextStyle(fontSize: 12)),
-              ),
-            ],
+            ),
           ),
         );
-        final actions = LayoutBuilder(
-          builder: (context, actionBox) {
-            final cell = (actionBox.maxWidth - 8) / 2;
-            Widget action(
-              String label,
-              IconData icon,
-              VoidCallback? onPressed, {
-              bool primary = false,
-            }) => SizedBox(
-              width: cell,
-              child: primary
-                  ? FilledButton.icon(
-                      onPressed: onPressed,
-                      icon: Icon(icon, size: 16),
-                      label: SiteText(
-                        label,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    )
-                  : OutlinedButton.icon(
-                      onPressed: onPressed,
-                      icon: Icon(icon, size: 16),
-                      label: SiteText(
-                        label,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-            );
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    action(
-                      '新建投稿',
-                      Icons.edit_outlined,
-                      () => widget.onGo('/editor'),
-                      primary: true,
-                    ),
-                    action(
-                      '公开主页',
-                      Icons.person_outline,
-                      () => widget.onGo(
-                        '/users/${Uri.encodeComponent(textOf(_profile, 'username'))}',
-                      ),
-                    ),
-                    action(
-                      '查看主舞台',
-                      Icons.menu_book_outlined,
-                      () => widget.onGo('/stage'),
-                    ),
-                    action(
-                      '刷新资料',
-                      Icons.refresh,
-                      _loading || _saving ? null : _load,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton.icon(
-                  onPressed: _saving ? null : _logout,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error,
-                  ),
-                  icon: const Icon(Icons.logout, size: 16),
-                  label: const SiteText('退出登录'),
-                ),
-              ],
-            );
-          },
+        final actions = Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => widget.onGo(
+                '/users/${Uri.encodeComponent(textOf(_profile, 'username'))}',
+              ),
+              icon: const Icon(Icons.person_outline, size: 17),
+              label: Text(_copy('publicProfile')),
+            ),
+            FilledButton.icon(
+              onPressed: () => widget.onGo('/editor'),
+              icon: const Icon(Icons.edit_outlined, size: 17),
+              label: const SiteText('新建投稿'),
+            ),
+            IconButton.outlined(
+              key: const Key('account-refresh'),
+              tooltip: _copy('refresh'),
+              onPressed: _refreshing || _saving || _profileDirty
+                  ? null
+                  : _refreshAccount,
+              icon: const Icon(Icons.refresh, size: 17),
+            ),
+          ],
         );
-        return narrow
+        return compact
             ? Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -891,7 +1208,7 @@ class _UserCenterPageState extends State<UserCenterPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       avatar,
-                      const SizedBox(width: 16),
+                      SizedBox(width: mobile ? 12 : 24),
                       Expanded(child: info),
                     ],
                   ),
@@ -900,116 +1217,102 @@ class _UserCenterPageState extends State<UserCenterPage> {
                 ],
               )
             : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   avatar,
-                  const SizedBox(width: 22),
+                  const SizedBox(width: 24),
                   Expanded(child: info),
                   const SizedBox(width: 24),
-                  SizedBox(width: 360, child: actions),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: 350 * scale),
+                    child: actions,
+                  ),
                 ],
               );
       },
     ),
   );
 
-  Widget _statistics() => LayoutBuilder(
-    builder: (context, box) {
-      final articles = _content['articles'];
-      final totalViews = articles?.fold<int>(
-        0,
-        (sum, row) =>
-            sum +
-            (row['view_count'] is num
-                ? (row['view_count'] as num).toInt()
-                : int.tryParse('${row['view_count']}') ?? 0),
-      );
-      final columns = box.maxWidth >= 900
-          ? 4
-          : box.maxWidth >= 500
-          ? 2
-          : 1;
-      final width = (box.maxWidth - (columns - 1) * 12) / columns;
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: [
-          for (final stat in [
-            (
-              '我的文章',
-              articles == null ? '—' : '${articles.length}',
-              '投稿总数',
-              Icons.article_outlined,
-            ),
-            (
-              '累计阅读',
-              totalViews == null ? '—' : '$totalViews',
-              '文章访问量',
-              Icons.layers_outlined,
-            ),
-            (
-              '账户角色',
-              siteTranslate(context, _roleLabel),
-              '权限等级',
-              Icons.workspace_premium_outlined,
-            ),
-            (
-              '加入时间',
-              dateText(_profile['created_at']),
-              '月读接入日',
-              Icons.calendar_month_outlined,
-            ),
-          ])
-            SizedBox(
-              width: width,
-              child: SiteCard(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    Icon(stat.$4, color: RoomStyle(context).accent, size: 26),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SiteText(
-                            stat.$1,
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          Text(
-                            stat.$2,
-                            style: const TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SiteText(
-                            stat.$3,
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+  Widget _statistics() {
+    final articles = _content['articles'] ?? [];
+    final totalViews = articles.fold<int>(
+      0,
+      (sum, row) =>
+          sum +
+          (row['view_count'] is num
+              ? (row['view_count'] as num).toInt()
+              : int.tryParse('${row['view_count']}') ?? 0),
+    );
+    return Wrap(
+      spacing: 24,
+      runSpacing: 8,
+      children: [
+        for (final stat in [
+          ('我的文章', '${articles.length}'),
+          ('累计阅读', '$totalViews'),
+          (_copy('bookmarks'), '${(_content['bookmarks'] ?? []).length}'),
+        ])
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Flexible(
+                child: SiteText(
+                  stat.$1,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: RoomStyle(context).muted,
+                  ),
                 ),
               ),
-            ),
-        ],
-      );
-    },
-  );
+              const SizedBox(width: 9),
+              Text(
+                stat.$2,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
 
   static const _tabs = {
     'profile': ('个人资料', Icons.person_outline),
+    'security': ('账户安全', Icons.shield_outlined),
     'articles': ('我的文章', Icons.article_outlined),
     'messages': ('我的留言', Icons.forum_outlined),
     'bookmarks': ('我的收藏', Icons.bookmark_border),
-    'pixel': ('像素作品', Icons.palette_outlined),
+    'pixel': ('像素画', Icons.palette_outlined),
     '/gallery/manage': ('图库管理', Icons.photo_library_outlined),
     '/attachments': ('附件库', Icons.attach_file),
-    'security': ('账号安全', Icons.shield_outlined),
+  };
+  String _tabLabel(String key) => switch (key) {
+    'profile' => siteTr(context, 'ucProfile'),
+    'security' => siteTr(context, 'ucSecurity'),
+    'articles' => siteTr(context, 'ucArticlesTab'),
+    'messages' => _copy('messages'),
+    'bookmarks' => _copy('bookmarks'),
+    'pixel' => _copy('pixels'),
+    '/gallery/manage' => _copy('gallery'),
+    '/attachments' => _copy('attachments'),
+    _ => key,
+  };
+  static const _keywords = {
+    'profile': 'profile nickname 资料 昵称',
+    'security': 'security password email 安全 密码 邮箱 QQ',
+    'articles': 'articles posts 文章',
+    'messages': 'messages replies 留言 评论 回复',
+    'bookmarks': 'bookmarks 收藏',
+    'pixel': 'pixel art 像素画',
+    '/gallery/manage': 'gallery 图库 图片',
+    '/attachments': 'attachments files 附件 文件',
   };
 
-  void _selectTab(String key) {
+  void _selectTab(String key, {bool focusContent = false}) {
     if (_saving) return;
     if (key.startsWith('/')) {
       widget.onGo(key);
@@ -1021,69 +1324,478 @@ class _UserCenterPageState extends State<UserCenterPage> {
       _search.clear();
       _notice = '';
     });
-    _load();
+    if (key != 'profile' && key != 'security') _loadContent(key);
+    if (focusContent) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final panel = _contentPanelKey.currentContext;
+        if (panel != null) {
+          Scrollable.ensureVisible(panel, duration: Duration.zero);
+        }
+        _contentFocus.requestFocus();
+      });
+    }
   }
 
-  Widget _panels() => LayoutBuilder(
+  Widget _navigation() {
+    final query = _navigationSearch.text.trim().toLowerCase();
+    final groups = [
+      ('account', ['profile', 'security']),
+      ('creative', ['articles', 'messages', 'bookmarks', 'pixel']),
+      ('materials', ['/gallery/manage', '/attachments']),
+    ];
+    final visible = groups
+        .map(
+          (group) => (
+            group.$1,
+            group.$2
+                .where(
+                  (key) =>
+                      query.isEmpty ||
+                      '${_copy(group.$1)} ${_tabLabel(key)} ${_keywords[key]}'
+                          .toLowerCase()
+                          .contains(query),
+                )
+                .toList(),
+          ),
+        )
+        .where((group) => group.$2.isNotEmpty)
+        .toList();
+    return SiteCard(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            key: const Key('account-navigation-search'),
+            controller: _navigationSearch,
+            onChanged: (_) => setState(() {}),
+            style: const TextStyle(fontSize: 12),
+            decoration: InputDecoration(
+              hintText: _copy('search'),
+              prefixIcon: const Icon(Icons.search, size: 16),
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
+          for (final group in visible) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text(
+                _copy(group.$1),
+                style: TextStyle(fontSize: 11, color: RoomStyle(context).muted),
+              ),
+            ),
+            const SizedBox(height: 5),
+            for (final key in group.$2)
+              ListTile(
+                key: ValueKey('account-tab-$key'),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                minLeadingWidth: 18,
+                horizontalTitleGap: 10,
+                dense: true,
+                selected: _tab == key,
+                selectedTileColor: RoomStyle(context).selected,
+                shape: const StadiumBorder(),
+                leading: Icon(_tabs[key]!.$2, size: 18),
+                title: SiteText(
+                  _tabs[key]!.$1,
+                  style: const TextStyle(fontSize: 13),
+                ),
+                trailing: key.startsWith('/')
+                    ? const Icon(Icons.chevron_right, size: 14)
+                    : _content.containsKey(key)
+                    ? Text(
+                        '${_content[key]!.length}',
+                        style: const TextStyle(fontSize: 10),
+                      )
+                    : null,
+                onTap: _saving ? null : () => _selectTab(key),
+              ),
+            const SizedBox(height: 20),
+          ],
+          if (visible.isEmpty) ...[
+            Text(
+              _copy('noSections'),
+              style: TextStyle(color: RoomStyle(context).muted, fontSize: 12),
+            ),
+            TextButton(
+              onPressed: () => setState(() => _navigationSearch.clear()),
+              child: Text(_copy('clearSearch')),
+            ),
+          ],
+          const Divider(),
+          TextButton.icon(
+            onPressed: _saving ? null : _logout,
+            icon: const Icon(Icons.logout, size: 17),
+            label: const SiteText('退出登录'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _mobileNavigation() => LayoutBuilder(
     builder: (context, box) {
-      final content = _tab == 'profile'
-          ? _profileView()
-          : _tab == 'security'
-          ? _security()
-          : _list();
-      if (box.maxWidth < 900) {
+      final select = DropdownButtonFormField<String>(
+        key: const Key('account-mobile-section'),
+        initialValue: _tab,
+        isExpanded: true,
+        itemHeight: null,
+        decoration: InputDecoration(
+          labelText: _copy('navigation'),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 15,
+            vertical: 10,
+          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(999)),
+        ),
+        items: [
+          for (final entry in _tabs.entries.where(
+            (entry) => !entry.key.startsWith('/'),
+          ))
+            DropdownMenuItem(
+              value: entry.key,
+              child: Text(
+                _tabLabel(entry.key),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+        ],
+        onChanged: _saving
+            ? null
+            : (key) {
+                if (key != null) _selectTab(key);
+              },
+      );
+      final more = PopupMenuButton<String>(
+        key: const Key('account-mobile-materials'),
+        tooltip: _copy('materials'),
+        onSelected: (value) =>
+            value == 'logout' ? _logout() : _selectTab(value),
+        itemBuilder: (_) => [
+          for (final key in ['/gallery/manage', '/attachments'])
+            PopupMenuItem(
+              value: key,
+              child: Row(
+                children: [
+                  Icon(_tabs[key]!.$2, size: 17),
+                  const SizedBox(width: 10),
+                  Text(_tabLabel(key)),
+                ],
+              ),
+            ),
+          const PopupMenuItem(
+            value: 'logout',
+            child: Row(
+              children: [
+                Icon(Icons.logout, size: 17),
+                SizedBox(width: 10),
+                SiteText('退出登录'),
+              ],
+            ),
+          ),
+        ],
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+          decoration: BoxDecoration(
+            border: Border.all(color: RoomStyle(context).line),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  _copy('materials'),
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.expand_more, size: 15),
+            ],
+          ),
+        ),
+      );
+      if (box.maxWidth < 360 * MediaQuery.textScalerOf(context).scale(1)) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            select,
+            const SizedBox(height: 10),
+            Align(alignment: Alignment.centerRight, child: more),
+          ],
+        );
+      }
+      return Row(
+        children: [
+          Expanded(child: select),
+          const SizedBox(width: 10),
+          more,
+        ],
+      );
+    },
+  );
+
+  Widget _supportCard(String title, IconData icon, List<Widget> children) =>
+      SiteCard(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
               children: [
-                for (final entry in _tabs.entries)
-                  ChoiceChip(
-                    label: SiteText(entry.value.$1),
-                    avatar: Icon(entry.value.$2, size: 16),
-                    selected: _tab == entry.key,
-                    showCheckmark: false,
-                    onSelected: _saving ? null : (_) => _selectTab(entry.key),
+                Icon(icon, size: 19, color: RoomStyle(context).accent),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
+                ),
               ],
             ),
+            const SizedBox(height: 20),
+            ...children,
+          ],
+        ),
+      );
+  Widget _supportAction(String key, String label, VoidCallback action) =>
+      OutlinedButton(
+        key: Key(key),
+        onPressed: action,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        ),
+        child: Row(
+          children: [
+            Expanded(child: Text(label, style: const TextStyle(fontSize: 12))),
+            const SizedBox(width: 6),
+            const Icon(Icons.arrow_forward, size: 16),
+          ],
+        ),
+      );
+  Widget _growthSupport() {
+    final level = mapOf(_growth['level']);
+    final raw = level['progressPercent'];
+    final progress =
+        ((raw is num ? raw.toDouble() : double.tryParse('$raw') ?? 0) / 100)
+            .clamp(0.0, 1.0);
+    return _supportCard(_copy('growth'), Icons.auto_awesome_outlined, [
+      if (_growth.isNotEmpty) ...[
+        Align(
+          alignment: Alignment.centerLeft,
+          child: NativeUserLevelBadge(level: _growthLevel),
+        ),
+        const SizedBox(height: 20),
+        LinearProgressIndicator(
+          value: progress,
+          minHeight: 6,
+          borderRadius: BorderRadius.circular(999),
+          semanticsLabel: _copy('growth'),
+        ),
+        const SizedBox(height: 9),
+        Text(
+          _growthLevel == 9
+              ? _copy('maxLevel')
+              : level['requiredXp'] != null
+              ? '${level['progressXp'] ?? 0} / ${level['requiredXp']} ${_copy('xp')}'
+              : level['totalXp'] != null
+              ? '${level['totalXp']} ${_copy('xp')}'
+              : _copy('growthHint'),
+          style: TextStyle(fontSize: 11, color: RoomStyle(context).muted),
+        ),
+        const SizedBox(height: 22),
+      ] else ...[
+        Text(
+          _copy('growthUnavailable'),
+          style: TextStyle(fontSize: 12, color: RoomStyle(context).muted),
+        ),
+        const SizedBox(height: 16),
+      ],
+      _supportAction(
+        'account-growth-tasks',
+        _copy('growthOpen'),
+        () => widget.onGo('/growth'),
+      ),
+    ]);
+  }
+
+  Widget _securitySupport() => _supportCard(
+    _copy('security'),
+    Icons.shield_outlined,
+    [
+      for (final item in [
+        (
+          'email',
+          _profile['has_real_email'] == true || _profile['has_real_email'] == 1,
+        ),
+        (
+          'qq',
+          rowsOf(_profile['oauth_accounts'])
+              .any((row) => row['provider'] == 'qq'),
+        ),
+      ])
+        Container(
+          key: ValueKey('account-binding-${item.$1}'),
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: RoomStyle(context).selected,
+            border: Border.all(color: RoomStyle(context).line),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 10,
+            runSpacing: 6,
+            children: [
+              Text(
+                _copy(item.$1),
+                style: TextStyle(fontSize: 12, color: RoomStyle(context).muted),
+              ),
+              Text(
+                _copy(item.$2 ? 'linked' : 'unlinked'),
+                style: const TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      const SizedBox(height: 12),
+      _supportAction(
+        'account-open-security',
+        _copy('securityOpen'),
+        () => _selectTab('security', focusContent: true),
+      ),
+    ],
+  );
+  Widget _roomSupport() => SiteCard(
+    padding: const EdgeInsets.all(22),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.nightlight_outlined,
+          size: 24,
+          color: RoomStyle(context).accent,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                _copy('room'),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _copy('roomHint'),
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.8,
+                  color: RoomStyle(context).muted,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => widget.onGo('/room'),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(child: Text(_copy('roomOpen'))),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.arrow_forward, size: 15),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+  Widget _support({bool columns = false}) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      if (columns)
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _growthSupport()),
+            const SizedBox(width: 16),
+            Expanded(child: _securitySupport()),
+          ],
+        )
+      else ...[
+        _growthSupport(),
+        const SizedBox(height: 16),
+        _securitySupport(),
+      ],
+      const SizedBox(height: 16),
+      _roomSupport(),
+    ],
+  );
+
+  Widget _panels() => LayoutBuilder(
+    builder: (context, box) {
+      final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0);
+      final mobile = box.maxWidth < 656 * scale;
+      final wide = box.maxWidth >= 1086 * scale;
+      final content = Focus(
+        key: _contentPanelKey,
+        focusNode: _contentFocus,
+        child: SiteCard(
+          padding: EdgeInsets.all(mobile ? 20 : 28),
+          child: _tab == 'profile'
+              ? _profileView()
+              : _tab == 'security'
+              ? _security()
+              : _list(),
+        ),
+      );
+      if (mobile) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _mobileNavigation(),
             const SizedBox(height: 16),
             content,
+            const SizedBox(height: 16),
+            _support(),
           ],
         );
       }
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 212,
-            child: SiteCard(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                children: [
-                  for (final entry in _tabs.entries)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: ListTile(
-                        dense: true,
-                        selected: _tab == entry.key,
-                        selectedTileColor: RoomStyle(context).selected,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        leading: Icon(entry.value.$2, size: 18),
-                        title: SiteText(entry.value.$1),
-                        onTap: _saving ? null : () => _selectTab(entry.key),
-                      ),
-                    ),
+          SizedBox(width: wide ? 210 : 190, child: _navigation()),
+          SizedBox(width: wide ? 22 : 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                content,
+                if (!wide) ...[
+                  const SizedBox(height: 18),
+                  _support(columns: box.maxWidth >= 850 * scale),
                 ],
-              ),
+              ],
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(child: content),
+          if (wide) ...[
+            const SizedBox(width: 22),
+            SizedBox(width: 250, child: _support()),
+          ],
         ],
       );
     },
@@ -1095,7 +1807,7 @@ class _UserCenterPageState extends State<UserCenterPage> {
     title: '个人中心',
     onGo: widget.onGo,
     onTheme: widget.onTheme,
-    onRefresh: _load,
+    onRefresh: _refreshAccount,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1117,9 +1829,7 @@ class _UserCenterPageState extends State<UserCenterPage> {
         else ...[
           const SizedBox(height: 16),
           _hero(),
-          const SizedBox(height: 14),
-          _statistics(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           _panels(),
         ],
       ],

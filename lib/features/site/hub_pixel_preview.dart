@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -72,48 +74,116 @@ class HubPixelData {
         ];
 }
 
-class HubPixelPreview extends StatelessWidget {
+class HubPixelPreview extends StatefulWidget {
   const HubPixelPreview({super.key, required this.artwork});
   final Map<String, dynamic> artwork;
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-    painter: _HubPixelPainter(HubPixelData.fromMap(artwork)),
-    child: const SizedBox.expand(),
-  );
+  State<HubPixelPreview> createState() => _HubPixelPreviewState();
 }
 
-class _HubPixelPainter extends CustomPainter {
-  _HubPixelPainter(this.data);
-  final HubPixelData data;
+class _HubPixelPreviewState extends State<HubPixelPreview> {
+  Map<String, dynamic> _source = {};
+  ui.Image? _image;
+  Color _background = Colors.transparent;
+  int _revision = 0;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawColor(data.background, BlendMode.src);
-    final scale = (size.width / data.width) < (size.height / data.height)
-        ? size.width / data.width
-        : size.height / data.height;
-    final origin = Offset(
-      (size.width - data.width * scale) / 2,
-      (size.height - data.height * scale) / 2,
-    );
-    final paint = Paint()..isAntiAlias = false;
-    for (var i = 0; i < data.pixels.length; i++) {
-      final index = data.pixels[i];
-      if (index < 0 || index >= data.palette.length) continue;
-      paint.color = data.palette[index];
-      canvas.drawRect(
-        Rect.fromLTWH(
-          origin.dx + (i % data.width) * scale,
-          origin.dy + (i ~/ data.width) * scale,
-          scale,
-          scale,
-        ),
-        paint,
-      );
-    }
+  void initState() {
+    super.initState();
+    _decode();
   }
 
   @override
-  bool shouldRepaint(_HubPixelPainter oldDelegate) => oldDelegate.data != data;
+  void didUpdateWidget(HubPixelPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Preview responses may be fresh map objects with unchanged pixel data.
+    // Compare rendering fields only: changing a title must not decode an image.
+    if (_source.entries.any((entry) {
+      final next = widget.artwork[entry.key];
+      if (entry.value is List && next is List) {
+        final before = entry.value as List;
+        final limit = entry.key == 'palette' ? 256 : 512 * 512;
+        if (before.length != next.length.clamp(0, limit)) return true;
+        for (var i = 0; i < before.length; i++) {
+          if (before[i] != next[i]) return true;
+        }
+        return false;
+      }
+      return entry.value != next;
+    })) {
+      _decode();
+    }
+  }
+
+  void _decode() {
+    final ticket = ++_revision;
+    _source = {
+      for (final key in [
+        'width',
+        'height',
+        'size',
+        'background_color',
+        'backgroundColor',
+        'palette',
+        'pixels',
+        'pixels_base64',
+      ])
+        key: widget.artwork[key] is List
+            ? (widget.artwork[key] as List)
+                  .take(key == 'palette' ? 256 : 512 * 512)
+                  .toList()
+            : widget.artwork[key],
+    };
+    final data = HubPixelData.fromMap(_source);
+    _background = data.background;
+    final rgba = Uint8List(data.width * data.height * 4);
+    for (var i = 0; i < data.pixels.length; i++) {
+      final index = data.pixels[i];
+      if (index < 0 || index >= data.palette.length) continue;
+      final color = data.palette[index].toARGB32();
+      final offset = i * 4;
+      rgba[offset] = color >> 16 & 0xff;
+      rgba[offset + 1] = color >> 8 & 0xff;
+      rgba[offset + 2] = color & 0xff;
+      rgba[offset + 3] = color >> 24 & 0xff;
+    }
+    // Upload one bounded native-resolution texture once. Scrolling then draws
+    // one nearest-neighbour image rather than thousands of per-pixel rects.
+    ui.decodeImageFromPixels(
+      rgba,
+      data.width,
+      data.height,
+      ui.PixelFormat.rgba8888,
+      (image) {
+        if (!mounted || ticket != _revision) {
+          image.dispose();
+          return;
+        }
+        final previous = _image;
+        setState(() => _image = image);
+        previous?.dispose();
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _revision++;
+    _image?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: ColoredBox(
+      color: _background,
+      child: RawImage(
+        image: _image,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.none,
+        isAntiAlias: false,
+      ),
+    ),
+  );
 }

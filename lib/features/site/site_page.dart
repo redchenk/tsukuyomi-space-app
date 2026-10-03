@@ -23,6 +23,9 @@ import 'site_widgets.dart';
 import 'native_site_shell.dart';
 import 'site_navigation.dart';
 import 'native_gallery_details.dart';
+import 'plaza_copy.dart';
+import 'plaza_composer.dart';
+import 'plaza_social_text.dart';
 import '../../core/site_routes.dart';
 
 class SitePage extends StatefulWidget {
@@ -55,7 +58,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       _notice = '',
       _scope = '',
       _category = '',
-      _sort = 'featured',
+      _sort = 'latest',
       _tab = '会话';
   bool _loading = true, _working = false, _copying = false;
   bool _notificationBusy = false;
@@ -106,7 +109,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       route,
       Uri.parse(pagePath).fragment,
     );
-    _search.text = Uri.parse(pagePath).queryParameters['q'] ?? '';
+    _applyRouteQuery();
     if (Uri.parse(pagePath).queryParameters['tab'] == 'diary') _tab = '日记';
     c.addListener(_accountChanged);
     _restoreDraft();
@@ -133,7 +136,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       _anchorDataReady = false;
       _expandedReplies.clear();
       _messageAnchorKeys.clear();
-      _search.text = Uri.parse(pagePath).queryParameters['q'] ?? '';
+      _applyRouteQuery();
       _tab = Uri.parse(pagePath).queryParameters['tab'] == 'diary'
           ? '日记'
           : '会话';
@@ -142,6 +145,64 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
     } else {
       _revealPendingAnchor();
     }
+  }
+
+  void _applyRouteQuery() {
+    final query = Uri.parse(pagePath).queryParameters;
+    _search.text = (route == '/plaza' && (query['topic'] ?? '').isNotEmpty)
+        ? '#${query['topic']}'
+        : query['q'] ?? '';
+    if (route == '/stage') {
+      _sort = const {'featured', 'daily'}.contains(query['sort'])
+          ? query['sort']!
+          : 'latest';
+      _category = query['category'] == 'all' ? '' : query['category'] ?? '';
+      _page = (int.tryParse(query['page'] ?? '') ?? 1).clamp(1, 99999);
+    }
+  }
+
+  String get _stageReturnPath {
+    final query = {
+      if (_sort != 'latest') 'sort': _sort,
+      if (_page > 1) 'page': '$_page',
+      if (_category.isNotEmpty) 'category': _category,
+      if (_search.text.trim().isNotEmpty) 'q': _search.text.trim(),
+    };
+    return Uri(
+      path: '/stage',
+      queryParameters: query.isEmpty ? null : query,
+    ).toString();
+  }
+
+  String get _articleReturnPath {
+    final raw = Uri.parse(pagePath).queryParameters['from'] ?? '';
+    final target = Uri.tryParse(raw);
+    if (target == null ||
+        target.hasScheme ||
+        target.hasAuthority ||
+        target.path != '/stage') {
+      return '/stage';
+    }
+    final source = target.queryParameters;
+    final query = <String, String>{};
+    if (const {'latest', 'featured', 'daily'}.contains(source['sort'])) {
+      query['sort'] = source['sort']!;
+    }
+    final page = int.tryParse(source['page'] ?? '') ?? 1;
+    if (page > 1) query['page'] = '${page.clamp(1, 99999)}';
+    for (final entry in const {'category': 40, 'q': 120}.entries) {
+      final value = source[entry.key] ?? '';
+      if (value.isNotEmpty) {
+        query[entry.key] = value.substring(
+          0,
+          math.min(value.length, entry.value),
+        );
+      }
+    }
+    return Uri(
+      path: '/stage',
+      queryParameters: query.isEmpty ? null : query,
+    ).toString();
   }
 
   Future<void> _restoreDraft() async {
@@ -639,6 +700,11 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       false;
   void _searchChanged(String value) {
     _debounce?.cancel();
+    if (route == '/plaza') {
+      _cancelAnchor();
+      setState(() => _page = 1);
+      return;
+    }
     _debounce = Timer(const Duration(milliseconds: 450), () {
       _page = 1;
       _load();
@@ -903,7 +969,15 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                   ColoredBox(color: RoomStyle(context).soft),
             );
       return InkWell(
-        onTap: () => Navigator.pushNamed(context, '/articles/${a['id']}'),
+        onTap: () => Navigator.pushNamed(
+          context,
+          Uri(
+            path: '/articles/${a['id']}',
+            queryParameters: route == '/stage'
+                ? {'from': _stageReturnPath}
+                : null,
+          ).toString(),
+        ),
         borderRadius: BorderRadius.circular(20),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
@@ -1129,7 +1203,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       (_extra['likedMessages'] is List &&
           (_extra['likedMessages'] as List).any((id) => '$id' == '${m['id']}'));
 
-  Widget _message(Map m, {bool reply = false}) => Padding(
+  Widget _message(Map m, {bool reply = false, bool preview = false}) => Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: SiteCard(
       key: ValueKey('site-message-${m['id']}'),
@@ -1146,7 +1220,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                     value: textOf(m, 'avatar', textOf(m, 'author_avatar')),
                     name: userDisplayName(m, prefix: 'author'),
                     site: c.settings.siteUrl,
-                    size: 32,
+                    size: route == '/plaza' && !reply ? 40 : 32,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -1156,21 +1230,38 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                           : () => _go(
                               '/users/${Uri.encodeComponent(textOf(m, "author"))}',
                             ),
-                      child: Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        crossAxisAlignment: WrapCrossAlignment.center,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            userDisplayName(m, prefix: 'author'),
-                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                userDisplayName(m, prefix: 'author'),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (m['user_id'] != null)
+                                NativeUserLevelBadge(
+                                  level: _levels.level(m['user_id']),
+                                  compact: true,
+                                  showTitle: false,
+                                ),
+                            ],
                           ),
-                          if (m['user_id'] != null)
-                            NativeUserLevelBadge(
-                              level: _levels.level(m['user_id']),
-                              compact: true,
-                              showTitle: false,
+                          if (route == '/plaza') ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              _plazaDate(m['created_at']),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: RoomStyle(context).muted,
+                              ),
                             ),
+                          ],
                         ],
                       ),
                     ),
@@ -1181,6 +1272,23 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 dateText(m['created_at']),
                 style: const TextStyle(fontSize: 11),
               );
+              if (route == '/plaza') {
+                return Row(
+                  children: [
+                    Expanded(child: author),
+                    if (!reply) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '#${_plazaNumber(m)}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: RoomStyle(context).muted,
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              }
               return box.maxWidth >=
                       450 * (MediaQuery.textScalerOf(context).scale(14) / 14)
                   ? Row(
@@ -1206,32 +1314,49 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
               '回复 ${m['reply_to_nickname'] ?? m['reply_to_author']}',
               style: TextStyle(fontSize: 12, color: RoomStyle(context).accent),
             ),
-          SelectableText(
-            textOf(m, 'content'),
-            style: const TextStyle(height: 1.7),
-          ),
+          if (preview)
+            Text(
+              textOf(m, 'content'),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(height: 1.7),
+            )
+          else if (route == '/plaza')
+            PlazaSocialText(
+              content: textOf(m, 'content'),
+              onMention: (name) => _go('/users/${Uri.encodeComponent(name)}'),
+              onTopic: _selectPlazaTopic,
+            )
+          else
+            SelectableText(
+              textOf(m, 'content'),
+              style: const TextStyle(height: 1.7),
+            ),
           Wrap(
             children: [
-              TextButton.icon(
-                onPressed: _working || _messageLiked(m)
-                    ? null
-                    : () async {
-                        if (await _write(
-                              'POST',
-                              '/api/messages/${m['id']}/like',
-                            ) !=
-                            null) {
-                          await _load();
-                        }
-                      },
-                icon: Icon(
-                  _messageLiked(m)
-                      ? CupertinoIcons.heart_fill
-                      : CupertinoIcons.heart,
-                  size: 16,
+              if (!(route == '/plaza' && reply))
+                TextButton.icon(
+                  onPressed: _working || _messageLiked(m)
+                      ? null
+                      : () async {
+                          if (await _write(
+                                'POST',
+                                '/api/messages/${m['id']}/like',
+                              ) !=
+                              null) {
+                            await _load();
+                          }
+                        },
+                  icon: Icon(
+                    _messageLiked(m)
+                        ? CupertinoIcons.heart_fill
+                        : CupertinoIcons.heart,
+                    size: 16,
+                  ),
+                  label: Text(
+                    '${route == '/plaza' ? '${plazaCopy(context, '喜欢')} ' : ''}${m['like_count'] ?? 0}',
+                  ),
                 ),
-                label: Text('${m['like_count'] ?? 0}'),
-              ),
               TextButton.icon(
                 onPressed: () => _editText(
                   heading: '回复 ${userDisplayName(m, prefix: 'author')}',
@@ -1244,28 +1369,50 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                       null,
                 ),
                 icon: const Icon(CupertinoIcons.chat_bubble, size: 16),
-                label: Text('回复 ${rowsOf(m['replies']).length}'),
+                label: Text(
+                  '${siteTranslate(context, '回复')}${route == '/plaza' && reply ? '' : ' ${rowsOf(m['replies']).length}'}',
+                ),
               ),
-              TextButton.icon(
-                onPressed: _copying
-                    ? null
-                    : () => _copyLink(
-                        '${m['article_id'] != null ? '/articles/${m['article_id']}' : '/plaza'}#${m['article_id'] != null ? 'comment' : 'msg'}-${m['id']}',
-                        '链接已复制',
-                        recordGrowth: false,
-                      ),
-                icon: const Icon(CupertinoIcons.link, size: 16),
-                label: const SiteText('复制链接'),
-              ),
+              if (route == '/plaza')
+                IconButton(
+                  tooltip: siteTranslate(context, '复制链接'),
+                  onPressed: _copying
+                      ? null
+                      : () => _copyLink(
+                          '/plaza#msg-${m['id']}',
+                          '链接已复制',
+                          recordGrowth: false,
+                        ),
+                  icon: const Icon(CupertinoIcons.doc_on_doc, size: 16),
+                ),
+              if (route != '/plaza')
+                TextButton.icon(
+                  onPressed: _copying
+                      ? null
+                      : () => _copyLink(
+                          '${m['article_id'] != null ? '/articles/${m['article_id']}' : '/plaza'}#${m['article_id'] != null ? 'comment' : 'msg'}-${m['id']}',
+                          '链接已复制',
+                          recordGrowth: false,
+                        ),
+                  icon: const Icon(CupertinoIcons.link, size: 16),
+                  label: const SiteText('复制链接'),
+                ),
             ],
           ),
           for (final child in rowsOf(m['replies']).take(
             _expandedReplies.contains('${m['id']}')
                 ? rowsOf(m['replies']).length
+                : route == '/plaza'
+                ? 1
                 : 2,
           ))
-            _message(child, reply: true),
-          if (rowsOf(m['replies']).length > 2)
+            _message(
+              child,
+              reply: true,
+              preview:
+                  route == '/plaza' && !_expandedReplies.contains('${m['id']}'),
+            ),
+          if (rowsOf(m['replies']).length > (route == '/plaza' ? 0 : 2))
             TextButton(
               onPressed: () => setState(() {
                 if (!_expandedReplies.add('${m['id']}')) {
@@ -1274,8 +1421,10 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
               }),
               child: Text(
                 _expandedReplies.contains('${m['id']}')
-                    ? '收起回复'
-                    : '查看全部 ${rowsOf(m['replies']).length} 条回复',
+                    ? plazaCopy(context, '收起回复')
+                    : rowsOf(m['replies']).length == 1
+                    ? plazaCopy(context, '展开完整回复')
+                    : '${siteTranslate(context, '查看全部')} ${rowsOf(m['replies']).length} ${plazaCopy(context, '条回复')}',
               ),
             ),
         ],
@@ -1284,28 +1433,47 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
   );
   List<Map<String, dynamic>> _plazaRows() {
     var rows = messageThreads(rowsOf(_payload['data']));
-    rows.sort(
-      (a, b) => textOf(b, 'created_at').compareTo(textOf(a, 'created_at')),
-    );
+    int newest(Map a, Map b) =>
+        _plazaTime(b['created_at']).compareTo(_plazaTime(a['created_at']));
+    for (final row in rows) {
+      (row['replies'] as List<Map<String, dynamic>>).sort((a, b) {
+        final time = newest(a, b);
+        return time != 0
+            ? time
+            : (int.tryParse('${b['id']}') ?? 0).compareTo(
+                int.tryParse('${a['id']}') ?? 0,
+              );
+      });
+    }
+    rows.sort(newest);
     final query = _search.text.trim().toLowerCase();
     if (query.isNotEmpty) {
       rows = rows
           .where(
-            (m) => '${m['content']} ${userDisplayName(m, prefix: 'author')}'
-                .toLowerCase()
-                .contains(query),
+            (m) => [m, ...rowsOf(m['replies'])].any(
+              (item) =>
+                  '${item['content']} ${userDisplayName(item, prefix: 'author')}'
+                      .toLowerCase()
+                      .contains(query),
+            ),
           )
           .toList();
     }
     if (_sort == 'likes') {
-      rows.sort(
-        (a, b) => ((b['like_count'] as num?) ?? 0).compareTo(
+      rows.sort((a, b) {
+        final count = ((b['like_count'] as num?) ?? 0).compareTo(
           (a['like_count'] as num?) ?? 0,
-        ),
-      );
+        );
+        return count == 0 ? newest(a, b) : count;
+      });
     }
     if (_sort == 'replies') {
-      rows = rows.where((m) => rowsOf(m['replies']).isNotEmpty).toList();
+      rows = rows.where((m) => rowsOf(m['replies']).isNotEmpty).toList()
+        ..sort((a, b) {
+          final count = rowsOf(b['replies']).length
+              .compareTo(rowsOf(a['replies']).length);
+          return count == 0 ? newest(a, b) : count;
+        });
     }
     if (_sort == 'mine') {
       rows = rows.where((m) => '${m['user_id']}' == c.account?.id).toList();
@@ -1313,333 +1481,458 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
     return rows;
   }
 
+  // SQLite timestamps are UTC in the site's date contract. Compare instants,
+  // including explicit offsets, rather than their different string formats.
+  int _plazaTime(dynamic value) {
+    if (value is num) return value.toInt();
+    var source = '$value'.trim();
+    if (RegExp(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$')
+        .hasMatch(source)) {
+      source = '${source.replaceFirst(' ', 'T')}Z';
+    }
+    return DateTime.tryParse(source)?.millisecondsSinceEpoch ?? 0;
+  }
+
+  String _plazaDate(dynamic value) {
+    final time = _plazaTime(value);
+    if (time == 0) return '';
+    final date = DateTime.fromMillisecondsSinceEpoch(
+      time,
+      isUtc: true,
+    ).add(const Duration(hours: 8));
+    String pad(int n) => n.toString().padLeft(2, '0');
+    return '${date.year}/${pad(date.month)}/${pad(date.day)} ${pad(date.hour)}:${pad(date.minute)}:${pad(date.second)}';
+  }
+
+  int _plazaNumber(Map message) {
+    final roots = messageThreads(rowsOf(_payload['data']))
+      ..sort((a, b) {
+        final time = _plazaTime(a['created_at'])
+            .compareTo(_plazaTime(b['created_at']));
+        return time != 0
+            ? time
+            : (int.tryParse('${a['id']}') ?? 0).compareTo(
+                int.tryParse('${b['id']}') ?? 0,
+              );
+      });
+    return roots.indexWhere((item) => '${item['id']}' == '${message['id']}') +
+        1;
+  }
+
+  void _selectPlazaTopic(String topic) {
+    _cancelAnchor();
+    _search.text = topic.isEmpty ? '' : '#$topic';
+    setState(() {
+      _sort = 'latest';
+      _page = 1;
+    });
+  }
+
   Widget _plaza() {
     final rows = _plazaRows();
-    final wall = SiteCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          LayoutBuilder(
-            builder: (context, box) => Column(
-              children: [
-                Row(
-                  children: [
-                    const Expanded(
-                      child: SiteText(
-                        '01  留言墙',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+    final pages = (rows.length / 8).ceil().clamp(1, 99999);
+    if (_page > pages) _page = pages;
+    final composer = PlazaComposer(
+      controller: _composer,
+      signedIn: c.account != null && !c.sessionExpired,
+      author: c.account?.displayName ?? '',
+      site: c.settings.siteUrl,
+      busy: _working,
+      onSubmit: _submitPost,
+      onLogin: _login,
+      onChanged: (text) => unawaited(c.storage.saveDraft(draftKey, text)),
+    );
+    final wall = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Wrap(
+                spacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    plazaCopy(context, '留言墙'),
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
                     ),
-                    if (box.maxWidth > 650)
-                      SizedBox(width: 300, child: _searchBox('搜索…')),
-                    TextButton.icon(
-                      onPressed: _loading ? null : _load,
-                      icon: const Icon(CupertinoIcons.refresh, size: 16),
-                      label: const SiteText('刷新'),
+                  ),
+                  Text(
+                    '${messageThreads(rowsOf(_payload['data'])).length}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: RoomStyle(context).accent,
                     ),
-                  ],
-                ),
-                if (box.maxWidth <= 650) ...[
-                  const SizedBox(height: 14),
-                  _searchBox('搜索…'),
+                  ),
                 ],
+              ),
+            ),
+            IconButton(
+              key: const Key('plaza-refresh'),
+              tooltip: plazaCopy(context, '刷新留言'),
+              onPressed: _loading ? null : _load,
+              icon: const Icon(CupertinoIcons.refresh, size: 19),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, box) {
+            final filters = Wrap(
+              spacing: 0,
+              children: [
+                for (final item in const {
+                  'latest': '最新',
+                  'likes': '高赞',
+                  'replies': '有回复',
+                  'mine': '我的',
+                }.entries)
+                  _pill(plazaCopy(context, item.value), _sort == item.key, () {
+                    if (item.key == 'mine' &&
+                        (c.account == null || c.sessionExpired)) {
+                      unawaited(_login());
+                      return;
+                    }
+                    _cancelAnchor();
+                    setState(() {
+                      _sort = item.key;
+                      _page = 1;
+                    });
+                  }),
+              ],
+            );
+            final search = TextField(
+              key: const Key('plaza-search'),
+              controller: _search,
+              onChanged: _searchChanged,
+              decoration: InputDecoration(
+                hintText: plazaCopy(context, '搜索留言、用户或话题'),
+                prefixIcon: const Icon(CupertinoIcons.search, size: 18),
+                suffixIcon: _search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: plazaCopy(context, '清除搜索'),
+                        onPressed: () => _selectPlazaTopic(''),
+                        icon: const Icon(Icons.close, size: 18),
+                      ),
+              ),
+            );
+            return box.maxWidth >=
+                    720 * (MediaQuery.textScalerOf(context).scale(14) / 14)
+                ? Row(
+                    children: [
+                      filters,
+                      const SizedBox(width: 14),
+                      Expanded(child: search),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [filters, const SizedBox(height: 8), search],
+                  );
+          },
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              Text(
+                '${plazaCopy(context, '当前')} ${rows.isEmpty ? 0 : (_page - 1) * 8 + 1}–${math.min(_page * 8, rows.length)} / ${rows.length}',
+                style: TextStyle(fontSize: 11, color: RoomStyle(context).muted),
+              ),
+              Text(
+                '${plazaCopy(context, '第')} $_page / $pages',
+                style: TextStyle(fontSize: 11, color: RoomStyle(context).muted),
+              ),
+            ],
+          ),
+        ),
+        for (final row in rows.skip((_page - 1) * 8).take(8))
+          RepaintBoundary(child: _message(row)),
+        if (rows.isEmpty && !_loading)
+          SiteCard(
+            child: Column(
+              children: [
+                _empty(plazaCopy(context, '还没有匹配的留言。')),
+                TextButton(
+                  onPressed: () => _selectPlazaTopic(''),
+                  child: Text(plazaCopy(context, '查看全部留言')),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 14),
-          Wrap(
-            children: [
-              for (final item in const {
-                'latest': '最新',
-                'likes': '高赞',
-                'replies': '有回复',
-                'mine': '我的',
-              }.entries)
-                _pill(
-                  item.value,
-                  _sort == item.key ||
-                      (_sort == 'featured' && item.key == 'latest'),
-                  () => setState(() {
-                    _sort = item.key;
-                    _page = 1;
-                  }),
-                ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              '${rows.length} 条匹配留言   第 $_page 页 / 共 ${(rows.length / 8).ceil().clamp(1, 99999)} 页 · 每页 8 条',
-              style: const TextStyle(fontSize: 11),
-            ),
-          ),
-          _postComposer(),
-          const SizedBox(height: 20),
-          for (final row in rows.skip((_page - 1) * 8).take(8)) _message(row),
-          _pager((rows.length / 8).ceil().clamp(1, 99999)),
-          if (rows.isEmpty && !_loading) _empty('还没有匹配的留言。'),
-        ],
-      ),
+        _pager(pages),
+      ],
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        LayoutBuilder(
-          builder: (context, box) {
-            final hero = ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: box.maxWidth >= 900 ? 270 : 0,
-              ),
-              child: SiteCard(
-                padding: const EdgeInsets.all(30),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SiteText(
-                      'TSUKUYOMI PLAZA',
-                      style: TextStyle(
-                        color: RoomStyle(context).accent,
-                        fontSize: 11,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    SizedBox(height: box.maxWidth >= 900 ? 38 : 18),
-                    SiteText(
-                      '月读广场',
-                      style: TextStyle(
-                        fontSize: box.maxWidth < 650 ? 38 : 60,
-                        fontWeight: FontWeight.w700,
-                        color: RoomStyle(context).accent,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const SiteText(
-                      '访客、创作者和路过的观测者在这里交换留言。问候、反馈和灵感都可以落在这里。',
-                      style: TextStyle(height: 1.8),
-                    ),
-                  ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(0, 20, 0, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'TSUKUYOMI PLAZA',
+                style: TextStyle(
+                  letterSpacing: 2,
+                  color: RoomStyle(context).accent,
+                  fontSize: 11,
                 ),
               ),
-            );
-            final status = ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: box.maxWidth >= 900 ? 270 : 0,
-              ),
-              child: SiteCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SiteText(
-                      '当前频道                 公共留言墙',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      '广场状态                 ${_notice.isEmpty ? '在线' : '等待重连'}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    const SizedBox(height: 22),
-                    Text(
-                      c.account == null
-                          ? '访客模式'
-                          : '欢迎，${c.account!.displayName}',
-                      style: const TextStyle(
-                        fontSize: 20,
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: SiteText(
+                      '月读广场',
+                      style: TextStyle(
+                        fontSize: MediaQuery.sizeOf(context).width < 650
+                            ? 30
+                            : 40,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    Text(
-                      c.account == null
-                          ? '当前可以浏览留言。登录后可发布、回复与点赞。'
-                          : '在这里写下此刻的想法，与同行者相遇。',
-                      style: const TextStyle(height: 1.7),
+                  ),
+                  if (MediaQuery.sizeOf(context).width > 700)
+                    Chip(
+                      avatar: const Icon(Icons.chat_bubble_outline, size: 16),
+                      label: Text(plazaCopy(context, '公共留言墙')),
                     ),
-                    const SizedBox(height: 18),
-                    FilledButton(
-                      onPressed: c.account == null
-                          ? _login
-                          : () => _go('/user'),
-                      child: Text(c.account == null ? '去登录' : '个人中心'),
-                    ),
-                  ],
-                ),
+                ],
               ),
-            );
-            return box.maxWidth < 900
+              const SizedBox(height: 12),
+              Text(
+                plazaCopy(context, '留下一句问候，分享一点灵感。在这里，遇见同频的朋友。'),
+                style: TextStyle(height: 1.7, color: RoomStyle(context).muted),
+              ),
+            ],
+          ),
+        ),
+        LayoutBuilder(
+          builder: (context, box) {
+            final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+            final compact = box.maxWidth < 940 * scale;
+            return compact
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [hero, const SizedBox(height: 16), status],
+                    children: [
+                      composer,
+                      const SizedBox(height: 20),
+                      _plazaSidebar(compact: true),
+                      const SizedBox(height: 30),
+                      wall,
+                    ],
                   )
                 : Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(flex: 7, child: hero),
-                      const SizedBox(width: 20),
-                      Expanded(flex: 3, child: status),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            composer,
+                            const SizedBox(height: 30),
+                            wall,
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 24),
+                      SizedBox(
+                        width: 296,
+                        child: _plazaSidebar(compact: false),
+                      ),
                     ],
                   );
           },
-        ),
-        const SizedBox(height: 20),
-        LayoutBuilder(
-          builder: (context, box) => Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              for (final item in {
-                '站内文章': mapOf(_extra['stats'])['articles'],
-                '注册访客': mapOf(_extra['stats'])['users'],
-                '广场留言': mapOf(_extra['stats'])['messages'],
-                '服务运行':
-                    '${((mapOf(_extra['stats'])['uptime'] as num? ?? 0) / 86400).floor()}天${(((mapOf(_extra['stats'])['uptime'] as num? ?? 0) % 86400) / 3600).floor()}时',
-              }.entries)
-                SizedBox(
-                  width:
-                      (box.maxWidth - (box.maxWidth < 650 ? 12 : 36)) /
-                      (box.maxWidth < 650 ? 2 : 4),
-                  child: SiteCard(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(item.key),
-                        const SizedBox(height: 10),
-                        Text(
-                          '${item.value ?? '—'}',
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          const {
-                            '站内文章': '主舞台内容池',
-                            '注册访客': '已接入月读空间',
-                            '广场留言': '仅统计公开主留言',
-                            '服务运行': '后端在线时长',
-                          }[item.key]!,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: RoomStyle(context).muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 28),
-        LayoutBuilder(
-          builder: (context, box) => box.maxWidth < 900
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [wall, const SizedBox(height: 20), _plazaSidebar()],
-                )
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 7, child: wall),
-                    const SizedBox(width: 24),
-                    Expanded(flex: 3, child: _plazaSidebar()),
-                  ],
-                ),
         ),
       ],
     );
   }
 
-  Widget _plazaSidebar() => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      SiteCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _plazaDisclosure({
+    required String title,
+    required IconData icon,
+    required bool expanded,
+    required String id,
+    required List<Widget> children,
+  }) => SiteCard(
+    padding: EdgeInsets.zero,
+    child: ExpansionTile(
+      key: PageStorageKey('$id-$expanded'),
+      initiallyExpanded: expanded,
+      maintainState: true,
+      tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 5),
+      childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+      shape: const Border(),
+      collapsedShape: const Border(),
+      leading: Icon(icon, size: 18),
+      title: Text(
+        plazaCopy(context, title),
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+      children: children,
+    ),
+  );
+
+  Widget _plazaSidebar({required bool compact}) {
+    final stats = mapOf(_extra['stats']);
+    final recent = rowsOf(_payload['data']).toList()
+      ..sort(
+        (a, b) =>
+            _plazaTime(b['created_at']).compareTo(_plazaTime(a['created_at'])),
+      );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _plazaDisclosure(
+          title: '热门话题',
+          icon: Icons.chat_bubble_outline,
+          expanded: !compact,
+          id: 'plaza-topics',
           children: [
-            const SiteText(
-              '热门话题',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 6,
-              children: [
-                for (final topic in rowsOf(_extra['topics']))
-                  ActionChip(
-                    label: Text('#${topic['topic'] ?? topic['name'] ?? ''}'),
-                    onPressed: () {
-                      _search.text =
-                          '#${topic['topic'] ?? topic['name'] ?? ''}';
-                      setState(() => _page = 1);
-                    },
-                  ),
-              ],
-            ),
+            for (final topic in rowsOf(_extra['topics']))
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text('#${topic['topic'] ?? topic['name'] ?? ''}'),
+                subtitle: Text(
+                  '${topic['count'] ?? 0} ${plazaCopy(context, '条留言')}',
+                ),
+                selected:
+                    _search.text == '#${topic['topic'] ?? topic['name'] ?? ''}',
+                trailing: const Icon(Icons.chevron_right, size: 18),
+                onTap: () => _selectPlazaTopic(
+                  '${topic['topic'] ?? topic['name'] ?? ''}',
+                ),
+              ),
             if (rowsOf(_extra['topics']).isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 32),
-                child: Center(
-                  child: SiteText(
-                    '还没有话题，试试发布 #月读茶会#',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12),
-                  ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  plazaCopy(context, '还没有话题，试试发布 #月读茶会#'),
+                  style: const TextStyle(fontSize: 12, height: 1.6),
                 ),
               ),
           ],
         ),
-      ),
-      const SizedBox(height: 20),
-      SiteCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        const SizedBox(height: 14),
+        _plazaDisclosure(
+          title: '广场周边',
+          icon: Icons.explore_outlined,
+          expanded: !compact,
+          id: 'plaza-around',
           children: [
-            const SiteText(
-              '常驻访客',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
-            for (final item in const {
-              '月读空间官方': 'https://github.com/redchenk/tsukuyomi-space',
-              '辉夜姬博客': '/stage',
-              '月光像素工坊': '/pixel/',
-              '友链': '/friend-links',
-              '友链申请': '/friend-links/apply',
-            }.entries)
+            for (final item in const [
+              (
+                '月读空间官方',
+                '项目仓库与更新记录',
+                'https://github.com/redchenk/tsukuyomi-space',
+                Icons.code,
+              ),
+              ('辉夜姬博客', '文章、公告与创作手记', '/stage', Icons.book_outlined),
+              ('月光像素工坊', '画像素画并分享到公开画廊', '/pixel/', Icons.image_outlined),
+            ])
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(item.key, style: const TextStyle(fontSize: 14)),
-                trailing: const Icon(CupertinoIcons.arrow_up_right, size: 14),
-                onTap: () => _go(item.value),
+                leading: Icon(item.$4, size: 22),
+                title: SiteText(item.$1, style: const TextStyle(fontSize: 13)),
+                subtitle: Text(
+                  plazaCopy(context, item.$2),
+                  style: const TextStyle(fontSize: 11),
+                ),
+                trailing: const Icon(Icons.chevron_right, size: 16),
+                onTap: () => _go(item.$3),
+              ),
+            const Divider(height: 24),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton(
+                  key: const Key('plaza-friend-links'),
+                  onPressed: () => _go('/friend-links'),
+                  child: Text(plazaCopy(context, '浏览友链')),
+                ),
+                OutlinedButton(
+                  onPressed: () => _go('/friend-links/apply'),
+                  child: Text(plazaCopy(context, '申请友链')),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _plazaDisclosure(
+          title: '关于广场',
+          icon: Icons.info_outline,
+          expanded: false,
+          id: 'plaza-info',
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                plazaCopy(context, '最近活动'),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            for (final item in recent.take(4))
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.chat_bubble_outline, size: 16),
+                title: Text(userDisplayName(item, prefix: 'author')),
+                subtitle: Text(dateText(item['created_at'])),
+                onTap: () {
+                  _search.clear();
+                  _sort = 'latest';
+                  _go('#msg-${item['id']}');
+                },
+              ),
+            const Divider(height: 24),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                plazaCopy(context, '留言约定'),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 10),
+            const SiteText(
+              '保持友好，避免刷屏和敏感信息。\n\n友链申请请使用上方独立入口，审核状态可随时查看。\n\n反馈问题时尽量写清页面、操作和现象。',
+              style: TextStyle(fontSize: 12, height: 1.7),
+            ),
+            const Divider(height: 24),
+            for (final item in {
+              '站内文章': stats['articles'],
+              '注册访客': stats['users'],
+              '广场留言': stats['messages'],
+              '服务运行': '${((stats['uptime'] as num? ?? 0) / 3600).floor()} h',
+            }.entries)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        plazaCopy(context, item.key),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                    Text('${item.value ?? 0}'),
+                  ],
+                ),
               ),
           ],
         ),
-      ),
-      const SizedBox(height: 20),
-      const SiteCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SiteText(
-              '留言约定',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: 14),
-            SiteText(
-              '保持友好，避免刷屏和敏感信息。\n\n友链申请请使用上方独立入口，审核状态可随时查看。\n\n反馈问题时尽量写清页面、操作和现象。',
-              style: TextStyle(height: 1.7),
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 
   Widget _article() {
     final a = mapOf(_payload['data']);
@@ -1651,7 +1944,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton.icon(
-            onPressed: () => _go('/stage'),
+            onPressed: () => _go(_articleReturnPath),
             icon: const Icon(CupertinoIcons.back),
             label: const SiteText('返回主舞台'),
           ),
@@ -2979,6 +3272,8 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                                 ? 940
                                 : route == '/stage'
                                 ? 1056
+                                : route == '/plaza'
+                                ? 1176
                                 : 1216,
                           ),
                           child: Column(

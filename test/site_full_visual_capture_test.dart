@@ -41,7 +41,12 @@ Iterable<NetworkImage> get _pictureKeys sync* {
 
 Iterable<ImageProvider<Object>> _fixtureProviders(NetworkImage key) sync* {
   yield key;
-  for (final size in [22, 32, 40, 44, 88, 96]) {
+  // The gallery bounds its thumbnails to the actual card width. These are
+  // the decoded widths for the desktop four-column and mobile two-column
+  // capture layouts; avatar cache keys below use the fit policy instead.
+  yield ResizeImage(key, width: 292);
+  yield ResizeImage(key, width: 175);
+  for (final size in [22, 32, 40, 44, 56, 64, 68, 76, 80, 88, 96]) {
     yield ResizeImage(
       key,
       width: size,
@@ -118,7 +123,12 @@ class _VisualSite extends FakeSite implements SiteDataService {
     if (site != _origin) {
       throw StateError('Visual fixture received an external origin: $site');
     }
-    final uri = Uri.parse(path);
+    final uri = Uri.parse(
+      path.replaceFirst(
+        RegExp(r'^/api/user/articles/live/\d+'),
+        '/api/user/articles',
+      ),
+    );
     final assets = [
       _asset(7, '月读空间 · 伊吕波', '/fixtures/iroha.png'),
       _asset(8, '与你相遇的季节', '/fixtures/terukoto.png'),
@@ -142,6 +152,8 @@ class _VisualSite extends FakeSite implements SiteDataService {
         },
         {'id': 43, 'title': '九月的月下日记', 'status': 'draft', 'view_count': 0},
       ],
+      '/api/messages/mine' || '/api/user/bookmarks' => <Map<String, dynamic>>[],
+      '/api/pixel-art/manage' => <Map<String, dynamic>>[],
       '/api/article-categories' ||
       '/api/moderation/article-categories' => _categories,
       '/api/growth/public' => [
@@ -261,10 +273,32 @@ Future<void> _cacheFixtureImages() async {
           for (final provider in _fixtureProviders(key)) {
             final cacheKey = await provider.obtainKey(ImageConfiguration.empty);
             PaintingBinding.instance.imageCache.evict(cacheKey);
+            ui.Image image = frame.image.clone();
+            if (provider is ResizeImage) {
+              // Match native decode bounds: retaining one full-resolution
+              // bitmap per avatar size evicts the fixtures before capture.
+              final ratio = frame.image.height / frame.image.width;
+              final width = provider.width!;
+              final scaled = await ui.instantiateImageCodec(
+                bytes.buffer.asUint8List(
+                  bytes.offsetInBytes,
+                  bytes.lengthInBytes,
+                ),
+                targetWidth: width,
+                targetHeight: (width * ratio).round().clamp(1, 4096),
+              );
+              try {
+                image.dispose();
+                image = (await scaled.getNextFrame()).image;
+              } finally {
+                scaled.dispose();
+              }
+            }
+            final decoded = image;
             PaintingBinding.instance.imageCache.putIfAbsent(
               cacheKey,
               () => OneFrameImageStreamCompleter(
-                Future.value(ImageInfo(image: frame.image.clone())),
+                Future.value(ImageInfo(image: decoded)),
               ),
             );
           }
@@ -374,6 +408,20 @@ void main() {
                 findsWidgets,
                 reason: '$path ($form) must capture loaded images',
               );
+            }
+            if (path == '/gallery') {
+              for (final id in [7, 8]) {
+                expect(
+                  find.descendant(
+                    of: find.byKey(ValueKey('gallery-preview-$id')),
+                    matching: find.byWidgetPredicate(
+                      (widget) => widget is RawImage && widget.image != null,
+                    ),
+                  ),
+                  findsOneWidget,
+                  reason: 'Gallery thumbnail $id ($form) must be decoded',
+                );
+              }
             }
             final boundary = tester.renderObject<RenderRepaintBoundary>(
               find.byKey(const Key('site-capture')),
