@@ -30,36 +30,36 @@ class DelayedThemeStorage extends MemoryStorage {
 
 void main() {
   test(
-    'defaults to dark and restores a persisted light choice after restart',
+    'defaults to light and restores a persisted dark choice after restart',
     () async {
       final storage = MemoryStorage();
       final first = AppThemeController(storage);
-      expect(first.dark, isTrue);
-      await first.restore();
-      expect(first.dark, isTrue);
-      expect(await first.toggle(), isTrue);
       expect(first.dark, isFalse);
+      await first.restore();
+      expect(first.dark, isFalse);
+      expect(await first.toggle(), isTrue);
+      expect(first.dark, isTrue);
       first.dispose();
 
       final restarted = AppThemeController(storage);
       addTearDown(restarted.dispose);
       await restarted.restore();
-      expect(restarted.dark, isFalse);
-      expect(storage.drafts, {AppThemeController.storageKey: 'light'});
+      expect(restarted.dark, isTrue);
+      expect(storage.drafts, {AppThemeController.storageKey: 'dark'});
       expect(storage.secrets, isEmpty);
       expect(storage.value.toJson()['options'], isEmpty);
     },
   );
 
   test(
-    'restores dark and falls back to dark for missing or invalid values',
+    'restores light and falls back to light for missing or invalid values',
     () async {
-      for (final saved in ['', 'dark', 'invalid']) {
+      for (final saved in ['', 'light', 'invalid']) {
         final storage = MemoryStorage()
           ..drafts[AppThemeController.storageKey] = saved;
         final theme = AppThemeController(storage);
         await theme.restore();
-        expect(theme.dark, isTrue);
+        expect(theme.dark, isFalse);
         theme.dispose();
       }
     },
@@ -71,29 +71,29 @@ void main() {
     addTearDown(theme.dispose);
     final restoring = theme.restore();
     final saving = theme.toggle();
-    expect(theme.dark, isFalse);
-    storage.read.complete('dark');
+    expect(theme.dark, isTrue);
+    storage.read.complete('light');
     await restoring;
-    expect(theme.dark, isFalse);
+    expect(theme.dark, isTrue);
     await Future<void>.delayed(Duration.zero);
     storage.gates.single.complete();
     expect(await saving, isTrue);
-    expect(storage.drafts[AppThemeController.storageKey], 'light');
+    expect(storage.drafts[AppThemeController.storageKey], 'dark');
   });
 
   test(
     'restore begun after a selection keeps it without reading stale data',
     () async {
       final storage = MemoryStorage()
-        ..drafts[AppThemeController.storageKey] = 'light';
+        ..drafts[AppThemeController.storageKey] = 'dark';
       final theme = AppThemeController(storage);
       addTearDown(theme.dispose);
       // Choosing the current default is still an explicit preference.
-      final saving = theme.setDark(true);
+      final saving = theme.setDark(false);
       await theme.restore();
-      expect(theme.dark, isTrue);
+      expect(theme.dark, isFalse);
       expect(await saving, isTrue);
-      expect(storage.drafts[AppThemeController.storageKey], 'dark');
+      expect(storage.drafts[AppThemeController.storageKey], 'light');
     },
   );
 
@@ -107,19 +107,19 @@ void main() {
       final first = theme.toggle();
       final second = theme.toggle();
       final third = theme.toggle();
-      expect(theme.dark, isFalse);
+      expect(theme.dark, isTrue);
       expect(updates, 3);
       await Future<void>.delayed(Duration.zero);
-      expect(storage.writes, ['light']);
+      expect(storage.writes, ['dark']);
 
       storage.gates[0].complete();
       expect(await first, isTrue);
       await Future<void>.delayed(Duration.zero);
-      expect(storage.writes, ['light', 'dark']);
+      expect(storage.writes, ['dark', 'light']);
       storage.gates[1].complete();
       expect(await second, isTrue);
       await Future<void>.delayed(Duration.zero);
-      expect(storage.writes, ['light', 'dark', 'light']);
+      expect(storage.writes, ['dark', 'light', 'dark']);
       storage.gates[2].complete();
       expect(await third, isTrue);
       theme.dispose();
@@ -128,7 +128,7 @@ void main() {
       final restarted = AppThemeController(storage);
       addTearDown(restarted.dispose);
       await restarted.restore();
-      expect(restarted.dark, isFalse);
+      expect(restarted.dark, isTrue);
     },
   );
 
@@ -140,24 +140,24 @@ void main() {
       addTearDown(theme.dispose);
       Future<bool>? second;
       theme.addListener(() {
-        if (!theme.dark) second = theme.setDark(true);
+        if (theme.dark) second = theme.setDark(false);
       });
       final first = theme.toggle();
-      expect(theme.dark, isTrue);
+      expect(theme.dark, isFalse);
       await Future<void>.delayed(Duration.zero);
-      expect(storage.writes, ['light']);
+      expect(storage.writes, ['dark']);
       storage.gates[0].complete();
       expect(await first, isTrue);
       await Future<void>.delayed(Duration.zero);
-      expect(storage.writes, ['light', 'dark']);
+      expect(storage.writes, ['dark', 'light']);
       storage.gates[1].complete();
       expect(await second!, isTrue);
-      expect(storage.drafts[AppThemeController.storageKey], 'dark');
+      expect(storage.drafts[AppThemeController.storageKey], 'light');
     },
   );
 
   test(
-    'read errors retain the dark default and repeated restore reads once',
+    'read errors retain the light default and repeated restore reads once',
     () async {
       final storage = DelayedThemeStorage();
       final theme = AppThemeController(storage);
@@ -166,7 +166,7 @@ void main() {
       final second = theme.restore();
       storage.read.completeError(StateError('unavailable'));
       await Future.wait([first, second]);
-      expect(theme.dark, isTrue);
+      expect(theme.dark, isFalse);
       expect(storage.reads, 1);
     },
   );
@@ -178,15 +178,15 @@ void main() {
       final theme = AppThemeController(storage);
       addTearDown(theme.dispose);
       final failed = theme.toggle();
-      final retry = theme.setDark(false);
+      final retry = theme.setDark(true);
       await Future<void>.delayed(Duration.zero);
       storage.gates[0].completeError(StateError('disk full'));
       expect(await failed, isFalse);
-      expect(theme.dark, isFalse);
+      expect(theme.dark, isTrue);
       await Future<void>.delayed(Duration.zero);
       storage.gates[1].complete();
       expect(await retry, isTrue);
-      expect(storage.drafts[AppThemeController.storageKey], 'light');
+      expect(storage.drafts[AppThemeController.storageKey], 'dark');
     },
   );
 
@@ -200,14 +200,14 @@ void main() {
       final restoring = theme.restore();
       final saving = theme.toggle();
       theme.dispose();
-      storage.read.complete('dark');
+      storage.read.complete('light');
       await restoring;
       await Future<void>.delayed(Duration.zero);
       storage.gates.single.complete();
       expect(await saving, isTrue);
       expect(updates, 1);
       expect(await theme.toggle(), isFalse);
-      expect(storage.writes, ['light']);
+      expect(storage.writes, ['dark']);
     },
   );
 }

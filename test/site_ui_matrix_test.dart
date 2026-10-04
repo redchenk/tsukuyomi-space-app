@@ -175,8 +175,25 @@ void main() {
               }
               if (const bool.fromEnvironment('CAPTURE_UI_MATRIX') &&
                   language == 'zh' &&
-                  ((width == 1280 && theme == 'dark') ||
-                      (width == 390 && theme == 'light'))) {
+                  (width == 1280 || width == 390)) {
+                // Decode the providers actually used by each widget, including
+                // ResizeImage keys, before recording the visual evidence.
+                await tester.runAsync(() async {
+                  final context = tester.element(
+                    find.byType(MaterialApp).first,
+                  );
+                  for (final image in tester.widgetList<Image>(
+                    find.byType(Image),
+                  )) {
+                    final provider = image.image;
+                    if (provider is AssetImage ||
+                        (provider is ResizeImage &&
+                            provider.imageProvider is AssetImage)) {
+                      await precacheImage(provider, context);
+                    }
+                  }
+                });
+                await tester.pump();
                 final boundary = tester.renderObject<RenderRepaintBoundary>(
                   find.byKey(const Key('ui-matrix')),
                 );

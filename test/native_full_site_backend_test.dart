@@ -1,3 +1,5 @@
+import 'support/site_fixture.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -15,7 +17,7 @@ import 'support/fakes.dart';
 
 // Original Express/SQLite fixture only. Never target an arbitrary configured
 // site: password changes and uploads belong to this disposable local database.
-const _site = 'http://127.0.0.1:4184';
+const _site = siteFixtureOrigin;
 bool get _enabled =>
     Platform.environment['RUN_SITE_FIXTURE'] == '1' ||
     const bool.fromEnvironment('RUN_SITE_FIXTURE');

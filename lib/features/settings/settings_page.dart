@@ -1320,8 +1320,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         body: Stack(
           fit: StackFit.expand,
           children: [
-            Image.asset('assets/images/moonlit-lake.png', fit: BoxFit.cover),
-            ColoredBox(color: p.surface.withValues(alpha: .80)),
+            const Positioned.fill(
+              child: SiteBackground(child: SizedBox.shrink()),
+            ),
             SafeArea(
               child: LayoutBuilder(
                 builder: (context, box) {

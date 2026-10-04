@@ -1,7 +1,7 @@
 name: tsukuyomi_space_app
 description: Native Flutter Room client for Tsukuyomi Space.
 publish_to: none
-version: 0.6.7+13
+version: 0.6.8+14
 environment:
   sdk: ^3.13.4
 dependencies:
@@ -45,6 +45,7 @@ flutter:
     - assets/shaders/kaguya_effect.frag
   assets:
     - assets/images/
+    - assets/images/sakura/
     - assets/live2d/
     - assets/live2d/textures/
     - assets/game/

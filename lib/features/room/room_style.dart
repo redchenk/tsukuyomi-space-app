@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
 
+import '../../core/site_theme.dart';
+
 /// Shared with the website's editorial theme and its 860px Room breakpoint.
 class RoomStyle {
   RoomStyle(BuildContext context)
     : dark = Theme.of(context).brightness == Brightness.dark;
   final bool dark;
   static const breakpoint = 860.0;
-  Color get background =>
-      dark ? const Color(0xff10121c) : const Color(0xfff5f4fa);
-  Color get surface => dark ? const Color(0xff1b1e2c) : Colors.white;
-  Color get soft => dark ? const Color(0xff25283a) : const Color(0xffefedf7);
-  Color get line => dark ? const Color(0xff343448) : const Color(0xffe5e1ef);
-  Color get ink => dark ? const Color(0xfff0edf8) : const Color(0xff292738);
-  Color get muted => dark ? const Color(0xffcec9df) : const Color(0xff514b62);
-  Color get accent => dark ? const Color(0xffc4b5fd) : const Color(0xff60439f);
-  Color get primary => dark ? const Color(0xffb79cde) : const Color(0xff7052ae);
-  Color get onPrimary => dark ? const Color(0xff251c32) : Colors.white;
-  Color get selected =>
-      Color.alphaBlend(accent.withValues(alpha: .12), surface);
+  SitePalette get palette => SitePalette(dark);
+  Color get background => palette.background;
+  Color get surface => palette.surface;
+  Color get low => palette.low;
+  Color get soft => palette.soft;
+  Color get line => palette.line;
+  Color get ink => palette.ink;
+  Color get muted => palette.muted;
+  Color get accent => palette.accent;
+  Color get primary => SitePalette.brand;
+  Color get onPrimary => Colors.white;
+  Color get selected => palette.selected;
+  Color get success => palette.success;
+  Color get warning => palette.warning;
+  Color get danger => palette.danger;
   Color get glass => surface.withValues(alpha: .92);
   static const serif = 'Songti SC';
 }

@@ -1,3 +1,5 @@
+import 'support/site_fixture.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tsukuyomi_space_app/core/models.dart';
 import 'package:tsukuyomi_space_app/core/site_client.dart';
@@ -5,7 +7,7 @@ import 'package:tsukuyomi_space_app/core/site_client.dart';
 // Run against the website's isolated tests/e2e-server.cjs, never a production account.
 void main() {
   test('native client shares website auth, chat, memory, articles, plaza, growth and profile contracts', () async {
-    const site = 'http://127.0.0.1:4184';
+    const site = siteFixtureOrigin;
     final api = SiteClient();
     addTearDown(api.dispose);
     final user = await api.login(site, 'e2e-user', 'e2e-password');

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/models.dart';
 import '../../core/site_client.dart';
+import '../../core/site_theme.dart';
 import '../room/room_controller.dart';
 import 'native_article_document.dart' show nativeArticleUrl;
 import 'site_notification.dart';
@@ -500,7 +501,8 @@ class SiteNotificationBadge extends StatelessWidget {
     final count = SiteChromeScope.maybeOf(context)?.unread ?? 0;
     return Badge(
       isLabelVisible: count > 0,
-      backgroundColor: const Color(0xffcf8295),
+      backgroundColor: SitePalette.brand,
+      textColor: Colors.white,
       child: Icon(Icons.notifications_none, size: size),
     );
   }

@@ -1,3 +1,5 @@
+import 'support/site_fixture.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -55,7 +57,7 @@ void main() {
         });
         final storage = MemoryStorage()
           ..value = RoomSettings(
-            siteUrl: 'http://127.0.0.1:4184',
+            siteUrl: siteFixtureOrigin,
             llmUrl: {
               'openai': 'https://api.deepseek.com/chat/completions',
               'responses': 'https://api.openai.com/v1/responses',

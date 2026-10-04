@@ -2,14 +2,14 @@ import 'package:flutter/foundation.dart';
 
 import 'storage.dart';
 
-/// The website starts in dark mode and remembers an explicit theme choice.
+/// The website starts in light mode and remembers an explicit theme choice.
 /// Theme is a device preference, shared across accounts and website endpoints.
 class AppThemeController extends ChangeNotifier {
   AppThemeController(this.storage);
 
   static const storageKey = 'app-theme';
   final RoomStorage storage;
-  bool _dark = true, _disposed = false;
+  bool _dark = false, _disposed = false;
   int _changes = 0;
   Future<void>? _restoreFuture;
   Future<void> _pendingSave = Future<void>.value();
@@ -25,10 +25,10 @@ class AppThemeController extends ChangeNotifier {
     try {
       saved = await storage.draft(storageKey);
     } catch (_) {
-      // Missing or inaccessible preferences retain the website's dark default.
+      // Missing or inaccessible preferences retain the website's light default.
     }
     if (_disposed || _changes != 0) return;
-    final next = saved != 'light';
+    final next = saved == 'dark';
     if (_dark != next) {
       _dark = next;
       notifyListeners();

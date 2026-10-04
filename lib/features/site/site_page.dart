@@ -774,10 +774,10 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       selected: selected,
       onSelected: (_) => tap(),
       showCheckmark: false,
-      selectedColor: const Color(0xff7155ac),
+      selectedColor: RoomStyle(context).selected,
       labelStyle: TextStyle(
         fontSize: 12,
-        color: selected ? Colors.white : RoomStyle(context).ink,
+        color: selected ? RoomStyle(context).accent : RoomStyle(context).ink,
       ),
       shape: const StadiumBorder(side: BorderSide.none),
     ),
@@ -3188,18 +3188,11 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final p = RoomStyle(context);
     return Scaffold(
       body: Stack(
         children: [
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/moonlit-lake.png',
-              fit: BoxFit.cover,
-            ),
-          ),
-          Positioned.fill(
-            child: ColoredBox(color: p.background.withValues(alpha: .80)),
+          const Positioned.fill(
+            child: SiteBackground(child: SizedBox.shrink()),
           ),
           SafeArea(
             child: Column(

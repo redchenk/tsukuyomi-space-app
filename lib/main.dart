@@ -8,6 +8,7 @@ import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
 
 import 'core/llm_client.dart';
 import 'core/app_theme_controller.dart';
+import 'core/site_theme.dart';
 import 'core/locale_controller.dart';
 import 'core/site_client.dart';
 import 'core/site_routes.dart';
@@ -240,65 +241,7 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
           title: '月读空间',
           debugShowCheckedModeBanner: false,
           scaffoldMessengerKey: _messenger,
-          theme: ThemeData(
-            useMaterial3: true,
-            brightness: _dark ? Brightness.dark : Brightness.light,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xff60439f),
-              brightness: _dark ? Brightness.dark : Brightness.light,
-              surface: _dark ? const Color(0xff1b1e2c) : Colors.white,
-              primary: _dark
-                  ? const Color(0xffc4b5fd)
-                  : const Color(0xff60439f),
-            ),
-            scaffoldBackgroundColor: _dark
-                ? const Color(0xff10121c)
-                : const Color(0xfff5f4fa),
-            fontFamilyFallback: const [
-              'PingFang SC',
-              'Microsoft YaHei',
-              'Noto Sans CJK SC',
-            ],
-            inputDecorationTheme: InputDecorationTheme(
-              filled: true,
-              fillColor: _dark
-                  ? const Color(0xff0d0f1a)
-                  : const Color(0xfff6f5f9),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(
-                  color: _dark
-                      ? const Color(0xff343448)
-                      : const Color(0xffe5e1ef),
-                ),
-              ),
-            ),
-            filledButtonTheme: FilledButtonThemeData(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xff7155ac),
-                foregroundColor: Colors.white,
-                minimumSize: const Size(44, 44),
-                shape: const StadiumBorder(),
-              ),
-            ),
-            outlinedButtonTheme: OutlinedButtonThemeData(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: _dark
-                    ? const Color(0xfff0edf8)
-                    : const Color(0xff292738),
-                side: BorderSide(
-                  color: _dark
-                      ? const Color(0xff343448)
-                      : const Color(0xffe5e1ef),
-                ),
-                minimumSize: const Size(44, 44),
-                shape: const StadiumBorder(),
-              ),
-            ),
-            snackBarTheme: const SnackBarThemeData(
-              behavior: SnackBarBehavior.floating,
-            ),
-          ),
+          theme: siteTheme(_dark),
           initialRoute: widget.initialPath,
           onGenerateRoute: _route,
           onGenerateInitialRoutes: (name) => [

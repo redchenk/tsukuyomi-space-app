@@ -74,7 +74,7 @@ class AgentBridge {
               ? params['protocolVersion']
               : '2025-11-25',
           'capabilities': {'tools': {}},
-          'serverInfo': {'name': 'tsukuyomi', 'version': '0.6.7'},
+          'serverInfo': {'name': 'tsukuyomi', 'version': '0.6.8'},
         },
         'ping' => {},
         'tools/list' => {

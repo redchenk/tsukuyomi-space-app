@@ -1,0 +1,531 @@
+{
+  "version": "0.6.8+14",
+  "tag": "v0.6.8-beta.1",
+  "validated_at": "2026-10-04T12:58:33.291822+00:00",
+  "website_visual_ref": "dba490894b62cd1799f8d9ab6fbf08199f9a335e",
+  "website_backend_fixture_ref": "87fbe74b28edcd3e2bda7939caf578fc49b1b6b5",
+  "local_regression": {
+    "passed": 667,
+    "skipped": 0,
+    "includes_real_cubism_and_desktop_agent": true,
+    "note": "Full regression before the final navigation/chip color cleanup; the exact final source UI suite and CI regression verify those changes separately."
+  },
+  "final_ui_regression": {
+    "passed": 63,
+    "skipped": 0,
+    "layout_scenarios": 840,
+    "pages": 28,
+    "widths": [
+      360,
+      390,
+      768,
+      1280,
+      1920
+    ],
+    "languages": [
+      "zh",
+      "ja",
+      "en"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "english_text_scale": 2,
+    "screenshots": 112,
+    "capture_widths": [
+      390,
+      1280
+    ]
+  },
+  "tools": {
+    "release": 37,
+    "agent": 3
+  },
+  "analysis": "No issues found",
+  "format": "200 files, zero changes",
+  "full_command": "RUN_SITE_FIXTURE=1 flutter test --no-pub --concurrency=1 --dart-define=RUN_CUBISM_TESTS=true --dart-define=RUN_WEBSITE_INTEGRATION=true --dart-define=RUN_AGENT_TESTS=true --dart-define=CAPTURE_UI=true --dart-define=CAPTURE_UI_MATRIX=true --dart-define=UI_CAPTURE_DIR=artifacts/theme-v068 --dart-define=SITE_FIXTURE_ORIGIN=http://127.0.0.1:4191",
+  "final_ui_command": "flutter test --no-pub --concurrency=1 test/app_theme_controller_test.dart test/site_navigation_test.dart test/site_ui_matrix_test.dart test/hub_page_test.dart --dart-define=CAPTURE_UI_MATRIX=true --dart-define=CAPTURE_UI=true --dart-define=UI_CAPTURE_DIR=artifacts/theme-v068",
+  "logs": [
+    {
+      "name": "tsukuyomi-v068-full-final-test.log",
+      "sha256": "789d0863bbc23aac5edfb5d768dff5e72c791e7930ae021c7a09b4e1121c16f4"
+    },
+    {
+      "name": "tsukuyomi-v068-ui-complete-final.log",
+      "sha256": "320d13eb9979a0296113b2ec1903411e2ae80f8f805f3cad25be357058600867"
+    },
+    {
+      "name": "tsukuyomi-v068-analysis-delivery.log",
+      "sha256": "8462f5c1ce7a6fe84e8de7a2310d9039391e6820ed4a51a0fa9d67b56861dd26"
+    },
+    {
+      "name": "tsukuyomi-v068-format-delivery.log",
+      "sha256": "676e4cd18f97734992c686a1ac76468797cb5d5c198b63ff085f99df4e6d6dfc"
+    },
+    {
+      "name": "tsukuyomi-v068-release-tools.log",
+      "sha256": "bb4a6dff8661554f99792c5ddaec4a5a103062127c03d38cf9d4df216dae5a89"
+    },
+    {
+      "name": "tsukuyomi-v068-agent-tools.log",
+      "sha256": "edb4e2159c923ea45a32656078835cdf531c3d7b414c670dd786978875cb0678"
+    }
+  ],
+  "screenshots_sha256": [
+    {
+      "name": "admin-1280-dark.png",
+      "sha256": "ad37c5edf5679235e748d3ac2d061069d89efe7cbea147f4b0452296cba9ddcc"
+    },
+    {
+      "name": "admin-1280-light.png",
+      "sha256": "539112e00631d5298f1135afc4ab5399be0bc6c71748e9a9f0a2ce8faec5b018"
+    },
+    {
+      "name": "admin-390-dark.png",
+      "sha256": "b6ce1fd79ef72fe42cc28616762e2825259b5ef9363d56c190773bc3ffdf7597"
+    },
+    {
+      "name": "admin-390-light.png",
+      "sha256": "aa9c2cec95d4ecca8b60294c12020dc3a55b5ecfc259cbc1d998aa6bd1b8c392"
+    },
+    {
+      "name": "articles-3-1280-dark.png",
+      "sha256": "a46e222565598e684e414b018c10160f3eda86754898dfc5ec7e38891e9d4f0c"
+    },
+    {
+      "name": "articles-3-1280-light.png",
+      "sha256": "d30f334c4716abccf9ff41e2bd0d5388f0514506bd8766d008114e34b124db8b"
+    },
+    {
+      "name": "articles-3-390-dark.png",
+      "sha256": "40cf41a24388514a29828d9630e654208ee4394faa7bd9a5fa04275a32815c5d"
+    },
+    {
+      "name": "articles-3-390-light.png",
+      "sha256": "01fb357d74c45959da573eccddc1ededdd4a6918da32e0bcbe348b33d938901a"
+    },
+    {
+      "name": "attachments-1280-dark.png",
+      "sha256": "aac8c60e601526473d5efe7df18adfc9d61bc10a357ee3b873894c4df12b1cef"
+    },
+    {
+      "name": "attachments-1280-light.png",
+      "sha256": "eac5b80c8dcf446150e597eb1fc41fccb31f086dae4d4c5d9ccbc69853a44e13"
+    },
+    {
+      "name": "attachments-390-dark.png",
+      "sha256": "4dfdf3ac66ea326959b3cc0850fbcd7adc94afd559c8e13c2a2498a63c1bc980"
+    },
+    {
+      "name": "attachments-390-light.png",
+      "sha256": "8bfc0bf598616347f22d0d5376bef799e4cedbdac07a28bea3878a6448308ed5"
+    },
+    {
+      "name": "conversations-1280-dark.png",
+      "sha256": "73a575d167bff425d792f07f8d572f5b741f329780d15a1b81c66a26e3aa69be"
+    },
+    {
+      "name": "conversations-1280-light.png",
+      "sha256": "bef21da4a1414ce3ca1993555524d0d508b8dd5ba2e61d641283c0a224c6d15a"
+    },
+    {
+      "name": "conversations-390-dark.png",
+      "sha256": "a3dbc6ace1e8d0bd1f796f6a906497eca93a59b6073bf93d4010f1a3f5ab49fc"
+    },
+    {
+      "name": "conversations-390-light.png",
+      "sha256": "2a309f68acfbc28e4f3df2654aa952df175d5826cb71e8d85ed03b8aa6b84fe1"
+    },
+    {
+      "name": "editor-1280-dark.png",
+      "sha256": "3730852ef6a9e8a97d81e5512dc17dd84a50b756ca28279f1b37fb6b47e622ad"
+    },
+    {
+      "name": "editor-1280-light.png",
+      "sha256": "cd44d11b33df38f26c746cf21b2e82931656c4672856c26448b1d052e8b113b7"
+    },
+    {
+      "name": "editor-390-dark.png",
+      "sha256": "0d286b82a9d554778ce68a80a456bace1f78198a4109de565374a43a11037b72"
+    },
+    {
+      "name": "editor-390-light.png",
+      "sha256": "9c0e41f16a9aff1826f8b279d8bc3d36246c80893932cff87e76b96f182fbdf1"
+    },
+    {
+      "name": "friend-links-1280-dark.png",
+      "sha256": "ae3ac99636e5833d08ad69af8d8b849be2a2519dfc2c83f62c9c39b07e89c203"
+    },
+    {
+      "name": "friend-links-1280-light.png",
+      "sha256": "54893abe29a2ef5619f858c6b750a748188efc9a8725894cf20471343bc8509e"
+    },
+    {
+      "name": "friend-links-390-dark.png",
+      "sha256": "094d657715b5af6e7e3ed2d865cdd0fb0658f47954673fbdb9c6531b165ded2f"
+    },
+    {
+      "name": "friend-links-390-light.png",
+      "sha256": "1a83df0a7b619cc0ca3a76bf453ebe315e26b87fbd148f349beebf467873033d"
+    },
+    {
+      "name": "friend-links-apply-1280-dark.png",
+      "sha256": "c1619cfaea414b409e6bfc2698fa205ca66d5bfd154419c50528fddba5ab1c6d"
+    },
+    {
+      "name": "friend-links-apply-1280-light.png",
+      "sha256": "920547ec1b7536e148665f30ca06e1eefd48a43a18a4b2bdd515dd58478cf238"
+    },
+    {
+      "name": "friend-links-apply-390-dark.png",
+      "sha256": "837fd370ada8067c7446993a513e272af9f69d25266de6a3d065185b9090cdbe"
+    },
+    {
+      "name": "friend-links-apply-390-light.png",
+      "sha256": "9faba3060543f4ea179f7db6d39348813e4bc4d1df7105fc94b298602dfc0607"
+    },
+    {
+      "name": "gallery-1280-dark.png",
+      "sha256": "a975c7947e45dbc62c42bb3823e4b6393249ccf518ec8b21b82d27f2e9594147"
+    },
+    {
+      "name": "gallery-1280-light.png",
+      "sha256": "09a6eb1d00df55e672c09d20ab4fbc833c119d58771fb8e7fa9a829fa504ecf8"
+    },
+    {
+      "name": "gallery-390-dark.png",
+      "sha256": "41ef5a0215dab85e7c9ddc9320b576688e0488673a2bfa288a341d7e58f79fd0"
+    },
+    {
+      "name": "gallery-390-light.png",
+      "sha256": "024c1f936146188ad1c7e3a763a28a441b66f25654a2dad5ce752607111626d7"
+    },
+    {
+      "name": "gallery-manage-1280-dark.png",
+      "sha256": "7f40f2476babfd1c7432fd9e0cf81afc031f98cf94f4d1bfc538077b253a8a0c"
+    },
+    {
+      "name": "gallery-manage-1280-light.png",
+      "sha256": "0689169c1f6855087b8d7b053b3aa7a8470c6c00964814f7bce1a75d4252c9b3"
+    },
+    {
+      "name": "gallery-manage-390-dark.png",
+      "sha256": "4e2fda9f9b1e0ec391e8e0cd475e3d8833546ca26f0f9f17a975957501785841"
+    },
+    {
+      "name": "gallery-manage-390-light.png",
+      "sha256": "23c5d6f2982c8d5a8e47106d8a75cbbcc8c9846dd8721416812059f37bf75db2"
+    },
+    {
+      "name": "game-1280-dark.png",
+      "sha256": "b8aca94dcbdac6c88a936c50a3b2a528f738626365f997199139fd6af51f33e8"
+    },
+    {
+      "name": "game-1280-light.png",
+      "sha256": "0b082de9a81d790487c195e026fbad9058248933f096e1aea5fcf5ab494ac6d9"
+    },
+    {
+      "name": "game-390-dark.png",
+      "sha256": "6f42a7bddc8e206b289ed20cdd73bbb757e5be3c27962770de7211b195381b5c"
+    },
+    {
+      "name": "game-390-light.png",
+      "sha256": "aa74ca9ee783593c6466696391c55ac5b649f80007cbae64ebd3f537a7bd04d8"
+    },
+    {
+      "name": "growth-1280-dark.png",
+      "sha256": "530a64b288c5aa0d7e7898a9676ba9aeb1690d3ac054be3e42b5cf0771685dea"
+    },
+    {
+      "name": "growth-1280-light.png",
+      "sha256": "6ceb938d529e4ee87b427cb8135b86c395fcfffc0af6f112532de1be9071c557"
+    },
+    {
+      "name": "growth-390-dark.png",
+      "sha256": "37868e9c644476616872bd46bf28c87d1208e151e5d02f9c052450f1cf64d089"
+    },
+    {
+      "name": "growth-390-light.png",
+      "sha256": "97f774def51b51a7aedc515643154181cc443cf7df415407b9387c73ee5278aa"
+    },
+    {
+      "name": "hub-1280-dark.png",
+      "sha256": "b1e0dd00eb549082dcfea3ff015f89aa063db2642b06c97e7e8798f11982668b"
+    },
+    {
+      "name": "hub-1280-light.png",
+      "sha256": "ed9677459a3ba59e2c16da5966d285b8f8667818cd0fbdea4ea5fc6aef0663fe"
+    },
+    {
+      "name": "hub-390-dark.png",
+      "sha256": "5e2f1173d3648eb1d057235472c4390bb15998788b6cdf149173d46705d89c28"
+    },
+    {
+      "name": "hub-390-light.png",
+      "sha256": "128a4b80241c4bd7ec421e25e947154f2770479816dede91a79b00d4579506fc"
+    },
+    {
+      "name": "live2d-1280-dark.png",
+      "sha256": "2155629dff14f8515a1eb9eada29eff7537d071791830f5c57d62ea45aa461ae"
+    },
+    {
+      "name": "live2d-1280-light.png",
+      "sha256": "8cfb42b4ddd797dc8e0835d4290eaea3d1bb5dd93f01dd78df3b19a7119e1960"
+    },
+    {
+      "name": "live2d-390-dark.png",
+      "sha256": "36a6b86243711215d31b81352102b8cf344e8b3c3212063636f5e1134c92fc1a"
+    },
+    {
+      "name": "live2d-390-light.png",
+      "sha256": "5a9d844c8192e58bee052e7176a71431825aa0c8f243bf5386808d7902fa3616"
+    },
+    {
+      "name": "login-1280-dark.png",
+      "sha256": "e898ebe563b4640d56b181cf86835cc8fae5fd27808742c636d800f11fb38b39"
+    },
+    {
+      "name": "login-1280-light.png",
+      "sha256": "28571fa03ba9a6b9ea331c87ae8c7161d890591ccc0dacccc8eb65bb0e60d40c"
+    },
+    {
+      "name": "login-390-dark.png",
+      "sha256": "3843cc29511f675a4b26e3fc1fc4f279666dbcc844240c65338499946cd68334"
+    },
+    {
+      "name": "login-390-light.png",
+      "sha256": "d792729c70bb24d548989519518bd35db20555113c98c109af482b1455ff3cf5"
+    },
+    {
+      "name": "notifications-1280-dark.png",
+      "sha256": "600673f087524b698ed746195c04755398738b695d285ab476756da8b817c59e"
+    },
+    {
+      "name": "notifications-1280-light.png",
+      "sha256": "4997ec545fb7721691642cdaa2ce854ac0d7bc86c0a73c74d64951c283a94125"
+    },
+    {
+      "name": "notifications-390-dark.png",
+      "sha256": "6283723a1a039e738dabc04369229ec39e9f962332e37020c1ad1732f3417e31"
+    },
+    {
+      "name": "notifications-390-light.png",
+      "sha256": "32ded8c93a8ab991dad82206edc5bc05c7c29f4786649991c88e86ec6f7fc8b0"
+    },
+    {
+      "name": "pixel-1280-dark.png",
+      "sha256": "883d3c15d88101843f879e43538c2bd823155c4983c24f9dcb5ec12405b9f50a"
+    },
+    {
+      "name": "pixel-1280-light.png",
+      "sha256": "5133c9b61358b545dbcef680f61fcdb7dc103983a1aab78216a92a9c79eb4675"
+    },
+    {
+      "name": "pixel-390-dark.png",
+      "sha256": "3fc1a6c447bb574b2b84594bc2101a6b64499d3e8595773943c7517b4aad897b"
+    },
+    {
+      "name": "pixel-390-light.png",
+      "sha256": "1320affb1b5de302cc6c4ad195c009ed4adacb60c564a45ec71af3be4f06fcd4"
+    },
+    {
+      "name": "plaza-1280-dark.png",
+      "sha256": "2679d91011a1c0ba18ba49d2a3eb70f80bf78ec69b4dbb416a7235f297fd96b0"
+    },
+    {
+      "name": "plaza-1280-light.png",
+      "sha256": "6174cd46db1304716288ff1b87776b60936afdbfec48730a0ee2bf753f2f573a"
+    },
+    {
+      "name": "plaza-390-dark.png",
+      "sha256": "4fa4806f8a9415c41b7fd6c2e509effff46381798eda6ee993967174636b51af"
+    },
+    {
+      "name": "plaza-390-light.png",
+      "sha256": "7da8c00b04320dafb260f2af5caf4b2ca87cf3869a90ec9231ef3eaaf6cf5bd3"
+    },
+    {
+      "name": "reality-1280-dark.png",
+      "sha256": "4de0d8397f85ec66838140a04e5a6a5f939a22c359d7d5b04abd06a3ea105ab8"
+    },
+    {
+      "name": "reality-1280-light.png",
+      "sha256": "52cec0ad0918cb9af06101d554e6ee6a6a05f1bcd60835873b01d2dc6aec7307"
+    },
+    {
+      "name": "reality-390-dark.png",
+      "sha256": "c8a644f61991c6c1d86788540ab663dd55cd07ed63ef80f9d23af8af128b29bd"
+    },
+    {
+      "name": "reality-390-light.png",
+      "sha256": "897dd995c12fa8a169d11352dc535c9d937b17ed4cc47945d76c0f85c9dcbbb4"
+    },
+    {
+      "name": "register-1280-dark.png",
+      "sha256": "6f061bff6e9e6550ff128dd7cc440547af2a2a5c608eb806f841e8fe3a2f8c75"
+    },
+    {
+      "name": "register-1280-light.png",
+      "sha256": "04281b2230a161bc44b5b0733f11c5224f49b39eb4ddc51c36b6c5a47b47a28a"
+    },
+    {
+      "name": "register-390-dark.png",
+      "sha256": "8247ff7c243e61ae2f1c78f436193f5ff673fbdf8ee7f84e973311b166f15cac"
+    },
+    {
+      "name": "register-390-light.png",
+      "sha256": "cdb648e02b3bf13c9b09f52efd8803ed61e6e4db01de95ea06f281212a42b266"
+    },
+    {
+      "name": "room-1280-dark.png",
+      "sha256": "ae68dab81a1be6c33627c58002df9c28affa5de1987b95b0b39958e8095d1ade"
+    },
+    {
+      "name": "room-1280-light.png",
+      "sha256": "71dca5f7843ac6928679dc7b5975dcf3399372cb6ca75f27f90c81f6935a2f27"
+    },
+    {
+      "name": "room-390-dark.png",
+      "sha256": "d7262772eba1b80a12248516c4e830b17d299d1d73a0c875f8e2065c48ed2da8"
+    },
+    {
+      "name": "room-390-light.png",
+      "sha256": "4aeaf9884b07205ba38beec810f2c64314b591f8177388808f3a065f3068dce6"
+    },
+    {
+      "name": "room-settings-1280-dark.png",
+      "sha256": "53efb971d6506f4e8a78321f272d777f0c7f2a2f8e5f8a08412a256d3ae764fc"
+    },
+    {
+      "name": "room-settings-1280-light.png",
+      "sha256": "04988a67d54dd765c4bb0b9728feb58211c5de8fe7be9dbf417c729ab7c43c82"
+    },
+    {
+      "name": "room-settings-390-dark.png",
+      "sha256": "7aa8d80e2bd419a29269cf798629cd6618c2d7a9bbe400092fd140a1ab357239"
+    },
+    {
+      "name": "room-settings-390-light.png",
+      "sha256": "5c309996bdecebb85b54370d3b39303503a651201e303fb6573a3d1d487619ad"
+    },
+    {
+      "name": "stage-1280-dark.png",
+      "sha256": "5dd6b37d8e24fedd7bde99c73c0b32e07f16495dc60e8bff1e0b2f0f4989c64d"
+    },
+    {
+      "name": "stage-1280-light.png",
+      "sha256": "8a9a0ea8b9c65fb45a89273ed4ca371da0144cf73e3d7a276dadbd208c696dbd"
+    },
+    {
+      "name": "stage-390-dark.png",
+      "sha256": "eb9f93312bc16c39e79b06409c5e22a240da8468ff774393d2fb049628970408"
+    },
+    {
+      "name": "stage-390-light.png",
+      "sha256": "4c73715b1962b2244f4bd05bcb1378dccc23c08f8fb4c17f28297721d215f6ad"
+    },
+    {
+      "name": "terminal-1280-dark.png",
+      "sha256": "8e5a44b149ae391f119b0a82e47218ebbe7a2e56521769262235c610095ef273"
+    },
+    {
+      "name": "terminal-1280-light.png",
+      "sha256": "bb94d928deead05f339233243d1a45b83db13daf4ce62b808460673ae2ace141"
+    },
+    {
+      "name": "terminal-390-dark.png",
+      "sha256": "db3b5a9a2ce1112505d908f354db6e4b7746ceca6db77d1bad06da0d1c201985"
+    },
+    {
+      "name": "terminal-390-light.png",
+      "sha256": "a673c82a721a06ef52e6da0ee08d253279fd62a4067bb1c845acd94a078dc280"
+    },
+    {
+      "name": "user-1280-dark.png",
+      "sha256": "1f7ae64fdd86874a5255c81dbac2137cc358f4b6ce614311f2a12c894f86baa9"
+    },
+    {
+      "name": "user-1280-light.png",
+      "sha256": "c2b403aef53040f913028a88705fa2bb03d4653775ae207ecd4284b97176c7f7"
+    },
+    {
+      "name": "user-390-dark.png",
+      "sha256": "0c7fb6468be12080dadb16082e69e39526941992f0c73c1d127550b76405106c"
+    },
+    {
+      "name": "user-390-light.png",
+      "sha256": "13b53530d15925ab53c2c6bcd470137b67e0f8fcae7fb34106dbcdcd574011b7"
+    },
+    {
+      "name": "users-e2e-user-1280-dark.png",
+      "sha256": "68b7ff8d68a4dca5bbbc51556896533d46b5d253a62065bfd2e86503c1138365"
+    },
+    {
+      "name": "users-e2e-user-1280-light.png",
+      "sha256": "cdc8139909d8e8ffa7c3e497f6e54a265a07a4c8aa56c45fb166ed89f4f5c374"
+    },
+    {
+      "name": "users-e2e-user-390-dark.png",
+      "sha256": "780cb02c7b5d970b3e9fd4bd6a23f634f5191b5ab0761ad93222bb0e107a1e5b"
+    },
+    {
+      "name": "users-e2e-user-390-light.png",
+      "sha256": "6a242af5cc308ca90c403221bd0be9b57852beee13e44fc7b214d4d98f27f679"
+    },
+    {
+      "name": "wiki-1280-dark.png",
+      "sha256": "2f1fa5033172b2ea2be11b07bd058b6aa77c23626c8e20258c61491a5a14e01a"
+    },
+    {
+      "name": "wiki-1280-light.png",
+      "sha256": "868f743da052c3343f9f1690690f9d89486445898568a9a1e5eaa6e8fc80d7a4"
+    },
+    {
+      "name": "wiki-390-dark.png",
+      "sha256": "fe66715f78f4f42773a6ff5505c5e93d784eb6fe3e184a579deee9a3e2cbfce8"
+    },
+    {
+      "name": "wiki-390-light.png",
+      "sha256": "b99a33e2c4edbba56ee401bc79e98899bdc122d67dba9fa0227ae0d89329d1e4"
+    },
+    {
+      "name": "wiki-characters-yachiyo-1280-dark.png",
+      "sha256": "60d830bd2be8b4937b10e020bf32a732c84ab7c988f134b6b95e70e0dbf2431b"
+    },
+    {
+      "name": "wiki-characters-yachiyo-1280-light.png",
+      "sha256": "549113c975300b8b2c51ae0bac8036d2406f8b644d3082b1740e11c86b5ff94a"
+    },
+    {
+      "name": "wiki-characters-yachiyo-390-dark.png",
+      "sha256": "0e2ff759122832b8e50a1a70e421319e1d4b9ce3c112b02596356a8060721d35"
+    },
+    {
+      "name": "wiki-characters-yachiyo-390-light.png",
+      "sha256": "cc644ca8c67102c7476b57c90f9ceb641697188bf869117e5219103c43cf4e74"
+    },
+    {
+      "name": "wiki-terms-tsukuyomi-1280-dark.png",
+      "sha256": "80febf75ffd2a42c3b1da48c93eac38c7cc8b666cbb231a6a2cef553aeb35e6f"
+    },
+    {
+      "name": "wiki-terms-tsukuyomi-1280-light.png",
+      "sha256": "bf5e647b0616447d11edda903d8e9de5124094717b438619c822eb7b9029179d"
+    },
+    {
+      "name": "wiki-terms-tsukuyomi-390-dark.png",
+      "sha256": "9925c6fa0e161f2bd261dfa436f3310f2132f80fa128f03c180a9ac0505cbdae"
+    },
+    {
+      "name": "wiki-terms-tsukuyomi-390-light.png",
+      "sha256": "936a6b3df5d2b0b66288605e47927d470537872e86092238f9395188dd9fc41e"
+    }
+  ],
+  "limits": [
+    "Website visual comparison uses its isolated local preview and disposable backend data; no production mutation.",
+    "Model transports use controlled HTTP fixtures, not paid provider account acceptance.",
+    "Widget screenshots and desktop runtime CI do not establish all-device GPU, native input, IME, or signed iOS acceptance.",
+    "Signing restrictions remain in INSTALL.md; unsigned iOS requires user signing."
+  ]
+}

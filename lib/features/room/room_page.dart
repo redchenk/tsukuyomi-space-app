@@ -8,6 +8,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
+import '../site/site_widgets.dart' show SiteBackground;
+
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
@@ -324,7 +327,6 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final p = RoomStyle(context);
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
     return CallbackShortcuts(
       bindings: {
@@ -408,12 +410,9 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                 fit: StackFit.expand,
                 children: [
                   if (!mobile) ...[
-                    Image.asset(
-                      'assets/images/moonlit-lake.png',
-                      fit: BoxFit.cover,
-                      excludeFromSemantics: true,
+                    const Positioned.fill(
+                      child: SiteBackground(child: SizedBox.shrink()),
                     ),
-                    ColoredBox(color: p.background.withValues(alpha: .82)),
                     Positioned(
                       left: 24,
                       right: 24,
@@ -609,7 +608,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                         Icon(
                           Icons.circle,
                           size: 4,
-                          color: _ready ? const Color(0xff87c8b1) : p.muted,
+                          color: _ready ? p.success : p.muted,
                         ),
                         const SizedBox(width: 5),
                         Expanded(

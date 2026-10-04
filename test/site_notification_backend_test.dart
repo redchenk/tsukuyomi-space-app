@@ -1,3 +1,5 @@
+import 'support/site_fixture.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tsukuyomi_space_app/core/models.dart';
 import 'package:tsukuyomi_space_app/core/site_client.dart';
@@ -6,7 +8,7 @@ import 'package:tsukuyomi_space_app/features/site/site_notification.dart';
 // Disposable original Express/SQLite backend started by site_room_fixture.cjs.
 void main() {
   test('real notification and Hub contracts survive read, read-all and account isolation', () async {
-    const site = 'http://127.0.0.1:4184';
+    const site = siteFixtureOrigin;
     final recipient = SiteClient(), actor = SiteClient();
     addTearDown(recipient.dispose);
     addTearDown(actor.dispose);

@@ -327,20 +327,20 @@ void main() {
     final (c, _) = await mount(tester);
     expect(
       Theme.of(tester.element(find.byType(RoomPage))).brightness,
-      Brightness.dark,
+      Brightness.light,
     );
-    await tester.tap(find.byTooltip('切换浅色主题'));
+    await tester.tap(find.byTooltip('切换深色主题'));
     await tester.pumpAndSettle();
     expect(
       Theme.of(tester.element(find.byType(RoomPage))).brightness,
-      Brightness.light,
+      Brightness.dark,
     );
-    expect((c.storage as MemoryStorage).drafts['app-theme'], 'light');
+    expect((c.storage as MemoryStorage).drafts['app-theme'], 'dark');
     await tester.tap(find.text('中枢'));
     await tester.pumpAndSettle();
     expect(
       Theme.of(tester.element(find.byType(HubPage))).brightness,
-      Brightness.light,
+      Brightness.dark,
     );
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
@@ -348,7 +348,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       Theme.of(tester.element(find.byType(RoomPage))).brightness,
-      Brightness.light,
+      Brightness.dark,
     );
     expect(tester.takeException(), isNull);
   });

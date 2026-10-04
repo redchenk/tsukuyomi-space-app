@@ -153,8 +153,9 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
               ),
               width: 880,
               child: Material(
-                elevation: 12,
-                borderRadius: BorderRadius.circular(24),
+                elevation: 8,
+                color: Theme.of(ctx).colorScheme.surface,
+                borderRadius: BorderRadius.circular(28),
                 clipBehavior: Clip.antiAlias,
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxHeight: size.height * .72),
@@ -262,7 +263,7 @@ class _MenuContents extends StatelessWidget {
                               dense: true,
                               visualDensity: VisualDensity.compact,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(16),
                               ),
                               selected:
                                   Uri.tryParse(currentPath)?.path == item.$1,

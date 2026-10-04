@@ -1,3 +1,5 @@
+import 'support/site_fixture.dart';
+
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -9,7 +11,7 @@ import 'support/fakes.dart';
 
 void main() {
   test('Room actual website backend: images, optimistic edits, share revoke, diary sync and auth recovery', () async {
-    const origin = 'http://127.0.0.1:4184';
+    const origin = siteFixtureOrigin;
     const png =
         'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6eioAAAAASUVORK5CYII=';
     final site = SiteClient();

@@ -1,3 +1,5 @@
+import 'support/site_fixture.dart';
+
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -8,7 +10,7 @@ import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
 
 import 'support/fakes.dart';
 
-const fixture = 'http://127.0.0.1:4184';
+const fixture = siteFixtureOrigin;
 bool get enabled =>
     Platform.environment['RUN_SITE_FIXTURE'] == '1' ||
     const bool.fromEnvironment('RUN_SITE_FIXTURE');

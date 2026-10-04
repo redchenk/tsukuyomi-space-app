@@ -266,142 +266,173 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
 
   Widget _hero() => LayoutBuilder(
     builder: (context, box) {
-      final p = RoomStyle(context), compact = box.maxWidth < 860;
-      return Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: p.line),
-          gradient: LinearGradient(colors: [p.surface, p.soft]),
+      final p = RoomStyle(context);
+      final mobile = box.maxWidth <= 600, tablet = box.maxWidth < 1100;
+      Widget artwork() => Image.asset(
+        'assets/images/sakura/yachiyo-lake.webp',
+        cacheWidth: (box.maxWidth * MediaQuery.devicePixelRatioOf(context))
+            .ceil()
+            .clamp(1, 1672),
+        fit: BoxFit.cover,
+        alignment: mobile ? const Alignment(.3, 0) : const Alignment(0, -.24),
+        color: p.dark ? Colors.black.withValues(alpha: .22) : null,
+        colorBlendMode: BlendMode.darken,
+        semanticLabel: '月见八千代',
+      );
+      final copy = Padding(
+        padding: EdgeInsets.fromLTRB(
+          mobile ? 22 : 40,
+          mobile ? 26 : 36,
+          mobile ? 22 : 36,
+          mobile ? 0 : 36,
         ),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Positioned(
-              top: compact ? 110 : 0,
-              bottom: 0,
-              right: compact ? -box.maxWidth * .1 : 0,
-              width: box.maxWidth * (compact ? .54 : .45),
-              child: IgnorePointer(
-                child: ShaderMask(
-                  blendMode: BlendMode.dstIn,
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [Colors.transparent, Colors.black],
-                    stops: [0, .3],
-                  ).createShader(bounds),
-                  child: LayoutBuilder(
-                    builder: (context, imageBox) {
-                      final coverWidth = imageBox.maxHeight * 1923 / 1081;
-                      return Image.asset(
-                        'assets/images/yachiyo-hub-stand.png',
-                        cacheWidth:
-                            ((coverWidth > imageBox.maxWidth
-                                        ? coverWidth
-                                        : imageBox.maxWidth) *
-                                    MediaQuery.devicePixelRatioOf(context))
-                                .ceil()
-                                .clamp(1, 1923),
-                        fit: BoxFit.cover,
-                        alignment: const Alignment(.22, 0),
-                        semanticLabel: '月见八千代',
-                      );
-                    },
-                  ),
-                ),
+            SiteText(
+              'TSUKUYOMI · A MOONLIT COMMUNITY',
+              style: TextStyle(
+                fontSize: 10,
+                color: p.muted,
+                letterSpacing: 1.2,
               ),
             ),
-            Padding(
-              padding: EdgeInsets.all(compact ? 24 : 40),
-              child: SizedBox(
-                width: compact ? double.infinity : box.maxWidth * .52,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SiteText(
-                      'TSUKUYOMI · A MOONLIT COMMUNITY',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: p.accent,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    SiteText('与你相遇，在月光之下', style: TextStyle(color: p.muted)),
-                    const SizedBox(height: 8),
-                    SiteText(
-                      '月读空间',
-                      style: TextStyle(
-                        fontFamily: RoomStyle.serif,
-                        fontSize: compact ? 34 : 48,
-                      ),
-                    ),
-                    SiteText(
-                      'Tsukuyomi Space',
-                      style: TextStyle(
-                        fontSize: 12,
-                        letterSpacing: 2.6,
-                        color: p.muted,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: compact ? box.maxWidth * .50 : double.infinity,
-                      child: SiteText(
-                        '给日常留一点月光。与八千代聊天，读故事、看创作，遇见同频的人。',
-                        style: TextStyle(
-                          fontSize: compact ? 13 : 15,
-                          height: 1.9,
-                          color: p.muted,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Wrap(
-                      direction: compact ? Axis.vertical : Axis.horizontal,
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: [
-                        FilledButton.icon(
-                          onPressed: () => widget.onGo('/room'),
-                          icon: const Icon(CupertinoIcons.moon, size: 17),
-                          label: const SiteText('进入私人居所'),
-                        ),
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            backgroundColor: p.surface,
-                          ),
-                          onPressed: () => widget.onGo('/stage'),
-                          icon: const Icon(Icons.arrow_forward, size: 17),
-                          label: const SiteText('发现创作'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+            const SizedBox(height: 18),
+            SiteText(
+              '与你相遇，在月光之下',
+              style: TextStyle(color: p.ink, fontSize: mobile ? 14 : 17),
+            ),
+            const SizedBox(height: 8),
+            SiteText(
+              '月读空间',
+              style: TextStyle(
+                fontFamily: RoomStyle.serif,
+                fontSize: mobile
+                    ? 34
+                    : tablet
+                    ? 48
+                    : 68,
+                fontWeight: FontWeight.w700,
+                height: 1.2,
               ),
+            ),
+            const SizedBox(height: 9),
+            SiteText(
+              'Tsukuyomi Space',
+              translate: false,
+              style: TextStyle(
+                fontSize: 12,
+                letterSpacing: 2.6,
+                color: p.muted,
+              ),
+            ),
+            SizedBox(height: mobile ? 16 : 24),
+            SiteText(
+              '给日常留一点月光。与八千代聊天，读故事、看创作，遇见同频的人。',
+              style: TextStyle(
+                fontSize: mobile ? 13 : 18,
+                height: 1.8,
+                color: p.muted,
+              ),
+            ),
+            SizedBox(height: mobile ? 20 : 30),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                FilledButton.icon(
+                  onPressed: () => widget.onGo('/room'),
+                  icon: const Icon(CupertinoIcons.moon, size: 17),
+                  label: const SiteText('进入私人居所'),
+                ),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(backgroundColor: p.surface),
+                  onPressed: () => widget.onGo('/stage'),
+                  icon: const Icon(Icons.arrow_forward, size: 17),
+                  label: const SiteText('发现创作'),
+                ),
+              ],
             ),
           ],
         ),
       );
+      return Container(
+        decoration: BoxDecoration(
+          color: p.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: p.line),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: mobile
+            ? Column(
+                children: [
+                  copy,
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 245,
+                    width: double.infinity,
+                    child: artwork(),
+                  ),
+                ],
+              )
+            : ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 416),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      top: 0,
+                      bottom: 0,
+                      right: 0,
+                      width: box.maxWidth * (tablet ? .54 : .64),
+                      child: IgnorePointer(
+                        child: ShaderMask(
+                          blendMode: BlendMode.dstIn,
+                          shaderCallback: (bounds) => const LinearGradient(
+                            colors: [Colors.transparent, Colors.black],
+                            stops: [0, .44],
+                          ).createShader(bounds),
+                          child: artwork(),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      width: box.maxWidth * (tablet ? .46 : .54),
+                      child: copy,
+                    ),
+                  ],
+                ),
+              ),
+      );
     },
   );
 
-  Widget _announcement() => ExpansionTile(
-    tilePadding: EdgeInsets.zero,
-    leading: const Icon(CupertinoIcons.bell, size: 18),
-    title: const SiteText('站内公告', style: TextStyle(fontSize: 13)),
-    subtitle: Text(_setting('visitPopupTitle', '欢迎来到月读空间')),
-    children: [
-      Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 30, bottom: 20),
-          child: SelectableText(
-            _setting('visitPopupContent', '首次访问弹窗尚未配置内容。'),
-            style: const TextStyle(height: 1.9),
+  Widget _announcement() => Material(
+    color: RoomStyle(context).surface,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(18),
+      side: BorderSide(color: RoomStyle(context).line),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ExpansionTile(
+        tilePadding: EdgeInsets.zero,
+        leading: const Icon(CupertinoIcons.bell, size: 18),
+        title: const SiteText('站内公告', style: TextStyle(fontSize: 13)),
+        subtitle: Text(_setting('visitPopupTitle', '欢迎来到月读空间')),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 30, bottom: 20),
+              child: SelectableText(
+                _setting('visitPopupContent', '首次访问弹窗尚未配置内容。'),
+                style: const TextStyle(height: 1.9),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
-    ],
+    ),
   );
 
   String _setting(String key, String fallback) {
@@ -446,7 +477,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
       final pixel = mapOf(_data['pixel']);
       final columns = box.maxWidth > 820
           ? 3
-          : box.maxWidth > 390
+          : box.maxWidth > 600
           ? 2
           : 1;
       final width = (box.maxWidth - 20 * (columns - 1)) / columns;
@@ -458,6 +489,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
             width: columns == 2 ? box.maxWidth : width,
             child: _scene(
               path: '/stage',
+              metadata: article,
               title: textOf(article, 'title', '主舞台'),
               description: plainText(textOf(article, 'excerpt', '记录、创作、知识')),
               label: '主舞台',
@@ -474,6 +506,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
             width: width,
             child: _scene(
               path: '/gallery',
+              metadata: gallery,
               title: gallery.isEmpty ? '月影图库' : '最新图库影像',
               description: gallery.isEmpty
                   ? '公开影像、插画与站点视觉记录'
@@ -492,6 +525,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
             width: width,
             child: _scene(
               path: '/pixel',
+              metadata: pixel,
               title: textOf(pixel, 'title', '月光像素工坊'),
               description: pixel.isEmpty
                   ? '绘制、发布、点赞月光像素画'
@@ -518,122 +552,177 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
     required IconData icon,
     String image = '',
     Map<String, dynamic>? artwork,
-  }) {
-    final media = LayoutBuilder(
-      builder: (context, box) {
-        if (artwork != null) return HubPixelPreview(artwork: artwork);
-        // Cover images are landscape; bound their decoded height to the card's
-        // physical height so a small card does not retain the full source bitmap.
-        final cacheHeight =
-            (box.maxHeight * MediaQuery.devicePixelRatioOf(context))
-                .ceil()
-                .clamp(1, 1600);
+    Map<String, dynamic> metadata = const {},
+  }) => LayoutBuilder(
+    builder: (context, box) {
+      final p = RoomStyle(context);
+      final mobile = MediaQuery.sizeOf(context).width <= 600;
+      final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+      final author = userDisplayName(metadata, prefix: 'author', fallback: '');
+      final date = dateText(metadata['created_at'] ?? metadata['updated_at']);
+      Widget media() {
         final fallback = Image.asset(
-          path == '/stage'
-              ? 'assets/images/room-bg.webp'
-              : 'assets/images/tsukuyomi-bg.webp',
+          switch (path) {
+            '/stage' => 'assets/images/sakura/moonlit-shrine.webp',
+            '/gallery' => 'assets/images/sakura/yachiyo-portrait.webp',
+            _ => 'assets/images/sakura/sakura-station.webp',
+          },
           fit: BoxFit.cover,
-          cacheHeight: cacheHeight,
+          cacheHeight: (160 * scale * MediaQuery.devicePixelRatioOf(context))
+              .ceil()
+              .clamp(1, 1600),
         );
-        if (image.isEmpty) return fallback;
-        final target = endpointUri(c.settings.siteUrl).resolve(image);
-        if (!['https', 'http'].contains(target.scheme) ||
-            target.userInfo.isNotEmpty) {
-          return fallback;
+        Widget imageWidget = fallback;
+        if (artwork != null) {
+          imageWidget = HubPixelPreview(artwork: artwork);
+        } else if (image.isNotEmpty) {
+          final target = endpointUri(c.settings.siteUrl).resolve(image);
+          if (['https', 'http'].contains(target.scheme) &&
+              target.userInfo.isEmpty) {
+            imageWidget = Image.network(
+              '$target',
+              fit: BoxFit.cover,
+              cacheHeight:
+                  (160 * scale * MediaQuery.devicePixelRatioOf(context))
+                      .ceil()
+                      .clamp(1, 1600),
+              errorBuilder: (_, _, _) => fallback,
+            );
+          }
         }
-        return Image.network(
-          '$target',
-          fit: BoxFit.cover,
-          cacheHeight: cacheHeight,
-          errorBuilder: (_, _, _) => fallback,
-        );
-      },
-    );
-    return Semantics(
-      label: '$label：$title',
-      button: true,
-      child: Material(
-        borderRadius: BorderRadius.circular(20),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => widget.onGo(path),
-          child: SizedBox(
-            height: 330 * (MediaQuery.textScalerOf(context).scale(14) / 14),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                media,
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0x1a0c0d1a), Color(0xe00c0d1a)],
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              imageWidget,
+              if (!mobile)
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(8),
                     ),
+                    child: Icon(icon, size: 18, color: Colors.white),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(22),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+            ],
+          ),
+        );
+      }
+
+      Widget details() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (mobile)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                code,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 10, color: p.muted),
+              ),
+            ),
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: RoomStyle.serif,
+              fontSize: mobile ? 17 : 19,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+              color: p.ink,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            description,
+            maxLines: mobile ? 1 : 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: mobile ? 12 : 15,
+              color: p.muted,
+              height: 1.65,
+            ),
+          ),
+          if (author.isNotEmpty || date.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 4,
+              children: [
+                if (author.isNotEmpty)
+                  Text(
+                    author,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: p.muted),
+                  ),
+                if (date.isNotEmpty)
+                  Text(
+                    date,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 10, color: p.muted),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      );
+      return Semantics(
+        label: '$label：$title',
+        button: true,
+        child: Material(
+          color: p.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: p.line),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: () => widget.onGo(path),
+            child: Padding(
+              padding: EdgeInsets.all(mobile ? 10 : 12),
+              child: mobile
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: box.maxWidth * .30,
+                          height: 122 * scale,
+                          child: media(),
+                        ),
+                        const SizedBox(width: 13),
+                        Expanded(child: details()),
+                      ],
+                    )
+                  : ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: 296 * scale),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Icon(icon, color: Colors.white),
-                          const Spacer(),
-                          Flexible(
-                            child: Text(
-                              code,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                              ),
-                            ),
+                          SizedBox(height: 160, child: media()),
+                          const SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: details(),
                           ),
+                          const SizedBox(height: 8),
                         ],
                       ),
-                      const Spacer(),
-                      Text(
-                        label,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Color(0xffded7ff),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 21,
-                          color: Colors.white,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xffe2dfeb),
-                          height: 1.75,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                    ),
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
 
   Widget _plaza() => SiteCard(
     child: LayoutBuilder(

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models.dart';
 import '../../core/site_localization.dart';
+import '../../core/site_theme.dart';
 import '../room/room_style.dart';
 import '../room/room_controller.dart';
 import '../room/room_music.dart';
@@ -91,9 +92,9 @@ class SiteCard extends StatelessWidget {
   final EdgeInsets padding;
   @override
   Widget build(BuildContext context) => Material(
-    color: RoomStyle(context).surface.withValues(alpha: .95),
+    color: RoomStyle(context).surface,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(SitePalette.cardRadius),
       side: BorderSide(color: RoomStyle(context).line),
     ),
     child: Padding(padding: padding, child: child),
@@ -121,7 +122,7 @@ class SitePageHero extends StatelessWidget {
     child: SiteCard(
       padding: EdgeInsets.zero,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(SitePalette.cardRadius),
         child: Stack(
           children: [
             if (background != null) Positioned.fill(child: background!),
@@ -224,23 +225,43 @@ class SiteBackground extends StatelessWidget {
   const SiteBackground({super.key, required this.child});
   final Widget child;
   @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    children: [
-      Image.asset(
-        'assets/images/moonlit-lake.png',
-        fit: BoxFit.cover,
-        cacheWidth:
-            (MediaQuery.sizeOf(context).width *
-                    MediaQuery.devicePixelRatioOf(context))
-                .ceil()
-                .clamp(1, 2560),
-        excludeFromSemantics: true,
-      ),
-      ColoredBox(color: RoomStyle(context).background.withValues(alpha: .80)),
-      child,
-    ],
-  );
+  Widget build(BuildContext context) {
+    final p = RoomStyle(context);
+    final narrow = MediaQuery.sizeOf(context).width <= 860;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          p.dark
+              ? 'assets/images/sakura/moonlit-shrine.webp'
+              : 'assets/images/sakura/moonwhite-lake.webp',
+          fit: BoxFit.cover,
+          alignment: narrow ? const Alignment(.7, -1) : Alignment.center,
+          cacheHeight:
+              (MediaQuery.sizeOf(context).height *
+                      MediaQuery.devicePixelRatioOf(context))
+                  .ceil()
+                  .clamp(1, 1600),
+          excludeFromSemantics: true,
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                p.background.withValues(alpha: p.dark ? .84 : .20),
+                p.background.withValues(alpha: p.dark ? .94 : .82),
+                p.background.withValues(alpha: p.dark ? .94 : .92),
+                p.background.withValues(alpha: p.dark ? .94 : .82),
+                p.background.withValues(alpha: p.dark ? .84 : .20),
+              ],
+              stops: const [0, .24, .5, .76, 1],
+            ),
+          ),
+        ),
+        child,
+      ],
+    );
+  }
 }
 
 class SiteAvatar extends StatefulWidget {
@@ -319,11 +340,7 @@ class _SiteAvatarState extends State<SiteAvatar> {
       child: Container(
         width: size,
         height: size,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xffec4899), Color(0xff8b5cf6)],
-          ),
-        ),
+        color: RoomStyle(context).primary,
         child: picture,
       ),
     );
@@ -398,19 +415,12 @@ class SiteHeader extends StatelessWidget {
                 child: Row(
                   children: [
                     if (!compact) ...[
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: style.soft,
-                          border: Border.all(color: style.line),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Icon(
-                          CupertinoIcons.moon_circle,
-                          color: style.accent,
-                          size: 25,
-                        ),
+                      Image.asset(
+                        'assets/images/sakura/sakura-moon-logo.webp',
+                        width: compact ? 30 : 44,
+                        height: compact ? 30 : 44,
+                        cacheWidth: 132,
+                        excludeFromSemantics: true,
                       ),
                       const SizedBox(width: 10),
                     ],
@@ -453,7 +463,7 @@ class SiteHeader extends StatelessWidget {
                   onPressed: () => onGo(route),
                   style: TextButton.styleFrom(
                     foregroundColor: path == route ? style.accent : style.muted,
-                    backgroundColor: path == route ? style.soft : null,
+                    backgroundColor: path == route ? style.selected : null,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                   child: SiteText(
