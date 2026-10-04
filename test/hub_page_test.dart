@@ -152,7 +152,10 @@ void main() {
         'palette': ['#fff', '#aef2ff'],
         'pixels': pixels,
       };
-      Future<ui.Image> render(Map<String, dynamic> value) async {
+      Future<ui.Image> render(
+        Map<String, dynamic> value, {
+        ui.Image? replacing,
+      }) async {
         await tester.pumpWidget(
           Directionality(
             textDirection: TextDirection.ltr,
@@ -167,13 +170,15 @@ void main() {
           of: find.byType(HubPixelPreview),
           matching: find.byType(RawImage),
         );
-        for (var i = 0; i < 50; i++) {
+        for (var i = 0; i < 200; i++) {
           await tester.runAsync(
             () => Future<void>.delayed(const Duration(milliseconds: 10)),
           );
           await tester.pump();
           final image = tester.widget<RawImage>(imageFinder).image;
-          if (image != null) return image;
+          // The preview retains its previous texture while decoding. Wait for
+          // the new image rather than treating a cached image as completion.
+          if (image != null && !identical(image, replacing)) return image;
         }
         throw StateError('Pixel texture did not decode');
       }
@@ -203,7 +208,7 @@ void main() {
       final unchanged = await render({...artwork, 'title': '只改变标题'});
       expect(unchanged, same(first));
       pixels[0] = 1;
-      final next = await render({...artwork});
+      final next = await render({...artwork}, replacing: first);
       expect(next, isNot(same(first)));
       final changed = await tester.runAsync(
         () => next.toByteData(format: ui.ImageByteFormat.rawRgba),

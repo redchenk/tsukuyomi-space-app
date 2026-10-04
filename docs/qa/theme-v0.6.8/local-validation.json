@@ -1,7 +1,7 @@
 {
   "version": "0.6.8+14",
   "tag": "v0.6.8-beta.1",
-  "validated_at": "2026-10-04T12:58:33.291822+00:00",
+  "validated_at": "2026-10-04T13:12:10.582990+00:00",
   "website_visual_ref": "dba490894b62cd1799f8d9ab6fbf08199f9a335e",
   "website_backend_fixture_ref": "87fbe74b28edcd3e2bda7939caf578fc49b1b6b5",
   "local_regression": {
@@ -70,6 +70,18 @@
     {
       "name": "tsukuyomi-v068-agent-tools.log",
       "sha256": "edb4e2159c923ea45a32656078835cdf531c3d7b414c670dd786978875cb0678"
+    },
+    {
+      "name": "tsukuyomi-v068-ci-timing-final-test.log",
+      "sha256": "79fbbb0aaf875b2b650ab4e2124a5cd0123dbe180dd3ebbdbc37946ceaa0fc28"
+    },
+    {
+      "name": "tsukuyomi-v068-analysis-timing-final.log",
+      "sha256": "3623a3542ba1e50f62738aa88fc7ba96952d10a00b747974bd31236b1e661915"
+    },
+    {
+      "name": "tsukuyomi-v068-format-timing-final.log",
+      "sha256": "250d4a83772ed77e1916457877e39b8d7e10aad61030ce56e666e0694095126d"
     }
   ],
   "screenshots_sha256": [
@@ -527,5 +539,16 @@
     "Model transports use controlled HTTP fixtures, not paid provider account acceptance.",
     "Widget screenshots and desktop runtime CI do not establish all-device GPU, native input, IME, or signed iOS acceptance.",
     "Signing restrictions remain in INSTALL.md; unsigned iOS requires user signing."
-  ]
+  ],
+  "ci_timing_regression": {
+    "passed": 15,
+    "skipped": 0,
+    "command": "flutter test --no-pub --concurrency=1 test/hub_page_test.dart test/deepseek_agent_runtime_test.dart --dart-define=RUN_AGENT_TESTS=true --dart-define=CAPTURE_UI=true",
+    "native_fixture_first_activity_seconds": 10,
+    "native_fixture_hold_after_text_seconds": 11,
+    "production_native_response_seconds": 30,
+    "pixel_waits_for_replacement_texture": true,
+    "assertions_preserved": true,
+    "log_sha256": "79fbbb0aaf875b2b650ab4e2124a5cd0123dbe180dd3ebbdbc37946ceaa0fc28"
+  }
 }
