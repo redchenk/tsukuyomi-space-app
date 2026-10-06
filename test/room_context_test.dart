@@ -98,6 +98,12 @@ class ContextSite extends FakeSite implements SiteDataService {
   }
 }
 
+class SnapshotSite extends ContextSite {
+  List<Map<String, dynamic>> rows = [];
+  @override
+  Map<String, dynamic> get memoryResult => {'data': rows};
+}
+
 RoomSettings contextSettings({bool ollama = false, bool memory = true}) =>
     RoomSettings(
       siteUrl: 'https://site.example',
@@ -164,6 +170,62 @@ http.Response contextReply(http.Request request) => http.Response(
 );
 
 void main() {
+  test('regeneration revalidates memory ownership, revisions and deletion while freezing other reference data', () async {
+    final site = SnapshotSite()
+      ..rows = [
+        {
+          'id': 'kept',
+          'context': '当时的事实',
+          'retrievalRevision': 'r1',
+          'sourceTurnId': 'completed',
+        },
+        {'id': 'gone', 'context': '稍后会删除', 'retrievalRevision': 'r1'},
+        {'id': 'excluded', 'context': '当前请求不能作为事实', 'sourceTurnId': 'current'},
+      ];
+    final c = await contextController(LlmClient(), site);
+    addTearDown(c.dispose);
+    final initial = await c.workspace.context(
+      '事实',
+      snapshotKey: 'same-request',
+      excludeTurnIds: ['current'],
+    );
+    expect(initial.text, contains('当时的事实'));
+    expect(initial.text, isNot(contains('当前请求不能作为事实')));
+    c.workspace.world = {'city': '不应覆盖重生成参考'};
+    site.rows = [
+      {
+        'id': 'kept',
+        'context': '同版本不能换片段',
+        'retrievalRevision': 'r1',
+        'sourceTurnId': 'completed',
+      },
+    ];
+    final retry = await c.workspace.context(
+      '事实',
+      snapshotKey: 'same-request',
+      excludeTurnIds: ['current'],
+    );
+    expect(retry.text, contains('当时的事实'));
+    expect(retry.text, isNot(contains('同版本不能换片段')));
+    expect(retry.text, isNot(contains('稍后会删除')));
+    expect(retry.text, isNot(contains('不应覆盖重生成参考')));
+    final query = Uri.parse(
+      site.calls.where((p) => p.startsWith('/api/room/memory?')).last,
+    ).queryParameters;
+    expect(jsonDecode(query['memoryIds']!), ['kept', 'gone']);
+    expect(jsonDecode(query['excludeTurnIds']!), ['current']);
+    site.rows = [
+      {'id': 'kept', 'context': '编辑后的事实', 'retrievalRevision': 'r2'},
+    ];
+    final edited = await c.workspace.context(
+      '事实',
+      snapshotKey: 'same-request',
+      excludeTurnIds: ['current'],
+    );
+    expect(edited.text, contains('编辑后的事实'));
+    expect(edited.text, isNot(contains('当时的事实')));
+  });
+
   final fixtures = expandContextFixture(
     jsonDecode(File('test/fixtures/room_context_web.json').readAsStringSync()),
   ) as Map;

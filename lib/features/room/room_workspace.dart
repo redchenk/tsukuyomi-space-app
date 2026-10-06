@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:crypto/crypto.dart';
 import 'package:geolocator/geolocator.dart';
 
 import '../../core/models.dart';
@@ -31,6 +32,68 @@ class RoomWorkspace extends ChangeNotifier {
   final RoomController c;
   late final RoomArchive archive;
   final tools = RoomTools();
+  String? _contextKey;
+  Map<String, dynamic>? _contextSections;
+  List<Map<String, dynamic>> _contextMemories = [];
+
+  Future<List<Map<String, dynamic>>> _chatMemories(
+    String text,
+    List<String> excluded,
+    List<String>? snapshotIds,
+  ) async {
+    if (!c.settings.flag('memoryEnabled', true)) return [];
+    bool allowed(Map<String, dynamic> row) =>
+        !excluded.contains(_sourceTurnId(row));
+    if (usesLocalMemory) {
+      final owned = localMemories.where(allowed).toList();
+      final rows = snapshotIds != null
+          ? [for (final id in snapshotIds) ...owned.where((m) => m['id'] == id)]
+          : (owned
+                .where((m) => roomMemoryScore(text, '${m['content']}') > 0)
+                .toList()
+              ..sort(
+                (a, b) => roomMemoryScore(
+                  text,
+                  '${b['content']}',
+                ).compareTo(roomMemoryScore(text, '${a['content']}')),
+              ));
+      return [
+        for (final m in rows.take(6))
+          {
+            ...m,
+            'context': roomMemoryExcerpt('${m['content']}', text),
+            'retrievalRevision': sha256
+                .convert(utf8.encode(jsonEncode(m)))
+                .toString(),
+          },
+      ];
+    }
+    if (!online || c.settings.demo || c.site is! SiteDataService) return [];
+    final query = {
+      'purpose': 'chat',
+      'limit': '6',
+      'q': text,
+      'excludeTurnIds': jsonEncode(excluded),
+      if (snapshotIds != null) 'memoryIds': jsonEncode(snapshotIds),
+    };
+    final result = await request(
+      'GET',
+      Uri(path: '/api/room/memory', queryParameters: query).toString(),
+    ).timeout(const Duration(seconds: 2));
+    if (jsonMap(result['retrieval'])['backend'] == 'unavailable') {
+      throw const ApiFailure('记忆暂不可用');
+    }
+    if (jsonMap(result['retrieval'])['selection'] == 'recent') return [];
+    return jsonRows(result['data'])
+        .where(
+          (row) =>
+              allowed(row) &&
+              (snapshotIds == null || snapshotIds.contains(row['id'])),
+        )
+        .take(6)
+        .toList();
+  }
+
   List<Map<String, dynamic>> modelTools(Map<String, dynamic>? image) =>
       allowedRoomModelTools(c.settings, hasImage: image != null);
   Future<Map<String, dynamic>> executeModelTool(
@@ -537,6 +600,8 @@ class RoomWorkspace extends ChangeNotifier {
     String text, {
     Map<String, dynamic>? image,
     bool Function()? isCurrent,
+    List<String> excludeTurnIds = const [],
+    String? snapshotKey,
   }) async {
     await RoomReference.load();
     final s = c.settings, scope = c.scope, memoryOwner = memoryIdentity;
@@ -547,6 +612,57 @@ class RoomWorkspace extends ChangeNotifier {
     }
 
     checkCurrent();
+    final previous = snapshotKey != null && _contextKey == snapshotKey
+        ? _contextSections
+        : null;
+    final priorMemories = previous == null
+        ? <Map<String, dynamic>>[]
+        : _contextMemories;
+    _contextKey = null;
+    _contextSections = null;
+    _contextMemories = [];
+    var memoryValid = true;
+    var memoryRows = <Map<String, dynamic>>[];
+    try {
+      memoryRows = await _chatMemories(
+        text,
+        excludeTurnIds,
+        previous == null
+            ? null
+            : priorMemories.map((m) => '${m['id']}').toList(),
+      );
+      checkCurrent();
+      if (previous != null) {
+        final byId = {for (final row in priorMemories) row['id']: row};
+        memoryRows = [
+          for (final row in memoryRows)
+            if (row['retrievalRevision'] != null &&
+                row['retrievalRevision'] ==
+                    byId[row['id']]?['retrievalRevision'])
+              byId[row['id']]!
+            else
+              row,
+        ];
+      }
+    } catch (_) {
+      checkCurrent();
+      memoryValid = false;
+      if (!c.sessionExpired) c.syncStatus = '记忆暂不可用，本轮仍可对话';
+    }
+    if (previous != null) {
+      final sections = {...previous, 'memories': _memoryReferences(memoryRows)};
+      if (memoryValid) {
+        _contextKey = snapshotKey;
+        _contextSections = previous;
+        _contextMemories = memoryRows;
+      }
+      return packRoomContext(
+        sections,
+        maxChars: roomProtocol(roomChatEndpoint(s.llmUrl)) == 'ollama'
+            ? 4000
+            : 8000,
+      );
+    }
     final sections = <String, dynamic>{
       'time': DateTime.now().toIso8601String(),
       'environment': [
@@ -575,28 +691,7 @@ class RoomWorkspace extends ChangeNotifier {
           )
           .toList();
     }
-    if (s.flag('memoryEnabled', true) && usesLocalMemory) {
-      final scored =
-          localMemories
-              .map(
-                (m) => {
-                  ...m,
-                  'score': roomMemoryScore(text, '${m['content']}'),
-                },
-              )
-              .where((m) => (m['score'] as num) > 0)
-              .toList()
-            ..sort((a, b) => (b['score'] as num).compareTo(a['score'] as num));
-      sections['memories'] = scored
-          .take(6)
-          .map(
-            (m) => {
-              'id': m['id'],
-              'content': roomMemoryExcerpt('${m['content']}', text),
-            },
-          )
-          .toList();
-    }
+    sections['memories'] = _memoryReferences(memoryRows);
     if (image != null &&
         s.option('visionMode') == 'mcp' &&
         !s.flag('mcpEnabled')) {
@@ -631,21 +726,20 @@ class RoomWorkspace extends ChangeNotifier {
             }),
       );
       checkCurrent();
-      if (s.flag('memoryEnabled', true) &&
-          online &&
-          !usesLocalMemory &&
-          c.site is SiteDataService) {
+      if (online && s.flag('memoryEnabled', true) && !usesLocalMemory) {
         try {
-          final result = await request(
-            'GET',
-            '/api/room/memory?purpose=chat&limit=6&q=${Uri.encodeQueryComponent(text)}',
-          ).timeout(const Duration(seconds: 2));
+          final relationship = jsonMap(
+            (await request(
+              'GET',
+              '/api/room/relationship',
+            ).timeout(const Duration(milliseconds: 1200)))['data'],
+          );
           checkCurrent();
-          sections['memories'] = _memoryReferences(jsonRows(result['data']));
-        } catch (_) {
-          checkCurrent();
-          if (!c.sessionExpired) c.syncStatus = '记忆暂不可用，本轮仍可对话';
-        }
+          if (relationship['enabled'] == true) {
+            sections['relationship'] =
+                '角色互动进度：${relationship['stage']}，${relationship['score']}/1000。这是互动记录，不是真人情感。保持八千代原作身份和个性，语气可以随熟悉程度自然亲近；不要主动播报分数，也不要因用户缺席、悲伤或拒绝而责备。';
+          }
+        } catch (_) {}
       }
       if (online) {
         try {
@@ -699,6 +793,13 @@ class RoomWorkspace extends ChangeNotifier {
       }
     }
     checkCurrent();
+    if (memoryValid && snapshotKey != null) {
+      _contextKey = snapshotKey;
+      _contextSections = jsonMap(
+        jsonDecode(jsonEncode({...sections}..remove('memories'))),
+      );
+      _contextMemories = memoryRows;
+    }
     return packRoomContext(
       sections,
       maxChars: roomProtocol(roomChatEndpoint(s.llmUrl)) == 'ollama'
@@ -740,6 +841,7 @@ List<Map<String, dynamic>> _memoryReferences(
     ]).isNotEmpty)
       {
         'id': _referenceField([memory['id'], memory['memoryId'], 'memory']),
+        'turnId': _sourceTurnId(memory),
         'content':
             '[${_referenceField([memory['createdAt'], '历史聊天'])}] '
             '${_referenceField([memory['context'], memory['content'], memory['summary']])}',
@@ -787,4 +889,22 @@ String _growthReference(Map<String, dynamic> state) {
     pending.isNotEmpty ? '今日尚未完成：$pending。' : '今日成长任务已经全部完成。',
     '签到和分享是固定任务，第三项会在主舞台、广场、像素画、图库和辉夜快跑中每日轮换。用户询问时再简短引导，不要使用客服式播报。',
   ].join('\n');
+}
+
+String _sourceTurnId(Map<String, dynamic> row) {
+  if (row['sourceTurnId'] != null && row['manuallyEdited'] != true) {
+    return '${row['sourceTurnId']}';
+  }
+  final meta = row['metadata'] is String
+      ? (() {
+          try {
+            return jsonMap(jsonDecode(row['metadata']));
+          } catch (_) {
+            return <String, dynamic>{};
+          }
+        })()
+      : jsonMap(row['metadata']);
+  return meta['sourceKind'] == 'chat-turn-auto'
+      ? '${meta['sourceTurnId'] ?? ''}'
+      : '';
 }

@@ -237,6 +237,53 @@ String wireFixture(String protocol) {
 }
 
 void main() {
+  test('provider options follow original host/model gates and Qwen tool continuation retains thinking', () {
+    final official = Uri.parse(
+      'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
+    );
+    final options = roomChatOptions(official, 'qwen3.8-flash');
+    expect(options, {'temperature': .6, 'preserve_thinking': false});
+    expect(
+      roomChatOptions(
+        Uri.parse('https://proxy.example/v1/chat/completions'),
+        'qwen3.8-flash',
+      ),
+      {'temperature': .7},
+    );
+    expect(roomChatOptions(official, 'qwen3.8-flashlight'), {
+      'temperature': .7,
+    });
+    expect(roomChatOptions(official, 'gpt-5.4'), isEmpty);
+    expect(roomChatOptions(official, 'kimi-k2'), {'temperature': 1});
+    final payload = {
+      'model': 'qwen3.8-flash',
+      ...options,
+      'messages': <Map<String, dynamic>>[],
+    };
+    final turn = fixture('openai');
+    final parsed = {
+      'continuation': {
+        'protocol': 'openai',
+        'items': [turn['choices'][0]['message']],
+      },
+    };
+    final continuation = modelWithTools(payload, 'openai', [], [
+      {
+        'continuation': parsed['continuation'],
+        'results': [
+          {
+            'id': 'read1',
+            'name': 'web_search',
+            'content': '资料',
+            'isError': false,
+          },
+        ],
+      },
+    ]);
+    expect(continuation['preserve_thinking'], true);
+    expect(payload['preserve_thinking'], false);
+  });
+
   test(
     'bridge rejects model call ID reuse before exposing another tool execution',
     () async {

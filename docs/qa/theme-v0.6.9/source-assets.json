@@ -1,0 +1,180 @@
+{
+  "source_commit": "4b0ade76ac38dd0c0df551862b8b943a9cf96a15",
+  "source_repository": "https://github.com/redchenk/tsukuyomi-space",
+  "assets": [
+    {
+      "native": "assets/images/seasons/autumn-v1/article-cover.webp",
+      "source": "src/frontend/assets/seasons/autumn-v1/article-cover.webp",
+      "sha256": "655943209e243284abc59ef4e2a43170ee0c5c627c71036d4aa7c64109e37d20",
+      "bytes": 422912
+    },
+    {
+      "native": "assets/images/seasons/autumn-v1/background-dark.webp",
+      "source": "src/frontend/assets/seasons/autumn-v1/background-dark.webp",
+      "sha256": "10f32cd7279625d95f45cb6c76e0567be52e848e33d680e65860675d94dbd889",
+      "bytes": 345754
+    },
+    {
+      "native": "assets/images/seasons/autumn-v1/background-light.webp",
+      "source": "src/frontend/assets/seasons/autumn-v1/background-light.webp",
+      "sha256": "9c266ab54c356cedbd3fd5ae96addd64869da4e77dd815f3b7863f89e81c16e1",
+      "bytes": 462450
+    },
+    {
+      "native": "assets/images/seasons/autumn-v1/hero-scene.webp",
+      "source": "src/frontend/assets/seasons/autumn-v1/hero-scene.webp",
+      "sha256": "85f102c46ca9504ccedcde01b2e2f8606145582c94c7aa129a1e6476ecca25d5",
+      "bytes": 430558
+    },
+    {
+      "native": "assets/images/seasons/autumn-v1/pixel-workshop.webp",
+      "source": "src/frontend/assets/seasons/autumn-v1/pixel-workshop.webp",
+      "sha256": "8a2401576d656d10db0438dfd53f477d681ce86012fc5d99c9c8f78700c14416",
+      "bytes": 436652
+    },
+    {
+      "native": "assets/images/seasons/summer-v1/background-dark.webp",
+      "source": "src/frontend/assets/seasons/summer-v1/background-dark.webp",
+      "sha256": "013142c9c6085e0c9cb5bbbdf9c903abfe43842d7fbd8f8992a669838dcd20eb",
+      "bytes": 322278
+    },
+    {
+      "native": "assets/images/seasons/summer-v1/background-light.webp",
+      "source": "src/frontend/assets/seasons/summer-v1/background-light.webp",
+      "sha256": "eeefd801a21e2c882f13bb2a3f8bb101de8b507298f3823f86851a95f37ee93f",
+      "bytes": 408622
+    },
+    {
+      "native": "assets/images/seasons/summer-v1/hero-scene.webp",
+      "source": "src/frontend/assets/seasons/summer-v1/hero-scene.webp",
+      "sha256": "5d3d126ab15f2feeb9c6d86c52dc7b3b8eec065edef451f19a3017279e0f0f27",
+      "bytes": 483308
+    },
+    {
+      "native": "assets/images/seasons/summer-v1/pixel-workshop.webp",
+      "source": "src/frontend/assets/seasons/summer-v1/pixel-workshop.webp",
+      "sha256": "4016c75a73d19ab862584432b8063172cd57955c6e6bfed2469a63d8861c2617",
+      "bytes": 437332
+    },
+    {
+      "native": "assets/images/seasons/summer-v1/sparkler-cover.webp",
+      "source": "src/frontend/assets/seasons/summer-v1/sparkler-cover.webp",
+      "sha256": "065eee5499f937ba6a380f9086255f9ddda5a5c4f60ce27eefc5b0d200750591",
+      "bytes": 396004
+    },
+    {
+      "native": "assets/images/seasons/winter-v1/article-cover.webp",
+      "source": "src/frontend/assets/seasons/winter-v1/article-cover.webp",
+      "sha256": "22a5328e1e91f6f216157d082891d3fcfc53633930f3e02d62b656ec21146012",
+      "bytes": 462744
+    },
+    {
+      "native": "assets/images/seasons/winter-v1/background-dark.webp",
+      "source": "src/frontend/assets/seasons/winter-v1/background-dark.webp",
+      "sha256": "149024aee130940d678d316db4ff725616c9994c489e86320321a5629b6a2ef0",
+      "bytes": 348504
+    },
+    {
+      "native": "assets/images/seasons/winter-v1/background-light.webp",
+      "source": "src/frontend/assets/seasons/winter-v1/background-light.webp",
+      "sha256": "1f2009a4a897d59ad0f016a575c3156c2fdae68e7763236a672b4e9fb424e970",
+      "bytes": 508444
+    },
+    {
+      "native": "assets/images/seasons/winter-v1/hero-scene.webp",
+      "source": "src/frontend/assets/seasons/winter-v1/hero-scene.webp",
+      "sha256": "7d15faa296f0b573b3f98b21f33d79bb534c82f50e712cb5b1a7afdecc1c81f1",
+      "bytes": 439840
+    },
+    {
+      "native": "assets/images/seasons/winter-v1/pixel-workshop.webp",
+      "source": "src/frontend/assets/seasons/winter-v1/pixel-workshop.webp",
+      "sha256": "0cb798523e98c6050755f24a0b82a26ed9fbb44dd035c22e94ec0a8e2bc36233",
+      "bytes": 527812
+    },
+    {
+      "native": "assets/images/room/lakeside-v1/autumn-day.webp",
+      "source": "src/frontend/assets/room/lakeside-v1/autumn-day.webp",
+      "sha256": "b086425f9f1d6d4f05f65632af7f34c70471603079e21079586a2107c9aed7c8",
+      "bytes": 272360
+    },
+    {
+      "native": "assets/images/room/lakeside-v1/autumn-night.webp",
+      "source": "src/frontend/assets/room/lakeside-v1/autumn-night.webp",
+      "sha256": "6d24a4bbef801a49010684d8abb335865c8c4f793f129988aacf3d0ab6064496",
+      "bytes": 246262
+    },
+    {
+      "native": "assets/images/room/lakeside-v1/spring-day.webp",
+      "source": "src/frontend/assets/room/lakeside-v1/spring-day.webp",
+      "sha256": "a0526ceb407c9ddfcdfcfa32cf54cdb4cbce2870bacc96cf587563c477239631",
+      "bytes": 206928
+    },
+    {
+      "native": "assets/images/room/lakeside-v1/spring-night.webp",
+      "source": "src/frontend/assets/room/lakeside-v1/spring-night.webp",
+      "sha256": "e5c93a79891afee4b7a59e251010b6575c7f01ee97b511f8e7c8001448c41bf4",
+      "bytes": 225064
+    },
+    {
+      "native": "assets/images/room/lakeside-v1/summer-day.webp",
+      "source": "src/frontend/assets/room/lakeside-v1/summer-day.webp",
+      "sha256": "615850f7185d32146f056253b3718d6878581b061fa456c297e348b37ae7159c",
+      "bytes": 282398
+    },
+    {
+      "native": "assets/images/room/lakeside-v1/summer-night.webp",
+      "source": "src/frontend/assets/room/lakeside-v1/summer-night.webp",
+      "sha256": "24699216e536a402a4371be17c23946e1e212f0f734d9d62e985a643d9232952",
+      "bytes": 246444
+    },
+    {
+      "native": "assets/images/room/lakeside-v1/winter-day.webp",
+      "source": "src/frontend/assets/room/lakeside-v1/winter-day.webp",
+      "sha256": "37098fb6a90a5ae33a7519eafd6504187c26c7b3b5d6d09a1dbd37ad6ba130cf",
+      "bytes": 253604
+    },
+    {
+      "native": "assets/images/room/lakeside-v1/winter-night.webp",
+      "source": "src/frontend/assets/room/lakeside-v1/winter-night.webp",
+      "sha256": "324b1c3ee9f51129da0262dcf3a798fc112768ebb3462b802215270a811a3b86",
+      "bytes": 243970
+    },
+    {
+      "native": "assets/images/navigation/gallery-yachiyo.webp",
+      "source": "src/frontend/assets/navigation/gallery-yachiyo.webp",
+      "sha256": "5d60df550c94dbc686cbd2e6e5bec47cabd7cfceafb18fda834a8e5f02e529ff",
+      "bytes": 171760
+    },
+    {
+      "native": "assets/images/navigation/kaguya-run.webp",
+      "source": "src/frontend/assets/navigation/kaguya-run.webp",
+      "sha256": "e852aa388f49de28b935a9b32b462bbb4705971226a90e0df208571978a788a3",
+      "bytes": 183600
+    },
+    {
+      "native": "assets/images/navigation/pixel-workshop.webp",
+      "source": "src/frontend/assets/navigation/pixel-workshop.webp",
+      "sha256": "c5385b70e861626a2e2eca6a2417ad66b81f27df85ff161ec66a491314729236",
+      "bytes": 228534
+    },
+    {
+      "native": "assets/images/navigation/plaza-gathering.webp",
+      "source": "src/frontend/assets/navigation/plaza-gathering.webp",
+      "sha256": "28f40bd7d1c98ec9ce827d492f9e78783f0c0d8f60b3e49b5af62e577171bb74",
+      "bytes": 216456
+    },
+    {
+      "native": "assets/images/navigation/star-study.webp",
+      "source": "src/frontend/assets/navigation/star-study.webp",
+      "sha256": "c98458776f119f00be8e0c7e9e4cf05fcb5710956a7894a14b7506e002dd4be3",
+      "bytes": 217864
+    },
+    {
+      "native": "assets/images/navigation/wiki-study.webp",
+      "source": "src/frontend/assets/navigation/wiki-study.webp",
+      "sha256": "7fe1d247dca82c9534346e78a0f6961c3d531f79f28bc3b299516f68047ac0e8",
+      "bytes": 136154
+    }
+  ]
+}

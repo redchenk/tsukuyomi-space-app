@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 
-/// Website editorial.css / material-components.css at dba4908 (2026-10-04).
+import 'season_theme.dart';
+
+/// Website editorial.css / material-components.css at 4b0ade7 (2026-10-06).
 /// Keep these semantic roles shared by Room, content pages and Material controls.
 class SitePalette {
-  const SitePalette(this.dark);
+  const SitePalette(this.dark, {this.season = SiteSeason.spring});
+  final SiteSeason season;
+  static SitePalette of(BuildContext context) =>
+      Theme.of(context).extension<SiteSeasonColors>()?.palette ??
+      SitePalette(Theme.of(context).brightness == Brightness.dark);
+  Color seasonal(Color spring, int slot) => season == SiteSeason.spring
+      ? spring
+      : Color(_colors[season]![dark ? 1 : 0][slot]);
   final bool dark;
   static const brand = Color(0xffac4d6d);
   static const brandHover = Color(0xff923d5b);
@@ -11,17 +20,26 @@ class SitePalette {
   static const fieldRadius = 16.0;
   static const dialogRadius = 28.0;
   Color get background =>
-      dark ? const Color(0xff151923) : const Color(0xfff7f9fc);
-  Color get surface => dark ? const Color(0xff222836) : Colors.white;
-  Color get low => dark ? const Color(0xff1b202c) : const Color(0xfff8f9fc);
-  Color get soft => dark ? const Color(0xff2c3342) : const Color(0xffeef2f8);
-  Color get ink => dark ? const Color(0xffedf0f7) : const Color(0xff202b46);
-  Color get muted => dark ? const Color(0xffb5bccb) : const Color(0xff626e84);
-  Color get line => dark ? const Color(0xff394153) : const Color(0xffdfe6f0);
-  Color get accent => dark ? const Color(0xffe5a4bc) : brand;
+      seasonal(dark ? const Color(0xff151923) : const Color(0xfff7f9fc), 0);
+  Color get surface =>
+      seasonal(dark ? const Color(0xff222836) : Colors.white, 1);
+  Color get low =>
+      seasonal(dark ? const Color(0xff1b202c) : const Color(0xfff8f9fc), 2);
+  Color get soft =>
+      seasonal(dark ? const Color(0xff2c3342) : const Color(0xffeef2f8), 3);
+  Color get ink =>
+      seasonal(dark ? const Color(0xffedf0f7) : const Color(0xff202b46), 4);
+  Color get muted =>
+      seasonal(dark ? const Color(0xffb5bccb) : const Color(0xff626e84), 5);
+  Color get line =>
+      seasonal(dark ? const Color(0xff394153) : const Color(0xffdfe6f0), 6);
+  Color get accent => seasonal(dark ? const Color(0xffe5a4bc) : brand, 7);
   Color get selected =>
-      dark ? const Color(0xff3a2b39) : const Color(0xfff4e6ec);
-  Color get cyan => dark ? const Color(0xffa9cadc) : const Color(0xff386c85);
+      seasonal(dark ? const Color(0xff3a2b39) : const Color(0xfff4e6ec), 8);
+  Color get cyan =>
+      seasonal(dark ? const Color(0xffa9cadc) : const Color(0xff386c85), 9);
+  Color get primary => seasonal(brand, 10);
+  Color get primaryHover => seasonal(brandHover, 11);
   Color get success => dark ? const Color(0xff8ddab3) : const Color(0xff23734e);
   Color get warning => dark ? const Color(0xffefd196) : const Color(0xff8a6112);
   Color get danger => dark ? const Color(0xffffacba) : const Color(0xffad344b);
@@ -29,11 +47,115 @@ class SitePalette {
   Color get pressed => Color.alphaBlend(accent.withValues(alpha: .12), surface);
 }
 
-ThemeData siteTheme(bool dark) {
-  final p = SitePalette(dark);
+const _colors = <SiteSeason, List<List<int>>>{
+  SiteSeason.summer: [
+    [
+      0xfff3f8fa,
+      0xfffcfeff,
+      0xfff4f8fb,
+      0xffe7f0f5,
+      0xff203443,
+      0xff526b7a,
+      0xffd4e2e9,
+      0xff28647d,
+      0xffe0edf4,
+      0xff377781,
+      0xff28647d,
+      0xff1e5269,
+    ],
+    [
+      0xff111c25,
+      0xff1c2b36,
+      0xff16242e,
+      0xff263946,
+      0xffe5f1f7,
+      0xffabc1ce,
+      0xff3a5263,
+      0xffa0cde2,
+      0xff263f50,
+      0xff9ad4d9,
+      0xff316b86,
+      0xff255b75,
+    ],
+  ],
+  SiteSeason.autumn: [
+    [
+      0xfffbf7f1,
+      0xfffffdf9,
+      0xfffaf6ef,
+      0xfff3eade,
+      0xff43332a,
+      0xff776555,
+      0xffe8dccc,
+      0xff97562b,
+      0xfff5e7d8,
+      0xff627258,
+      0xff97562b,
+      0xff804720,
+    ],
+    [
+      0xff211b17,
+      0xff302721,
+      0xff27201b,
+      0xff40342a,
+      0xfff6ebdc,
+      0xffcfbca5,
+      0xff594839,
+      0xffe5b481,
+      0xff493425,
+      0xffb7c8a8,
+      0xff9d602f,
+      0xff885025,
+    ],
+  ],
+  SiteSeason.winter: [
+    [
+      0xfff5f8fc,
+      0xfffdfeff,
+      0xfff2f6fb,
+      0xffe8edf6,
+      0xff2a3550,
+      0xff586a84,
+      0xffd8e1ee,
+      0xff46628d,
+      0xffe5ecf8,
+      0xff487487,
+      0xff46628d,
+      0xff354f78,
+    ],
+    [
+      0xff151c2c,
+      0xff222c40,
+      0xff1b2435,
+      0xff2d3950,
+      0xffeaf0ff,
+      0xffb2bfd8,
+      0xff41516d,
+      0xffb4c9f4,
+      0xff2c3c59,
+      0xffa6cede,
+      0xff4f6897,
+      0xff405784,
+    ],
+  ],
+};
+
+class SiteSeasonColors extends ThemeExtension<SiteSeasonColors> {
+  const SiteSeasonColors(this.palette);
+  final SitePalette palette;
+  @override
+  SiteSeasonColors copyWith({SitePalette? palette}) =>
+      SiteSeasonColors(palette ?? this.palette);
+  @override
+  SiteSeasonColors lerp(covariant SiteSeasonColors? other, double t) =>
+      t < .5 ? this : other ?? this;
+}
+
+ThemeData siteTheme(bool dark, {SiteSeason season = SiteSeason.spring}) {
+  final p = SitePalette(dark, season: season);
   final scheme =
       ColorScheme.fromSeed(
-        seedColor: SitePalette.brand,
+        seedColor: p.primary,
         brightness: dark ? Brightness.dark : Brightness.light,
       ).copyWith(
         primary: p.accent,
@@ -78,6 +200,7 @@ ThemeData siteTheme(bool dark) {
   });
   return ThemeData(
     useMaterial3: true,
+    extensions: [SiteSeasonColors(p)],
     colorScheme: scheme,
     scaffoldBackgroundColor: p.background,
     dividerColor: p.line,
@@ -112,8 +235,8 @@ ThemeData siteTheme(bool dark) {
                 return p.ink.withValues(alpha: .12);
               }
               return states.contains(WidgetState.hovered)
-                  ? SitePalette.brandHover
-                  : SitePalette.brand;
+                  ? p.primaryHover
+                  : p.primary;
             }),
             foregroundColor: WidgetStateProperty.resolveWith(
               (states) => states.contains(WidgetState.disabled)

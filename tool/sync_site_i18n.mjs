@@ -23,17 +23,16 @@ function flatten(value, prefix = '', target = {}) {
 const extras = {};
 const nativeCopy = JSON.parse(fs.readFileSync('tool/native_ui_copy.json','utf8'));
 const growth = fs.readFileSync(path.join(root, 'src/frontend/pages/GrowthPage.vue'), 'utf8');
-const growthCopy = growth.slice(growth.indexOf('const copy ='), growth.indexOf('const articleRewards ='));
+const growthCopy = growth.slice(growth.indexOf('const copy ='), growth.indexOf('const localizedLevelTitles ='));
 const growthLevels = growth.slice(growth.indexOf('const localizedLevelTitles ='), growth.indexOf('const levelTitle ='));
 const growthLabels = growth.slice(growth.indexOf('function taskText('), growth.indexOf('function setState('));
 for (const language of ['zh','ja','en']) {
-  const growthData = vm.runInNewContext(`(function(){${growthCopy};${growthLevels};${growthLabels};return {copy,articleCopy,levels:localizedLevelTitles[props.lang],tasks:Object.fromEntries(['checkin','daily_share','daily_article_publish','daily_plaza_engage','daily_pixel_engage','daily_gallery_upload','daily_kaguya_run'].map(key=>[key,taskText({key})])),events:Object.fromEntries(['checkin','daily_chat','daily_share','daily_article_publish','daily_plaza_engage','daily_pixel_engage','daily_gallery_upload','daily_kaguya_run','referral_joined','referral_invite','article_view','article_like','article_bookmark','article_history'].map(key=>[key,eventText({key})]))};})()`, {props:{lang:language},computed:fn=>fn()}, {timeout:1000});
+  const growthData = vm.runInNewContext(`(function(){${growthCopy};${growthLevels};${growthLabels};return {copy,levels:localizedLevelTitles[props.lang],tasks:Object.fromEntries(['checkin','daily_share','daily_article_publish','daily_plaza_engage','daily_pixel_engage','daily_gallery_upload','daily_kaguya_run'].map(key=>[key,taskText({key})])),events:Object.fromEntries(['checkin','daily_chat','daily_share','daily_article_publish','daily_plaza_engage','daily_pixel_engage','daily_gallery_upload','daily_kaguya_run','referral_joined','referral_invite','article_view','article_like','article_bookmark','article_history'].map(key=>[key,eventText({key})]))};})()`, {props:{lang:language},computed:fn=>fn()}, {timeout:1000});
   extras[language] = {
     ...flatten(navigationCopy[language], 'navigation'),
     ...flatten(petData.COPY[language], 'guide'),
     ...Object.fromEntries(petData.GUIDES.flatMap(item => item[language].map((value,index) => [`guide.pages.${item.key}.${index}`,value]))),
     ...flatten(growthData.copy, 'growth'),
-    ...flatten(growthData.articleCopy, 'growth.article'),
     ...flatten(growthData.levels, 'growth.levels'),
     ...flatten(growthData.tasks, 'growth.tasks'),
     ...flatten(growthData.events, 'growth.events'),

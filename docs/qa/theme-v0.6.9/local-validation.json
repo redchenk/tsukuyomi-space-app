@@ -1,0 +1,581 @@
+{
+  "version": "0.6.9+15",
+  "tag": "v0.6.9-beta.1",
+  "validated_at": "2026-10-06T10:33:30.698755+00:00",
+  "website_source_ref": "4b0ade76ac38dd0c0df551862b8b943a9cf96a15",
+  "local_regression": {
+    "passed": 680,
+    "skipped": 4,
+    "includes_real_cubism_and_desktop_agent": true,
+    "skipped_reason": "Four explicitly gated screenshot tests are enabled in the separate visual run."
+  },
+  "final_feature_regression": {
+    "passed": 27,
+    "skipped": 0
+  },
+  "seasonal_capture_regression": {
+    "passed": 3,
+    "skipped": 0
+  },
+  "analysis": "No issues found",
+  "format": "210 files, zero changes",
+  "tools": {
+    "release": 37,
+    "agent": 3
+  },
+  "layout_matrix": {
+    "pages": 28,
+    "widths": [
+      360,
+      390,
+      768,
+      1280,
+      1920
+    ],
+    "languages": [
+      "zh",
+      "ja",
+      "en"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "scenarios": 840,
+    "english_text_scale": 2,
+    "screenshots": 112
+  },
+  "full_command": "RUN_SITE_FIXTURE=1 flutter test --no-pub --concurrency=1 --dart-define=RUN_CUBISM_TESTS=true --dart-define=RUN_WEBSITE_INTEGRATION=true --dart-define=RUN_AGENT_TESTS=true --dart-define=SITE_FIXTURE_ORIGIN=http://127.0.0.1:5197",
+  "logs": [
+    {
+      "name": "tsukuyomi-v069-full-verified-test.log",
+      "sha256": "8dad6d793d1cf5d47c4e8d228a51b093702afc563fbd96ef51ec430c77f03e67"
+    },
+    {
+      "name": "tsukuyomi-v069-final-changes.log",
+      "sha256": "0bcc71c6b2c0745ea3949ed4c32920836f28fb59a5d5a9d4bf6c7c8032183113"
+    },
+    {
+      "name": "tsukuyomi-v069-capture-final.log",
+      "sha256": "6ea974233c4c9fc270546ece78f6a5a7c8993bdbeee8606d2987434074129141"
+    },
+    {
+      "name": "tsukuyomi-v069-analysis-final.log",
+      "sha256": "49b19a22d2de1e8a4a669c1317fd5ec7ee06901275f5f489e26fb3ee4584a8ae"
+    },
+    {
+      "name": "tsukuyomi-v069-format-final.log",
+      "sha256": "d0889f987a7203e16d1a5325185d8202ff95581dc906e66dd521df8fcaa88b13"
+    },
+    {
+      "name": "tsukuyomi-v069-release-tools.log",
+      "sha256": "5bcb6f649d0324a4e02a3262dabf4afe71d3ad98dbf5f7a44a2b3d635d2183d0"
+    },
+    {
+      "name": "tsukuyomi-v069-agent-tools.log",
+      "sha256": "199ba496f288116d36c62f29346d4fbf0bd75745a1c893abfcbdaa4c6d5b1033"
+    },
+    {
+      "name": "tsukuyomi-v069-visual-final.log",
+      "sha256": "60412d3fb6c8a2eb07e69a34f92f85037320b4259f02c928bf11cbdc4cebfedf"
+    }
+  ],
+  "screenshots_sha256": [
+    {
+      "name": "artifacts/theme-v069/matrix/admin-1280-dark.png",
+      "sha256": "d47fc244293b73b4bf067d5f4a50d10898d4bb30b1d9f9bc8a557601fb88a13a"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/admin-1280-light.png",
+      "sha256": "a4690ed6009ce9bd619d33304d0f0df92017153a2b19e833807bad9d11370a2f"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/admin-390-dark.png",
+      "sha256": "f471f1d36fbbdbe4bb76e74c069dae4cd55068db4166526a683ca28131f951bd"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/admin-390-light.png",
+      "sha256": "ee170f536f5cebb90f5ef1adc414001905f058a8d83a7b0eb24237abd180ed0a"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/articles-3-1280-dark.png",
+      "sha256": "e45832e005ed19657c05f0f9c27129f289a4df809c9bcd146f0d38125905d039"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/articles-3-1280-light.png",
+      "sha256": "aae5fefa4ff77e1d232d9d48949cc24adaf72133065d9d8d8abf0fd9b9c6727c"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/articles-3-390-dark.png",
+      "sha256": "53715ac0466124409198b06be0e138a3fd1fad18fa809c123bd5faace78b41a2"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/articles-3-390-light.png",
+      "sha256": "02061c2ded42ad0fbc1d1c531998cfd41cd7de2341a5fd65f8e8b38ef7d0a43d"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/attachments-1280-dark.png",
+      "sha256": "865a629a063e460471557ade39b908ec7d81fd032f2e31231e465dd25314dd26"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/attachments-1280-light.png",
+      "sha256": "04cc3cf1c6e5d1996855d26a5e055de062cce47f3b572bc4d9d405f78776d06e"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/attachments-390-dark.png",
+      "sha256": "e51c503839e7cb988432e5ea215320028554367612a5d5096677c71971c7616e"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/attachments-390-light.png",
+      "sha256": "221f1f761e46cdcf79a488c86caa874e3653e8b6f7bcc4f51f482deeee1f6d9d"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/conversations-1280-dark.png",
+      "sha256": "f5d5b222d1349705849da599f805eaca97abac5a6c516bad7d01b2dba26e6774"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/conversations-1280-light.png",
+      "sha256": "44ebccfe45319007dafbd7f339922b1dd292b12e8d0e489021886d80dc797dcb"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/conversations-390-dark.png",
+      "sha256": "3278fde659bf20bf9291f72f2b351acc44c85e1a4b7c1622c7cad1b49f7453d5"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/conversations-390-light.png",
+      "sha256": "4886a674fd6df18df902f276e84efcef891b23b782a891eea0344f65a0dcfbc3"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/editor-1280-dark.png",
+      "sha256": "9c30a2ad398041ab7124acb11a9e6be13ae6583f27455730c5acbfd200b5055c"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/editor-1280-light.png",
+      "sha256": "dac7957f5621b1b2858feeaad6734900221751c44e04c376989f5da8b4d4fc84"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/editor-390-dark.png",
+      "sha256": "788c2b9b41f6f3e9b8c01b46e14b1a1132ca182a73b91f0e860c9feba4597852"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/editor-390-light.png",
+      "sha256": "407381eeed834ce62e93f8746d3df69d72de02de82b6a4689de58e2d4ec3cd12"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/friend-links-1280-dark.png",
+      "sha256": "52123fb4e22bf3e22115d2ca6105c719fa672a162b6da07e684f0ce5b38ab487"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/friend-links-1280-light.png",
+      "sha256": "6b5fb91ed2eed07505d1f90456c4c66138088001d7c8209a905df94ee57b5e8e"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/friend-links-390-dark.png",
+      "sha256": "bccb521d5c7bdb7f8ae7b119c2f932ecaab5bd002b55c9a50db454570ff11d2c"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/friend-links-390-light.png",
+      "sha256": "73d33dc080afda614290a960e96eef3e173b7c8bcdfa72846270c9941eeb382c"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/friend-links-apply-1280-dark.png",
+      "sha256": "e248c300a641af56031f3e91691bd1258e8f79424a85b4bcba53b4e7648d383c"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/friend-links-apply-1280-light.png",
+      "sha256": "80a705234878411cf5b588eaa52dfe287ce45d036793e9d04c00f9a1108c8502"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/friend-links-apply-390-dark.png",
+      "sha256": "9a63d063ef9ac2c2e75c4fbd5fa562298ffbb415fe24c43d976573e0a0198f25"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/friend-links-apply-390-light.png",
+      "sha256": "8ee37498a1744e839a9b6e355cd696ce445394b1e9f74920351e2323bed39dce"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/gallery-1280-dark.png",
+      "sha256": "d9858f0efc843629937fe03ecc744da3c7466ce9679641f63412316cb24c23f7"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/gallery-1280-light.png",
+      "sha256": "ed7106a9856953612030553edda1be0a10f2ee7608dea7f290806f8ccc25e06b"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/gallery-390-dark.png",
+      "sha256": "916640dc7f37199214d73afaa85f2f91ce86bb56850a3a95679361d1c5952aab"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/gallery-390-light.png",
+      "sha256": "cbf6430c30e74002b6227346f5528540eb72e7364dca82ffc0e0dc119754bf01"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/gallery-manage-1280-dark.png",
+      "sha256": "d9a424b73666bdfbf1a805c9302bddf68c5512c111ca8b46d3e9447433dc530d"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/gallery-manage-1280-light.png",
+      "sha256": "35e8808473c39a70b20e44323c6d49674f26f38a53114047fc5a8a17222f0a37"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/gallery-manage-390-dark.png",
+      "sha256": "989d98f12edce4bb808e8bc028a4beaef5cddbf581968e14dab05802ea6adae6"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/gallery-manage-390-light.png",
+      "sha256": "c10466429b0a849a9dbb0285b6c9865d803afe1f63b6258d5c4638fdc7e78573"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/game-1280-dark.png",
+      "sha256": "d844523e61937bcf02862cc2e8da20573219595ce2c059bc7697d28e69b3eac2"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/game-1280-light.png",
+      "sha256": "63b539227c1833e0ad3395a585a9dad2f5842ef1969ca344bcef3227fcfecb08"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/game-390-dark.png",
+      "sha256": "4bd83cee3bcce8b0b76644a1caa9c44ce99d3c4ff9c55e71d0d6c9870b7ed25d"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/game-390-light.png",
+      "sha256": "5777ee3028ffa1a761e1c9a1d72a56497fb1e7334e964c7d211e83869f10ed17"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/growth-1280-dark.png",
+      "sha256": "594c516632ef964c4eba834e0969fb8683ecc59ee4f1f5c60ff84357d1e2f52b"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/growth-1280-light.png",
+      "sha256": "cfec2c8c42934bd7c6f86362be1a0cd7263ff2468a87016f6710086035e156f0"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/growth-390-dark.png",
+      "sha256": "e656abdec65ccb29592e6fdc8949e1940eb461298209d476b8f571f0d4c087e0"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/growth-390-light.png",
+      "sha256": "f71b5afa1ada5518c96db38bd1f2bd5b4ef73af4effc2e5d5e23b1faac814a2f"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/hub-1280-dark.png",
+      "sha256": "1d17bc0aaad29e8d329ca186000df30ed5f864209f80f999f437e7027dcf1dfa"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/hub-1280-light.png",
+      "sha256": "31e883502e9fd6503653349801c77a1d6f5865609a2176efdad17de94247cb52"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/hub-390-dark.png",
+      "sha256": "103dbc4d4797ee32f142e7bd9edeaea88c72265a7b3d64b7271691786e6cf4be"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/hub-390-light.png",
+      "sha256": "7570ced3bcc90003cd051064f53231720cb25df6bbe633d4e0653b8103d3c68c"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/live2d-1280-dark.png",
+      "sha256": "d106ee69383b8b8253e229e42597a40c19a6e40e059e6d424b01cf9c14bf43f8"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/live2d-1280-light.png",
+      "sha256": "13689d742135fcc0e404fbb9fe942e3ecb79b6f8526c6e7d256ff80d60664173"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/live2d-390-dark.png",
+      "sha256": "06152d77b945848d052de0504dbb1abf5180f30a5df36ff493473e8c318c396b"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/live2d-390-light.png",
+      "sha256": "0aceb56fae06ac0ea177a90090c0dbcfeca97da7ce24806a16834509005d7e66"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/login-1280-dark.png",
+      "sha256": "241f0cca616b1b69238116da0580b15b85af380237f3bcabb0668763f5ea8829"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/login-1280-light.png",
+      "sha256": "b510720a72c33020a4a2cc838b4711c0718b9ea8f97328aeb135aad600a39992"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/login-390-dark.png",
+      "sha256": "a46c1eae92e5af0558515ad4bee499c4cf696ab5ca3d117451978b9aa21c6095"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/login-390-light.png",
+      "sha256": "68d8e5721ba62353baf1cfeb8caa1c771cd641277229b8c08e0d51535cd6138b"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/notifications-1280-dark.png",
+      "sha256": "0d7fad0c96d86458b866ed9b484439d565c39b5c58cdc828ed3041235dbcebc6"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/notifications-1280-light.png",
+      "sha256": "f387583016f5b7b85ef7123c9bdc363c54fc5cf2e70413acafe48c50bf8db6a0"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/notifications-390-dark.png",
+      "sha256": "b657d9140c84fdf49607955b136b8a3419b249172b37ea0f8e413b652e54601c"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/notifications-390-light.png",
+      "sha256": "d53426a9f81c5d31a05d83570930f589f53ffa5c75084bd8bfce0c217ae7c124"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/pixel-1280-dark.png",
+      "sha256": "de8eaae912717892d310d8b6b8a81f6989ebf221f13ff88d1ed100bc51244720"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/pixel-1280-light.png",
+      "sha256": "b569be4de57d0187c8d3cbbc99e0912cd09a213f7e06e7c0f35c3bf54d55f0a7"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/pixel-390-dark.png",
+      "sha256": "e84b841dc405b25bb22dcca5280fa68a2c43dfd65fb2bf2504441f1da7006bf5"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/pixel-390-light.png",
+      "sha256": "f1cedb01535401e2311adb5cbe5469c8e080c02c2a1be315818c1441418ee41a"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/plaza-1280-dark.png",
+      "sha256": "8607c0b98c55f08186c104b8a3172e758403e0c78df54818a32a87014c9b740a"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/plaza-1280-light.png",
+      "sha256": "5e2a5c229844f9bb9f677ed5bebc31535f336ed283c05cf3ddbe5960fc32b7a6"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/plaza-390-dark.png",
+      "sha256": "c6b145378555e83d851c9cbe7cac9b4d5f9912b6ceaf00e959ba51708e0b67fb"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/plaza-390-light.png",
+      "sha256": "f6d4caf311e3419eae4235ed6fd666e538f1f4918bd624871e6bf0cdd533c2fe"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/reality-1280-dark.png",
+      "sha256": "534aca3fe16400b434c369114217e31dc0710c2d4dede07527ba5f4cd5b78ed2"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/reality-1280-light.png",
+      "sha256": "7f726bc7b5f9f275efc5950ca197674f78af58f4672defc3a98cab373db18475"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/reality-390-dark.png",
+      "sha256": "a29ecd9e8b299f348d609bb18723ff6e0ccde520e5ab1e21a59cd30f44492b31"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/reality-390-light.png",
+      "sha256": "45bca1cdb55ad74fcc3fda12ab886bd8b4f34556f87757ded047d14c611a1f36"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/register-1280-dark.png",
+      "sha256": "b7f215a5e53d2a5254cd2408baa4a2f3e7ebc354d3b8a781f4b6a3e786518899"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/register-1280-light.png",
+      "sha256": "3a4139426b5e366f3d88bfeb94275a19a653d6f479a9427adf6b41426899c97e"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/register-390-dark.png",
+      "sha256": "f73adef8e5746470fe421f29a71cd30ff02119a6a8c21dc86048bda70c93b611"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/register-390-light.png",
+      "sha256": "dae32305bba4f602320729728b3eadd0a548e304d226a08fdee6a10d495dad06"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/room-1280-dark.png",
+      "sha256": "a31491b009c31b56580ef9e04e5f1c73daa6cacb27fbfc5f561e295bb48d47ea"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/room-1280-light.png",
+      "sha256": "d5b4c5cf143723b979b8adba1a53826ece4e26d42e52720080a3d62fa5c7317b"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/room-390-dark.png",
+      "sha256": "82a96ffe0330af465a41c42df60965441f21413e860ff803fb7ea45ef2867b39"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/room-390-light.png",
+      "sha256": "a8722e219db83c0d692769e426dffc395312966458eb0d8f5e760dd2f648ce5d"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/room-settings-1280-dark.png",
+      "sha256": "04af884b5f6591d8fa78ae90e172ad4112a24de48833d945d2bea612f0e98a2b"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/room-settings-1280-light.png",
+      "sha256": "f4535d707481a0eb7371494f969e84e8a37faec4fa0000dd9d0550ccc41821f1"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/room-settings-390-dark.png",
+      "sha256": "7898b56f992ce8da61087b657dbeb38e79e60a52b7ad31dc6c8dd12f128c6116"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/room-settings-390-light.png",
+      "sha256": "281871e5aba2f8233ba69ca696553001918f9f57b829811ae7af4399f0b6d72d"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/stage-1280-dark.png",
+      "sha256": "1f5c8463149ffb6cc905d1f3c079acdb8862832dccb42890dd6c071e96971e13"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/stage-1280-light.png",
+      "sha256": "7e5a929a1d2cee4f9d2fc1ee5bf904e76fcda1631451ffffd4360ba2130334b4"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/stage-390-dark.png",
+      "sha256": "34d84f40e617dff4a2cd3c10651465b1171ba06ba87f23e4f4e6e59e120ace89"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/stage-390-light.png",
+      "sha256": "5cccabc265becbf0304762726eec8a7f7a0f3a9c3748821f1e0c2e4a6a0828d5"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/terminal-1280-dark.png",
+      "sha256": "767f793b89b83e0953d462d8b91ba6085eaacfeeb242686889b9d930535f2fc3"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/terminal-1280-light.png",
+      "sha256": "f5161714289b30d35d60f2b490bf71b371bb210f9b47a0175380b08bf3b5555a"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/terminal-390-dark.png",
+      "sha256": "7f15b72386763cc4b89a8ff0d665e00cfc04095a182c3dc8d73e9801fee38503"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/terminal-390-light.png",
+      "sha256": "f9d4b85cb8b12cef1b6503add09d72c5a97a1d72aeb0d8c89ed90975a257e3d0"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/user-1280-dark.png",
+      "sha256": "e526c44a59eb9cee0c612306300bbe3c7b3f8ea2b788b6e74d312ef3945afdab"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/user-1280-light.png",
+      "sha256": "c8d4e8142917b2b67113c0ef72b136b343c024bac4008f8774ed0dfdac9645be"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/user-390-dark.png",
+      "sha256": "400118a7914a57ee05779877d4e9823ae478f6948e7ce4ef36fce0bf1cc109d2"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/user-390-light.png",
+      "sha256": "250cc0de9187b1e69a017f3edbbebf03e7d83f3c18dd8249f590d20309d05068"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/users-e2e-user-1280-dark.png",
+      "sha256": "01cfbe1f3a6ff1557fe32f6d4e0457aaf29f652706c01bccf40e01df1a2779b6"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/users-e2e-user-1280-light.png",
+      "sha256": "6ec031ae76199608f96f21698da445c95dcaf05d68b981b80c373f985510f726"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/users-e2e-user-390-dark.png",
+      "sha256": "f917997818c2a2372c47e24b80446f1107df721f348e5d5dc4f05497c9921557"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/users-e2e-user-390-light.png",
+      "sha256": "a4de02da8680c106452fab93115770efd47c9735165449c49abad1482da4651b"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/wiki-1280-dark.png",
+      "sha256": "ce691cf6406eee29158593c1d2aa147df0c88f248d985595f49198129114531d"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/wiki-1280-light.png",
+      "sha256": "83b34ee16833f9dd3dfc7471ab323006633db7a7305ae6a215f2d8668d033ac4"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/wiki-390-dark.png",
+      "sha256": "f7af7307cf4d1af24fc049aad573f2e925b0632ccb8aac1f9d22bcb767a77d7e"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/wiki-390-light.png",
+      "sha256": "65d42e66259c5de578650368f3f08b21a85b5a85d17b85c7b44be5427f081cdc"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/wiki-characters-yachiyo-1280-dark.png",
+      "sha256": "3e46ffe8e2b39605b9e89a1ca6913fda09e5135b4d1038a47103ef9740987517"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/wiki-characters-yachiyo-1280-light.png",
+      "sha256": "81f8605168bdb3a34ce2554c3ca462ed31d190747c4f343b38c6990524c1a39b"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/wiki-characters-yachiyo-390-dark.png",
+      "sha256": "c2392b0ed6c36a58466bc1cb2ef827dbad9f1559f3a2f68f05e4ece17a30f453"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/wiki-characters-yachiyo-390-light.png",
+      "sha256": "e7d702783331c14e90983d77e410027e7afeb800f68b5c5aa6f37737cfeeb672"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/wiki-terms-tsukuyomi-1280-dark.png",
+      "sha256": "eb023df8d8dd3dbe56e631d2c7f582eafc5e356bd4b840a243980d57b00ce497"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/wiki-terms-tsukuyomi-1280-light.png",
+      "sha256": "b249a6924955a9057fa2be3cddc08abf28aa5e8441f9353c9bed741832d6e090"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/wiki-terms-tsukuyomi-390-dark.png",
+      "sha256": "af4b74ee9d8be7955ea4f0f3289b4f64ba63192e4dc56f3e2e773c7f23ccd5e1"
+    },
+    {
+      "name": "artifacts/theme-v069/matrix/wiki-terms-tsukuyomi-390-light.png",
+      "sha256": "6d18fc2eaa034378aa40596fff295d7e6655520df4602b426fbea91dcae1e4b7"
+    },
+    {
+      "name": "artifacts/theme-v069/seasonal/music-1280.png",
+      "sha256": "84b3870192b876316334b046c9d2f46a8ea4001edba66afbe8f9a18cd43365f2"
+    },
+    {
+      "name": "artifacts/theme-v069/seasonal/music-390.png",
+      "sha256": "98724609535b1f94ccfb0cc099dca294b50b51e3ad456bbf112c869b0806cf8c"
+    },
+    {
+      "name": "artifacts/theme-v069/seasonal/music-cloud-1280.png",
+      "sha256": "6fd9a42fcb43668bae3200973e6972cb52c875385e068dbc5324590b069ddb42"
+    },
+    {
+      "name": "artifacts/theme-v069/seasonal/music-cloud-390.png",
+      "sha256": "6f8aa7661bda6234a26b27036886cd8efe33c3f7baec1fba10e55d5e618f2aa0"
+    },
+    {
+      "name": "artifacts/theme-v069/seasonal/navigation-autumn.png",
+      "sha256": "dfab4b64c97751214945ed4888cbfd1d043b1fde5412ffaeb4fd8a178e90bfc5"
+    },
+    {
+      "name": "artifacts/theme-v069/seasonal/navigation-spring.png",
+      "sha256": "326099cb90604df320f9a3d42b4abd120786c4143d3fd81e1fd4ecc8734182dd"
+    },
+    {
+      "name": "artifacts/theme-v069/seasonal/navigation-summer.png",
+      "sha256": "bbed1c1a9535c12a998084329949ecdbf5839783f257342358b1d1bdd14c9387"
+    },
+    {
+      "name": "artifacts/theme-v069/seasonal/navigation-winter.png",
+      "sha256": "2dc6839b51a8c2b87935fea798089d4ba54f4fa1a6a502a2248a75133e1deadc"
+    },
+    {
+      "name": "artifacts/theme-v069/website/discover-1280.jpg",
+      "sha256": "f766788760b38f09ae00ac9d47a273e980fd0f1705c2d5070179d5598a7143c6"
+    }
+  ],
+  "limits": [
+    "Disposable original backend and controlled music provider; no production data mutation.",
+    "Native runtimes and four model protocols use controlled HTTP fixtures, not user paid accounts.",
+    "Widget screenshots, VM stress and CI do not establish all-device GPU/IME performance or real music/OAuth acceptance.",
+    "iOS unsigned, macOS unnotarized, Windows unsigned publisher; PSEC unavailable means refusal."
+  ],
+  "visual_regression": {
+    "passed": 54,
+    "skipped": 0,
+    "previously_gated_tests_enabled": 4
+  },
+  "all_unique_tests_covered": 684
+}

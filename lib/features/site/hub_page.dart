@@ -1,3 +1,4 @@
+import '../../core/season_theme.dart';
 import '../../core/site_localization.dart';
 
 import 'dart:async';
@@ -269,12 +270,14 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
       final p = RoomStyle(context);
       final mobile = box.maxWidth <= 600, tablet = box.maxWidth < 1100;
       Widget artwork() => Image.asset(
-        'assets/images/sakura/yachiyo-lake.webp',
+        SeasonalArt(p.palette.season).hero,
         cacheWidth: (box.maxWidth * MediaQuery.devicePixelRatioOf(context))
             .ceil()
             .clamp(1, 1672),
         fit: BoxFit.cover,
-        alignment: mobile ? const Alignment(.3, 0) : const Alignment(0, -.24),
+        alignment: p.palette.season == SiteSeason.spring
+            ? (mobile ? const Alignment(.3, 0) : const Alignment(0, -.24))
+            : (mobile ? const Alignment(.5, 0) : const Alignment(.44, -1)),
         color: p.dark ? Colors.black.withValues(alpha: .22) : null,
         colorBlendMode: BlendMode.darken,
         semanticLabel: '月见八千代',
@@ -563,9 +566,9 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
       Widget media() {
         final fallback = Image.asset(
           switch (path) {
-            '/stage' => 'assets/images/sakura/moonlit-shrine.webp',
-            '/gallery' => 'assets/images/sakura/yachiyo-portrait.webp',
-            _ => 'assets/images/sakura/sakura-station.webp',
+            '/stage' => SeasonalArt(p.palette.season).article,
+            '/gallery' => SeasonalArt(p.palette.season).gallery,
+            _ => SeasonalArt(p.palette.season).pixel,
           },
           fit: BoxFit.cover,
           cacheHeight: (160 * scale * MediaQuery.devicePixelRatioOf(context))

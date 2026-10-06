@@ -607,6 +607,29 @@ class _GamePageState extends State<GamePage>
               },
             ),
           ),
+        if (session.entries.isNotEmpty)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(
+                onPressed: session.loading || session.page <= 1
+                    ? null
+                    : () => session.refreshLeaderboard(
+                        targetPage: session.page - 1,
+                      ),
+                child: const SiteText('上一页'),
+              ),
+              Text('${session.page} / ${session.totalPages}'),
+              TextButton(
+                onPressed: session.loading || session.page >= session.totalPages
+                    ? null
+                    : () => session.refreshLeaderboard(
+                        targetPage: session.page + 1,
+                      ),
+                child: const SiteText('下一页'),
+              ),
+            ],
+          ),
       ],
     ),
   );

@@ -12,21 +12,25 @@ const _groups = <String, List<(String, IconData)>>{
     ('/growth', Icons.favorite_outline),
     ('/live2d', Icons.face),
   ],
-  '内容创作': [
+  '发现': [
+    ('/wiki', Icons.menu_book),
+    ('/plaza', Icons.forum_outlined),
+    ('/gallery', Icons.photo_library_outlined),
+    ('/game', Icons.sports_esports_outlined),
+  ],
+  '创作': [
     ('/stage', Icons.auto_stories_outlined),
+    ('/pixel', Icons.grid_on),
     ('/editor', Icons.edit_note),
     ('/attachments', Icons.attach_file),
-    ('/gallery', Icons.photo_library_outlined),
     ('/gallery/manage', Icons.collections),
-    ('/pixel', Icons.grid_on),
   ],
-  '社区': [
+  '空间': [
     ('/hub', Icons.home_outlined),
-    ('/plaza', Icons.forum_outlined),
-    ('/wiki', Icons.menu_book),
-    ('/friend-links', Icons.link),
+    ('/agent-os', Icons.auto_awesome),
     ('/reality', Icons.public),
-    ('/game', Icons.sports_esports_outlined),
+    ('/friend-links', Icons.link),
+    ('/rss.xml', Icons.rss_feed),
   ],
   '账户与设置': [
     ('/user', Icons.person_outline),
@@ -96,6 +100,7 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
             action,
             switch (action) {
               'theme' => Icons.dark_mode_outlined,
+              'season' => Icons.eco_outlined,
               'search' => Icons.search,
               'music' => Icons.music_note,
               _ => Icons.language,
@@ -118,7 +123,7 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
     }
 
     final String? selected;
-    if (size.width < 960) {
+    if (size.width <= 860) {
       selected = await showModalBottomSheet<String>(
         context: context,
         isScrollControlled: true,
@@ -149,9 +154,9 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
               ),
               right: (size.width - position.dx - box.size.width).clamp(
                 16,
-                size.width - 896,
+                size.width - 816,
               ),
-              width: 880,
+              width: 800,
               child: Material(
                 elevation: 8,
                 color: Theme.of(ctx).colorScheme.surface,

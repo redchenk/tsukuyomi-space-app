@@ -663,6 +663,9 @@ Map<String, dynamic> modelWithTools(
     }
   } else {
     body['messages'] = [...payload['messages'] as List];
+    if (turns.isNotEmpty && body['preserve_thinking'] == false) {
+      body['preserve_thinking'] = true;
+    }
     for (final turn in turns) {
       for (final raw in turn['continuation']['items']) {
         final item = Map<String, dynamic>.from(raw as Map);

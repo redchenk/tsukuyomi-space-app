@@ -2693,5 +2693,160 @@
     "模型没有返回 JSON 动作",
     "モデルがJSONアクションを返しませんでした。",
     "The model returned no JSON action."
+  ],
+  [
+    "季节主题",
+    "季節テーマ",
+    "Seasonal theme"
+  ],
+  [
+    "跟随季节",
+    "季節に合わせる",
+    "Automatic season"
+  ],
+  [
+    "樱花",
+    "桜",
+    "Sakura"
+  ],
+  [
+    "夏日",
+    "夏",
+    "Summer"
+  ],
+  [
+    "红叶",
+    "紅葉",
+    "Autumn"
+  ],
+  [
+    "冬雪",
+    "冬の雪",
+    "Winter"
+  ],
+  [
+    "南半球",
+    "南半球",
+    "Southern hemisphere"
+  ],
+  [
+    "北半球",
+    "北半球",
+    "Northern hemisphere"
+  ],
+  [
+    "白昼",
+    "昼",
+    "Day"
+  ],
+  [
+    "月夜",
+    "月夜",
+    "Night"
+  ],
+  [
+    "仅保存到本机，深浅主题独立切换。",
+    "この端末に保存します。明暗テーマは独立しています。",
+    "Saved on this device. Light and dark modes are independent."
+  ],
+  [
+    "顺序播放",
+    "順番に再生",
+    "Sequential"
+  ],
+  [
+    "列表循环",
+    "リストをリピート",
+    "Loop queue"
+  ],
+  [
+    "随机播放",
+    "シャッフル",
+    "Shuffle"
+  ],
+  [
+    "单曲循环",
+    "1曲リピート",
+    "Repeat one"
+  ],
+  [
+    "网站曲目",
+    "サイトの曲",
+    "Site tracks"
+  ],
+  [
+    "网易云",
+    "NetEase",
+    "NetEase"
+  ],
+  [
+    "使用网易云 App 扫码，歌曲只在你的音乐库中显示。",
+    "NetEase アプリで読み取ってください。曲は個人の音楽ライブラリに表示されます。",
+    "Scan with the NetEase app. Tracks stay in your private music library."
+  ],
+  [
+    "网易云暂未启用，可以继续听网站曲目",
+    "NetEase は無効です。サイトの曲を再生できます。",
+    "NetEase is unavailable. Site tracks are still playable."
+  ],
+  [
+    "已扫码，请在手机确认",
+    "スマートフォンで確認してください",
+    "Scanned. Confirm on your phone."
+  ],
+  [
+    "二维码已过期",
+    "QR コードが期限切れです",
+    "QR code expired"
+  ],
+  [
+    "等待扫码",
+    "スキャン待ち",
+    "Waiting for scan"
+  ],
+  [
+    "扫码登录",
+    "QR コードでログイン",
+    "Sign in with QR"
+  ],
+  [
+    "刷新二维码",
+    "QR コードを更新",
+    "Refresh QR code"
+  ],
+  [
+    "退出网易云",
+    "NetEase からログアウト",
+    "Sign out of NetEase"
+  ],
+  [
+    "输入歌名或歌手",
+    "曲名やアーティスト",
+    "Song or artist"
+  ],
+  [
+    "我的歌单",
+    "マイプレイリスト",
+    "My playlists"
+  ],
+  [
+    "关闭音乐面板",
+    "音楽パネルを閉じる",
+    "Close music panel"
+  ],
+  [
+    "房间音乐",
+    "部屋の音楽",
+    "Room music"
+  ],
+  [
+    "上一曲",
+    "前の曲",
+    "Previous track"
+  ],
+  [
+    "下一曲",
+    "次の曲",
+    "Next track"
   ]
 ]

@@ -9,6 +9,7 @@ import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
 import 'core/llm_client.dart';
 import 'core/app_theme_controller.dart';
 import 'core/site_theme.dart';
+import 'core/season_theme.dart';
 import 'core/locale_controller.dart';
 import 'core/site_client.dart';
 import 'core/site_routes.dart';
@@ -69,6 +70,7 @@ class TsukuyomiApp extends StatefulWidget {
 
 class _TsukuyomiAppState extends State<TsukuyomiApp> {
   late final AppThemeController _theme;
+  late final SeasonThemeController _season;
   late final RoomMusic _music;
   late final LocaleController _locale;
   late final SiteChromeController _chrome;
@@ -87,6 +89,9 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
     _theme = AppThemeController(widget.controller.storage)
       ..addListener(_themeChanged);
     _theme.restore();
+    _season = SeasonThemeController(widget.controller.storage)
+      ..addListener(_themeChanged);
+    _season.restore();
     _locale = LocaleController(widget.controller.storage)
       ..addListener(_themeChanged);
     _locale.restore();
@@ -122,6 +127,8 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
     _music.dispose();
     _theme.removeListener(_themeChanged);
     _theme.dispose();
+    _season.removeListener(_themeChanged);
+    _season.dispose();
     _locale.removeListener(_themeChanged);
     _locale.dispose();
     _chrome.dispose();
@@ -130,123 +137,129 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
   }
 
   @override
-  Widget build(BuildContext context) => SiteMusicScope(
-    music: _music,
-    child: SiteControllerScope(
-      controller: widget.controller,
-      child: SiteLocaleScope(
-        controller: _locale,
-        child: MaterialApp(
-          navigatorKey: _navigator,
-          navigatorObservers: [_routeObserver],
-          locale: _locale.locale,
-          supportedLocales: const [Locale('zh'), Locale('ja'), Locale('en')],
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          builder: (context, child) => Shortcuts(
-            shortcuts: const {
-              SingleActivator(LogicalKeyboardKey.keyK, meta: true):
-                  _SearchIntent(),
-              SingleActivator(LogicalKeyboardKey.keyK, control: true):
-                  _SearchIntent(),
-            },
-            child: Actions(
-              actions: {
-                _SearchIntent: CallbackAction<_SearchIntent>(
-                  onInvoke: (_) {
-                    final route = Uri.tryParse(_activePath.value)?.path;
-                    if ([
-                      '/',
-                      '/login',
-                      '/register',
-                      '/live2d',
-                    ].contains(route)) {
-                      return null;
-                    }
-                    final navigatorContext =
-                        _navigator.currentState?.overlay?.context;
-                    if (navigatorContext != null) {
-                      showSiteSearch(
-                        navigatorContext,
-                        widget.controller,
-                        (path) => navigateSite(
+  Widget build(BuildContext context) => SiteSeasonScope(
+    controller: _season,
+    child: SiteMusicScope(
+      music: _music,
+      child: SiteControllerScope(
+        controller: widget.controller,
+        child: SiteLocaleScope(
+          controller: _locale,
+          child: MaterialApp(
+            navigatorKey: _navigator,
+            navigatorObservers: [_routeObserver],
+            locale: _locale.locale,
+            supportedLocales: const [Locale('zh'), Locale('ja'), Locale('en')],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            builder: (context, child) => Shortcuts(
+              shortcuts: const {
+                SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+                    _SearchIntent(),
+                SingleActivator(LogicalKeyboardKey.keyK, control: true):
+                    _SearchIntent(),
+              },
+              child: Actions(
+                actions: {
+                  _SearchIntent: CallbackAction<_SearchIntent>(
+                    onInvoke: (_) {
+                      final route = Uri.tryParse(_activePath.value)?.path;
+                      if ([
+                        '/',
+                        '/login',
+                        '/register',
+                        '/live2d',
+                      ].contains(route)) {
+                        return null;
+                      }
+                      final navigatorContext =
+                          _navigator.currentState?.overlay?.context;
+                      if (navigatorContext != null) {
+                        showSiteSearch(
                           navigatorContext,
                           widget.controller,
-                          path,
-                        ),
-                      );
-                    }
-                    return null;
-                  },
-                ),
-              },
-              child: SiteChromeScope(
-                controller: _chrome,
-                child: Overlay.wrap(
-                  child: SiteVisitPopupOverlay(
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        child ?? const SizedBox(),
-                        Positioned(
-                          right: 14,
-                          bottom: 12,
-                          child: ValueListenableBuilder<String>(
-                            valueListenable: _activePath,
-                            builder: (context, path, _) {
-                              final route = Uri.tryParse(path)?.path ?? '/';
-                              final hidden =
-                                  [
-                                    '/',
-                                    '/login',
-                                    '/register',
-                                    '/room',
-                                    '/room/settings',
-                                    '/game',
-                                  ].contains(route) ||
-                                  route.startsWith('/room/shared/');
-                              return Offstage(
-                                offstage: hidden,
-                                child: TickerMode(
-                                  enabled: !hidden,
-                                  child: SiteGuideButton(
-                                    controller: widget.controller,
-                                    path: path,
-                                    reduced: hidden || !widget.loadNative,
-                                    dialogContext: () => _navigator
-                                        .currentState!
-                                        .overlay!
-                                        .context,
-                                    onGo: (next) => navigateSite(
-                                      _navigator.currentState!.overlay!.context,
-                                      widget.controller,
-                                      next,
+                          (path) => navigateSite(
+                            navigatorContext,
+                            widget.controller,
+                            path,
+                          ),
+                        );
+                      }
+                      return null;
+                    },
+                  ),
+                },
+                child: SiteChromeScope(
+                  controller: _chrome,
+                  child: Overlay.wrap(
+                    child: SiteVisitPopupOverlay(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          child ?? const SizedBox(),
+                          Positioned(
+                            right: 14,
+                            bottom: 12,
+                            child: ValueListenableBuilder<String>(
+                              valueListenable: _activePath,
+                              builder: (context, path, _) {
+                                final route = Uri.tryParse(path)?.path ?? '/';
+                                final hidden =
+                                    [
+                                      '/',
+                                      '/login',
+                                      '/register',
+                                      '/room',
+                                      '/room/settings',
+                                      '/game',
+                                    ].contains(route) ||
+                                    route.startsWith('/room/shared/');
+                                return Offstage(
+                                  offstage: hidden,
+                                  child: TickerMode(
+                                    enabled: !hidden,
+                                    child: SiteGuideButton(
+                                      controller: widget.controller,
+                                      path: path,
+                                      reduced: hidden || !widget.loadNative,
+                                      dialogContext: () => _navigator
+                                          .currentState!
+                                          .overlay!
+                                          .context,
+                                      onGo: (next) => navigateSite(
+                                        _navigator
+                                            .currentState!
+                                            .overlay!
+                                            .context,
+                                        widget.controller,
+                                        next,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
+            title: '月读空间',
+            debugShowCheckedModeBanner: false,
+            scaffoldMessengerKey: _messenger,
+            theme: siteTheme(_dark, season: _season.season),
+            initialRoute: widget.initialPath,
+            onGenerateRoute: _route,
+            onGenerateInitialRoutes: (name) => [
+              _route(RouteSettings(name: name)),
+            ],
           ),
-          title: '月读空间',
-          debugShowCheckedModeBanner: false,
-          scaffoldMessengerKey: _messenger,
-          theme: siteTheme(_dark),
-          initialRoute: widget.initialPath,
-          onGenerateRoute: _route,
-          onGenerateInitialRoutes: (name) => [
-            _route(RouteSettings(name: name)),
-          ],
         ),
       ),
     ),

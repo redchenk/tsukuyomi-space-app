@@ -501,7 +501,7 @@ class SiteNotificationBadge extends StatelessWidget {
     final count = SiteChromeScope.maybeOf(context)?.unread ?? 0;
     return Badge(
       isLabelVisible: count > 0,
-      backgroundColor: SitePalette.brand,
+      backgroundColor: SitePalette.of(context).primary,
       textColor: Colors.white,
       child: Icon(Icons.notifications_none, size: size),
     );

@@ -1,3 +1,6 @@
+import '../../core/room_conversation.dart';
+import '../../core/room_protocol.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -715,8 +718,44 @@ class RoomController extends ChangeNotifier {
         llm.image = settings.option('visionMode', 'auto') == 'mcp'
             ? null
             : image;
+        final conversation = selectRecentRoomConversation(
+          [
+            for (final turn in visibleTurns.where(
+              (v) => v.id != replacement?.id,
+            )) ...[
+              {'role': 'user', 'content': turn.user, 'turnId': turn.id},
+              {
+                'role': 'assistant',
+                'content': turn.assistant,
+                'turnId': turn.id,
+                if (turn.user.isEmpty) 'opener': 'true',
+              },
+            ],
+          ],
+          maxChars: roomProtocol(roomChatEndpoint(settings.llmUrl)) == 'ollama'
+              ? 4000
+              : 6000,
+        );
         final context = await workspace.context(
           requestText,
+          excludeTurnIds: {
+            turnId,
+            ...conversation
+                .map((m) => m['turnId']!)
+                .where((id) => id.isNotEmpty),
+          }.toList(),
+          snapshotKey: jsonEncode([
+            targetScope,
+            turnId,
+            requestText,
+            image,
+            conversation,
+            settings.toJson(),
+            workspace.memoryIdentity,
+            site is SiteClient
+                ? (site as SiteClient).sessionRevision
+                : site.cookie,
+          ]),
           image: image,
           isCurrent: () => generation == _generation && !_disposed,
         );

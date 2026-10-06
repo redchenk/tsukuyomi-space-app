@@ -5,10 +5,11 @@ import '../../core/site_theme.dart';
 /// Shared with the website's editorial theme and its 860px Room breakpoint.
 class RoomStyle {
   RoomStyle(BuildContext context)
-    : dark = Theme.of(context).brightness == Brightness.dark;
+    : dark = Theme.of(context).brightness == Brightness.dark,
+      palette = SitePalette.of(context);
   final bool dark;
   static const breakpoint = 860.0;
-  SitePalette get palette => SitePalette(dark);
+  final SitePalette palette;
   Color get background => palette.background;
   Color get surface => palette.surface;
   Color get low => palette.low;
@@ -17,7 +18,7 @@ class RoomStyle {
   Color get ink => palette.ink;
   Color get muted => palette.muted;
   Color get accent => palette.accent;
-  Color get primary => SitePalette.brand;
+  Color get primary => palette.primary;
   Color get onPrimary => Colors.white;
   Color get selected => palette.selected;
   Color get success => palette.success;

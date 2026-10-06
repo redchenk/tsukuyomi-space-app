@@ -16,7 +16,7 @@ class GameSession extends ChangeNotifier {
   }
   final RoomController controller;
   final DateTime Function() now;
-  int score = 0, best = 0, rank = 0;
+  int score = 0, best = 0, rank = 0, page = 1, totalPages = 1;
   int _pending = 0, _submitted = 0, _refresh = 0, _preferencesRevision = 0;
   DateTime? _savedAt;
   bool loading = false, saving = false, muted = false, touchControls = false;
@@ -72,6 +72,7 @@ class GameSession extends ChangeNotifier {
     _scope = accountScope;
     _refresh++;
     _pending = _submitted = score = best = rank = 0;
+    page = totalPages = 1;
     _savedAt = null;
     saving = false;
     entries = [];
@@ -149,55 +150,32 @@ class GameSession extends ChangeNotifier {
     final api = controller.site;
     if (api is! SiteDataService) throw const ApiFailure('站点接口不可用');
     final owner = _scope;
-    final data = await (api as SiteDataService).request(
-      controller.settings.siteUrl,
-      method,
-      path,
-      body,
-    );
+    final data = await (api as SiteDataService)
+        .request(controller.settings.siteUrl, method, path, body)
+        .timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => throw const ApiFailure('游戏积分请求超时，请重试'),
+        );
     if (_disposed || owner != _scope) throw const ApiFailure('账号已切换');
     return mapOf(data['data']);
   }
 
-  Future<void> refreshLeaderboard() async {
+  Future<void> refreshLeaderboard({int? targetPage}) async {
     final ticket = ++_refresh;
+    final requested = (targetPage ?? page).clamp(1, 100000);
     loading = true;
     error = '';
     _changed();
     try {
-      final first = await _request(
+      final data = await _request(
         'GET',
-        '/api/growth/game/leaderboard?page=1&limit=50',
+        '/api/growth/game/leaderboard?page=$requested&limit=50',
       );
-      final byUser = <String, Map<String, dynamic>>{};
-      void add(Map<String, dynamic> data) {
-        for (final entry in rowsOf(data['entries'])) {
-          byUser['${entry['userId']}'] = entry;
-        }
-      }
-
-      add(first);
-      var pages = (first['totalPages'] as num? ?? 1).toInt().clamp(1, 100000);
-      for (var page = 2; page <= pages; page++) {
-        final next = await _request(
-          'GET',
-          '/api/growth/game/leaderboard?page=$page&limit=50',
-        );
-        if (ticket != _refresh) return;
-        add(next);
-        pages = (next['totalPages'] as num? ?? pages).toInt().clamp(
-          pages,
-          100000,
-        );
-      }
       if (ticket != _refresh || _disposed) return;
-      entries = byUser.values.toList()
-        ..sort(
-          (a, b) => ((a['rank'] as num?)?.toInt() ?? 999999999).compareTo(
-            (b['rank'] as num?)?.toInt() ?? 999999999,
-          ),
-        );
-      _applyCurrent(mapOf(first['current']));
+      entries = rowsOf(data['entries']);
+      page = (data['page'] as num? ?? requested).toInt();
+      totalPages = (data['totalPages'] as num? ?? 1).toInt().clamp(1, 100000);
+      _applyCurrent(mapOf(data['current']));
     } catch (e) {
       if (ticket == _refresh && !_disposed) {
         error = e is ApiFailure ? e.message : '积分榜暂时无法加载';
@@ -234,7 +212,6 @@ class GameSession extends ChangeNotifier {
       _submitted = pending;
       _applyCurrent(mapOf(data['current']));
       saveError = '';
-      unawaited(refreshLeaderboard());
     } catch (e) {
       if (owner == _scope && !_disposed) {
         saveError = e is ApiFailure ? e.message : '成绩暂未同步';

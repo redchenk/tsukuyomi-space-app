@@ -240,9 +240,24 @@ void main() {
               isNull,
               reason: '$width $language $theme room',
             );
-            await tester.tap(find.byIcon(Icons.menu_rounded));
+            final desktop = find
+                .byKey(const Key('site-navigation-group-0'))
+                .evaluate()
+                .isNotEmpty;
+            await tester.tap(
+              desktop
+                  ? find.byKey(const Key('site-navigation-group-0'))
+                  : find.byIcon(Icons.menu_rounded),
+            );
             await tester.pumpAndSettle();
-            expect(find.byType(SiteExploreMenu), findsOneWidget);
+            if (desktop) {
+              expect(
+                find.byKey(const Key('site-navigation-link-/game')),
+                findsWidgets,
+              );
+            } else {
+              expect(find.byType(SiteExploreMenu), findsOneWidget);
+            }
             expect(
               find.byIcon(Icons.admin_panel_settings_outlined),
               findsNothing,
@@ -255,10 +270,21 @@ void main() {
             await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
             await tester.sendKeyEvent(LogicalKeyboardKey.escape);
             await tester.pumpAndSettle();
-            final menuButton = tester.widget<IconButton>(
-              find.widgetWithIcon(IconButton, Icons.menu_rounded),
-            );
-            expect(menuButton.focusNode!.hasFocus, true);
+            final focusNode = desktop
+                ? tester
+                      .widget<TextButton>(
+                        find.descendant(
+                          of: find.byKey(const Key('site-navigation-group-0')),
+                          matching: find.byType(TextButton),
+                        ),
+                      )
+                      .focusNode
+                : tester
+                      .widget<IconButton>(
+                        find.widgetWithIcon(IconButton, Icons.menu_rounded),
+                      )
+                      .focusNode;
+            expect(focusNode!.hasFocus, true);
             await tester.pumpWidget(const SizedBox.shrink());
             c.dispose();
           }

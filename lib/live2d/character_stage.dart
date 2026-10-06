@@ -9,6 +9,8 @@ import 'package:flutter/rendering.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
 
 import '../core/voice_service.dart';
+import '../core/season_theme.dart';
+import '../core/site_localization.dart';
 import '../core/models.dart';
 import '../core/room_reference.dart';
 import '../core/room_archive.dart';
@@ -62,6 +64,18 @@ class _CharacterStageState extends State<CharacterStage>
   String? _failure;
   late final Live2DSceneController _sceneController;
   bool _routeVisible = true, _fullscreen = false;
+  Timer? _lightingTimer;
+  bool _day = roomDaytime(DateTime.now());
+
+  void _syncLighting() {
+    _lightingTimer?.cancel();
+    if (!mounted || !_visible || !(_routeVisible || _fullscreen)) return;
+    final date = DateTime.now();
+    final day = roomDaytime(date);
+    if (_day != day) _updateScene(() => _day = day);
+    _lightingTimer = Timer(nextRoomLightingDelay(date), _syncLighting);
+  }
+
   double _x = 0, _y = 0;
   bool _paused = false;
   bool _visible = true;
@@ -117,6 +131,7 @@ class _CharacterStageState extends State<CharacterStage>
   void _toggleMotion() {
     _updateScene(() => _paused = !_paused);
     _syncTicker();
+    _syncLighting();
   }
 
   void _updateScene(VoidCallback update) {
@@ -139,6 +154,7 @@ class _CharacterStageState extends State<CharacterStage>
     super.didChangeDependencies();
     _routeVisible = TickerMode.valuesOf(context).enabled;
     _syncTicker();
+    _syncLighting();
   }
 
   @override
@@ -154,11 +170,13 @@ class _CharacterStageState extends State<CharacterStage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _visible = state == AppLifecycleState.resumed;
     _syncTicker();
+    _syncLighting();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _lightingTimer?.cancel();
     _sceneController.dispose();
     _sceneRevision.dispose();
     if (widget.animation != null) widget.animation!.ready = false;
@@ -249,7 +267,12 @@ class _CharacterStageState extends State<CharacterStage>
           fit: StackFit.expand,
           children: [
             Image.asset(
-              'assets/images/room-night-apartment.webp',
+              SeasonalArt(p.palette.season).room(_day),
+              gaplessPlayback: true,
+              cacheHeight:
+                  (box.maxHeight * MediaQuery.devicePixelRatioOf(context))
+                      .ceil()
+                      .clamp(1, 1200),
               fit: BoxFit.cover,
               excludeFromSemantics: true,
             ),
@@ -424,11 +447,17 @@ class _CharacterStageState extends State<CharacterStage>
                           minimumSize: Size(0, mobile ? 44 : 34),
                           padding: const EdgeInsets.symmetric(horizontal: 14),
                         ),
-                        icon: const Icon(CupertinoIcons.moon, size: 16),
+                        icon: Icon(
+                          _day ? CupertinoIcons.sun_max : CupertinoIcons.moon,
+                          size: 16,
+                        ),
                         label: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text('月夜小屋', style: TextStyle(fontSize: 12)),
+                            Text(
+                              '${siteTranslate(context, const {SiteSeason.spring: '樱花', SiteSeason.summer: '夏日', SiteSeason.autumn: '红叶', SiteSeason.winter: '冬雪'}[p.palette.season]!)} · ${siteTranslate(context, _day ? '白昼' : '月夜')}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
                             const SizedBox(width: 8),
                             const Icon(CupertinoIcons.chevron_down, size: 10),
                           ],

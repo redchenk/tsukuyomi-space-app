@@ -1,10 +1,7 @@
 import 'dart:math' as math;
 
-/// Mirrors the website's `selectRecentRoomConversation` prompt budget.
-///
-/// The latest request is sent separately. Long history messages retain their
-/// beginning and ending, and a budget cut never leaves a paired answer as the
-/// first message without its question. Assistant openers remain valid.
+/// Select complete exchanges before applying the website's prompt budget.
+/// Old assistant messages never become an unfinished request after trimming.
 List<Map<String, String>> selectRecentRoomConversation(
   List<Map<String, String>> history, {
   int maxChars = 6000,
@@ -21,47 +18,56 @@ List<Map<String, String>> selectRecentRoomConversation(
       .toList();
   final selected = <Map<String, String>>[];
   var used = 0;
-  for (
-    var index = source.length - 1;
-    index >= 0 && selected.length < count;
-    index--
-  ) {
-    final item = source[index];
-    final raw = (item['content'] ?? '')
-        .replaceAll(
-          RegExp(r'[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]'),
-          '',
-        )
-        .trim();
-    final perMessage = math.min(2500, budget - used);
-    if (perMessage < 100) break;
-    final content = raw.length <= perMessage
-        ? raw
-        : '${raw.substring(0, math.max(50, perMessage ~/ 2 - 15))}'
-              '\n[较早内容省略]\n'
-              '${raw.substring(raw.length - ((perMessage + 1) ~/ 2 - 15))}';
-    if (content.isEmpty) continue;
-    selected.insert(0, {
-      'role': item['role']!,
-      'content': content,
-      'turnId': item['turnId'] ?? '',
-    });
-    used += content.length;
-    if (used >= budget) break;
+  String clean(String value) => value
+      .replaceAll(RegExp(r'[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]'), '')
+      .trim();
+  String bounded(String text, int limit) {
+    if (text.length <= limit) return text;
+    const marker = '\n[较早内容省略]\n';
+    final head = ((limit - marker.length) / 2).ceil();
+    return '${text.substring(0, head)}$marker${text.substring(text.length - (limit - marker.length - head))}';
   }
-  if (selected.isNotEmpty && selected.first['role'] == 'assistant') {
-    final turnId = selected.first['turnId'];
-    final first = source.indexWhere(
-      (item) =>
-          (item['turnId'] ?? '').isNotEmpty &&
-          item['turnId'] == turnId &&
-          item['role'] == 'assistant',
-    );
-    if (first > 0 &&
-        source[first - 1]['role'] == 'user' &&
-        source[first - 1]['turnId'] == turnId) {
-      selected.removeAt(0);
+
+  for (var index = source.length - 1; index >= 0 && selected.length < count;) {
+    final item = source[index];
+    final question = index > 0 ? source[index - 1] : null;
+    final paired =
+        item['role'] == 'assistant' &&
+        question?['role'] == 'user' &&
+        ((item['turnId'] ?? '').isEmpty ||
+            (question?['turnId'] ?? '').isEmpty ||
+            item['turnId'] == question?['turnId']);
+    final group = paired ? [question!, item] : [item];
+    index -= group.length;
+    if (item['role'] == 'assistant' &&
+        !paired &&
+        !(source.length == 1 || item['opener'] == 'true')) {
+      continue;
     }
+    if (selected.length + group.length > count) break;
+    final raw = group.map((part) => clean(part['content'] ?? '')).toList();
+    final sizes = raw.map((text) => math.min(2500, text.length)).toList();
+    final remaining = budget - used;
+    if (sizes.reduce((a, b) => a + b) > remaining) {
+      if (selected.isNotEmpty || remaining < 100 * group.length) break;
+      if (group.length == 2) {
+        sizes[0] = math.min(sizes[0], math.max(100, remaining ~/ 2));
+        sizes[1] = math.min(sizes[1], remaining - sizes[0]);
+        sizes[0] = math.min(raw[0].length, remaining - sizes[1]);
+      } else {
+        sizes[0] = remaining;
+      }
+    }
+    final exchange = [
+      for (final (i, part) in group.indexed)
+        {
+          'role': part['role']!,
+          'content': bounded(raw[i], sizes[i]),
+          'turnId': part['turnId'] ?? '',
+        },
+    ];
+    selected.insertAll(0, exchange);
+    used += exchange.fold(0, (sum, part) => sum + part['content']!.length);
   }
   return selected;
 }

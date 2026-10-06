@@ -95,7 +95,12 @@ class LlmClient implements ChatService {
       final selected = selectRecentRoomConversation([
         for (final turn in history) ...[
           {'role': 'user', 'content': turn.user, 'turnId': turn.id},
-          {'role': 'assistant', 'content': turn.assistant, 'turnId': turn.id},
+          {
+            'role': 'assistant',
+            'content': turn.assistant,
+            'turnId': turn.id,
+            if (turn.user.isEmpty) 'opener': 'true',
+          },
         ],
       ], maxChars: roomProtocol(direct) == 'ollama' ? 4000 : 6000);
       // Turn identifiers are only used to preserve question/answer boundaries;

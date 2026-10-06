@@ -88,7 +88,11 @@ void main() {
       expect(tester.takeException(), isNull);
       final form = size.width > 860 ? 'desktop' : 'mobile';
       await _capture(tester, 'native-room-$form');
-      await tester.tap(find.byIcon(Icons.menu_rounded));
+      await tester.tap(
+        size.width > 860
+            ? find.byKey(const Key('site-navigation-group-0'))
+            : find.byIcon(Icons.menu_rounded),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
       expect(tester.takeException(), isNull);

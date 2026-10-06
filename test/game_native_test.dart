@@ -108,6 +108,32 @@ class PendingGameVoice implements KaguyaSoundVoice {
 }
 
 void main() {
+  test('200 postgame cycles preserve score/mood with acknowledged resets and bounded clones/speed', () {
+    final vm = shippedRuntime();
+    addTearDown(vm.dispose);
+    vm.greenFlag();
+    frames(vm, 90);
+    vm.startGame();
+    frames(vm, 90);
+    expect(KaguyaRuntime.number(vm.variableByName('轮回启动完成')), 1);
+    for (var i = 1; i <= 200; i++) {
+      vm.setVariableByName('心情值', 1000);
+      vm.setVariableByName('分数', i * 10000);
+      frames(vm, 90);
+      expect(vm.score, greaterThanOrEqualTo(i * 10000), reason: 'cycle $i');
+      expect(vm.mood, greaterThan(0));
+      expect(KaguyaRuntime.number(vm.variableByName('轮回启动完成')), 1);
+      expect(KaguyaRuntime.number(vm.variableByName('关卡轮换中')), 0);
+      expect(
+        KaguyaRuntime.number(vm.variableByName('背景速度（我跑步速度')),
+        lessThanOrEqualTo(14),
+      );
+      expect(vm.cloneCount, lessThanOrEqualTo(300));
+      expect(vm.sprites.firstWhere((s) => s.name == '开始游戏').visible, false);
+    }
+    expect(vm.unknownOpcodes, isEmpty);
+  });
+
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
     'all opcode types in the independently shipped full project are supported',
@@ -504,7 +530,7 @@ void main() {
     },
   );
 
-  test('game score request uses actual contract, cooldown, deduplicated full leaderboard and scoped best', () async {
+  test('game score request uses actual contract, cooldown, paged leaderboard and scoped best', () async {
     final api = GameApi(), storage = MemoryStorage();
     final controller = RoomController(
       storage: storage,
@@ -518,6 +544,9 @@ void main() {
     addTearDown(session.dispose);
     await session.initialize();
     expect(session.touchControls, false);
+    expect(session.entries.map((e) => e['userId']), ['one']);
+    expect(session.totalPages, 2);
+    await session.refreshLeaderboard(targetPage: 2);
     expect(session.entries.map((e) => e['userId']), ['one', 'two']);
     session.updateScore(100);
     await Future<void>.delayed(Duration.zero);

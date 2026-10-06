@@ -156,7 +156,9 @@ class KaguyaRuntime extends ChangeNotifier {
       _accumulator = 0,
       gravityX = 0,
       gravityY = -10;
-  int _nextClone = 0, _frame = 0, _cycleBase = 0, _cycleAt = -1;
+  String _cyclePhase = 'idle';
+  bool _cycleActive = false;
+  int _nextClone = 0, _cycleBase = 0;
   bool boxed = true;
   void Function(
     KaguyaSprite sprite,
@@ -212,9 +214,12 @@ class KaguyaRuntime extends ChangeNotifier {
     _simulated.clear();
     if (!preserveCycle) {
       _cycleBase = 0;
-      _cycleAt = -1;
+      _cyclePhase = 'idle';
+      _cycleActive = false;
+      setVariableByName('轮回启动完成', 0);
+      setVariableByName('关卡轮换中', 0);
+      setVariableByName('轮回分数', 0);
       time = 0;
-      _frame = 0;
       _timerStart = 0;
     }
     for (final s in sprites) {
@@ -318,7 +323,6 @@ class KaguyaRuntime extends ChangeNotifier {
 
   void _tick() {
     time += 1 / 30;
-    _frame++;
     _simulated.removeWhere((_, until) => until < time);
     final current = List<_Thread>.of(_threads);
     for (final thread in current) {
@@ -907,23 +911,21 @@ class KaguyaRuntime extends ChangeNotifier {
   }
 
   void _postgameCycle() {
-    setVariableByName('轮回分数', math.max(0, score - _cycleBase));
-    if (score >= 10000 && mood > 0) {
-      final speed = 8 + math.log(1 + (score - 10000) / 2000) / math.ln2 * 1.35;
-      if (number(variableByName('背景速度（我跑步速度')) < speed) {
-        setVariableByName('背景速度（我跑步速度', speed);
-      }
+    if (!_cycleActive) {
+      if (number(variableByName('轮回启动完成')) != 1) return;
+      _cycleActive = true;
     }
-    if (_cycleAt < 0 && score - _cycleBase >= 10000) {
-      final saved = score;
-      _cycleBase = saved;
-      setVariableByName('关卡轮换中', 1);
-      greenFlag(preserveCycle: true);
-      _cycleAt = _frame;
-    }
-    if (_cycleAt >= 0) {
-      final elapsed = _frame - _cycleAt;
-      if (elapsed == 15) {
+    if (_cyclePhase == 'idle') {
+      setVariableByName('轮回分数', math.max(0, score - _cycleBase));
+      if (mood > 0 && score - _cycleBase >= 10000) {
+        _cycleBase = score;
+        _cyclePhase = 'reset';
+        setVariableByName('关卡轮换中', 1);
+        setVariableByName('轮回心情', mood);
+        setVariableByName('轮回重置完成', 0);
+        setVariableByName('轮回启动完成', 0);
+        setVariableByName('轮回分数', 0);
+        greenFlag(preserveCycle: true);
         final start = _find('开始游戏');
         if (start != null) {
           start.visible = false;
@@ -931,16 +933,28 @@ class KaguyaRuntime extends ChangeNotifier {
             if (t.sprite == start) t.dead = true;
           }
         }
-        broadcast('游戏开始');
       }
-      if (elapsed == 27) {
-        setVariableByName('分数', _cycleBase);
-        setVariableByName('轮回分数', 0);
-      }
-      if (elapsed >= 42) {
-        setVariableByName('关卡轮换中', 0);
-        _cycleAt = -1;
-      }
+    } else if (_cyclePhase == 'reset' &&
+        number(variableByName('轮回重置完成')) == 1) {
+      _cyclePhase = 'start';
+      broadcast('游戏开始');
+    } else if (_cyclePhase == 'start' &&
+        number(variableByName('轮回启动完成')) == 1) {
+      setVariableByName('关卡轮换中', 0);
+      _cyclePhase = 'idle';
+      setVariableByName('轮回分数', math.max(0, score - _cycleBase));
+    }
+    if (mood > 0 && _cyclePhase == 'idle') {
+      final desired = score >= 10000
+          ? math.min(
+              14,
+              8 + math.log(1 + (score - 10000) / 2000) / math.ln2 * 1.35,
+            )
+          : 0;
+      setVariableByName(
+        '背景速度（我跑步速度',
+        math.min(14, math.max(number(variableByName('背景速度（我跑步速度')), desired)),
+      );
     }
   }
 

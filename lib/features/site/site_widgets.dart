@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/models.dart';
 import '../../core/site_localization.dart';
 import '../../core/site_theme.dart';
+import '../../core/season_theme.dart';
 import '../room/room_style.dart';
 import '../room/room_controller.dart';
 import '../room/room_music.dart';
@@ -16,6 +17,8 @@ import 'native_rich_text.dart';
 import 'site_search.dart';
 import 'site_chrome.dart';
 import 'site_explore_menu.dart';
+import 'site_season_picker.dart';
+import 'site_desktop_navigation.dart';
 
 const siteDestinations = <String, String>{
   '/hub': '中枢大厅',
@@ -34,6 +37,8 @@ const siteDestinations = <String, String>{
   '/reality': '现实连接',
   '/editor': '创作文章',
   '/attachments': '附件管理',
+  '/rss.xml': 'RSS 订阅',
+  '/agent-os': 'Agent OS',
 };
 String siteDestinationLabel(BuildContext context, String path) {
   const keys = {
@@ -232,9 +237,7 @@ class SiteBackground extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         Image.asset(
-          p.dark
-              ? 'assets/images/sakura/moonlit-shrine.webp'
-              : 'assets/images/sakura/moonwhite-lake.webp',
+          SeasonalArt(p.palette.season).background(p.dark),
           fit: BoxFit.cover,
           alignment: narrow ? const Alignment(.7, -1) : Alignment.center,
           cacheHeight:
@@ -369,7 +372,7 @@ class SiteHeader extends StatelessWidget {
       final style = RoomStyle(context);
       final compact =
           box.maxWidth <
-          1160 * (MediaQuery.textScalerOf(context).scale(14) / 14);
+          860 * (MediaQuery.textScalerOf(context).scale(14) / 14);
       final path = ModalRoute.of(context)?.settings.name ?? '';
       final controller = SiteControllerScope.maybeOf(context);
       final music = SiteMusicScope.maybeOf(context);
@@ -383,12 +386,15 @@ class SiteHeader extends StatelessWidget {
           'search': '搜索月读空间',
           'music': '全站音乐',
           'theme': '切换主题',
+          'season': '季节主题',
           'language:zh': '中文',
           'language:ja': '日本語',
           'language:en': 'English',
         },
         onSelected: (value) {
-          if (value == 'theme') {
+          if (value == 'season') {
+            showSiteSeasonPicker(context);
+          } else if (value == 'theme') {
             onTheme?.call();
           } else if (value == 'search') {
             if (controller != null) showSiteSearch(context, controller, onGo);
@@ -401,20 +407,25 @@ class SiteHeader extends StatelessWidget {
           }
         },
       );
-      return SiteCard(
-        padding: EdgeInsets.symmetric(
-          horizontal: compact ? 12 : 20,
-          vertical: compact ? 6 : 10,
+      Widget capsule(Widget child) => Container(
+        decoration: BoxDecoration(
+          color: style.surface,
+          border: Border.all(color: style.line),
+          borderRadius: BorderRadius.circular(40),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: InkWell(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: child,
+      );
+      return Row(
+        children: [
+          Expanded(
+            child: capsule(
+              InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => onGo('/hub'),
                 child: Row(
                   children: [
-                    if (!compact) ...[
+                    ...[
                       Image.asset(
                         'assets/images/sakura/sakura-moon-logo.webp',
                         width: compact ? 30 : 44,
@@ -457,128 +468,124 @@ class SiteHeader extends StatelessWidget {
                 ),
               ),
             ),
-            if (!compact) ...[
-              for (final route in ['/hub', '/stage', '/plaza', '/wiki'])
-                TextButton(
-                  onPressed: () => onGo(route),
-                  style: TextButton.styleFrom(
-                    foregroundColor: path == route ? style.accent : style.muted,
-                    backgroundColor: path == route ? style.selected : null,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  child: SiteText(
-                    const {
-                      '/hub': '中枢',
-                      '/stage': '舞台',
-                      '/plaza': '广场',
-                      '/wiki': '百科',
-                    }[route]!,
-                  ),
-                ),
-              explore,
-              const SizedBox(width: 12),
-              if (controller != null)
-                OutlinedButton.icon(
-                  onPressed: () => showSiteSearch(context, controller, onGo),
-                  icon: const Icon(Icons.search, size: 19),
-                  label: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SiteText('搜索', style: const TextStyle(fontSize: 13)),
-                      const SizedBox(width: 12),
-                      Text(
-                        '⌘ K',
-                        style: TextStyle(fontSize: 10, color: style.muted),
-                      ),
-                    ],
-                  ),
-                ),
-              const SizedBox(width: 8),
-            ],
-            if (username != null &&
-                SiteChromeScope.maybeOf(context)?.authed == true)
-              IconButton(
-                onPressed: () => onGo('/notifications'),
-                tooltip: siteTr(context, 'notifications'),
-                icon: const SiteNotificationBadge(),
-              ),
-            if (!compact)
-              IconButton(
-                onPressed: onTheme,
-                icon: Icon(
-                  Theme.of(context).brightness == Brightness.dark
-                      ? CupertinoIcons.sun_max
-                      : CupertinoIcons.moon,
-                ),
-                tooltip: siteTranslate(
-                  context,
-                  Theme.of(context).brightness == Brightness.dark
-                      ? '切换浅色主题'
-                      : '切换深色主题',
-                ),
-              ),
-            if (compact)
-              IconButton(
-                onPressed: onLogin,
-                icon: _SiteAccountPicture(username: username),
-                tooltip: username ?? siteTr(context, 'login'),
-              )
-            else
-              PopupMenuButton<String>(
-                tooltip: username ?? siteTr(context, 'login'),
-                onSelected: onGo,
-                itemBuilder: (_) => [
-                  for (final entry
-                      in (username == null
-                              ? {'/login': '登录', '/register': '注册'}
-                              : {
-                                  '/user': '个人中心',
-                                  '/growth': '月契成长',
-                                  '/notifications': '站内信',
-                                  '/attachments': '附件管理',
-                                  if (administrator) '/admin': '内容管理',
-                                })
-                          .entries)
-                    PopupMenuItem(
-                      value: entry.key,
-                      child: SiteText(entry.value),
-                    ),
-                ],
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _SiteAccountPicture(username: username),
-                      const SizedBox(width: 6),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 100),
-                        child: Text(
-                          username ?? siteTr(context, 'login'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                      ),
-                      const Icon(Icons.expand_more, size: 16),
-                    ],
-                  ),
-                ),
-              ),
-            if (compact) explore,
-            if (!compact) ...[
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed: () => onGo('/room'),
-                icon: const Icon(CupertinoIcons.moon, size: 17),
-                label: const SiteText('进入房间'),
-              ),
-            ],
+          ),
+          if (!compact) ...[
+            const SizedBox(width: 16),
+            capsule(SiteDesktopNavigation(onGo: onGo, path: path)),
+            const SizedBox(width: 12),
           ],
-        ),
+          if (compact) const SizedBox(width: 10),
+          capsule(
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!compact && controller != null)
+                  IconButton(
+                    tooltip: siteTr(context, 'search'),
+                    onPressed: () => showSiteSearch(context, controller, onGo),
+                    icon: const Icon(Icons.search),
+                  ),
+                if (!compact && music != null)
+                  IconButton(
+                    tooltip: siteTranslate(context, '全站音乐'),
+                    onPressed: () => showRoomMusic(context, music),
+                    icon: const Icon(Icons.music_note_outlined),
+                  ),
+                if (username != null &&
+                    SiteChromeScope.maybeOf(context)?.authed == true)
+                  IconButton(
+                    onPressed: () => onGo('/notifications'),
+                    tooltip: siteTr(context, 'notifications'),
+                    icon: const SiteNotificationBadge(),
+                  ),
+                if (!compact)
+                  IconButton(
+                    onPressed: onTheme,
+                    icon: Icon(
+                      Theme.of(context).brightness == Brightness.dark
+                          ? CupertinoIcons.sun_max
+                          : CupertinoIcons.moon,
+                    ),
+                    tooltip: siteTranslate(
+                      context,
+                      Theme.of(context).brightness == Brightness.dark
+                          ? '切换浅色主题'
+                          : '切换深色主题',
+                    ),
+                  ),
+                if (compact)
+                  IconButton(
+                    onPressed: onLogin,
+                    icon: _SiteAccountPicture(username: username),
+                    tooltip: username ?? siteTr(context, 'login'),
+                  )
+                else
+                  PopupMenuButton<String>(
+                    tooltip: username ?? siteTr(context, 'login'),
+                    onSelected: (value) => value == 'season'
+                        ? showSiteSeasonPicker(context)
+                        : onGo(value),
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: 'season',
+                        child: SiteText('季节主题'),
+                      ),
+                      for (final entry
+                          in (username == null
+                                  ? {'/login': '登录', '/register': '注册'}
+                                  : {
+                                      '/user': '个人中心',
+                                      '/growth': '月契成长',
+                                      '/notifications': '站内信',
+                                      '/attachments': '附件管理',
+                                      if (administrator) '/admin': '内容管理',
+                                    })
+                              .entries)
+                        PopupMenuItem(
+                          value: entry.key,
+                          child: SiteText(entry.value),
+                        ),
+                    ],
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _SiteAccountPicture(username: username),
+                          if (box.maxWidth >= 1200) const SizedBox(width: 6),
+                          if (box.maxWidth >= 1200)
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 100),
+                              child: Text(
+                                username ?? siteTr(context, 'login'),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          const Icon(Icons.expand_more, size: 16),
+                        ],
+                      ),
+                    ),
+                  ),
+                if (compact) explore,
+                if (!compact) ...[
+                  const SizedBox(width: 8),
+                  FilledButton.icon(
+                    onPressed: () => onGo('/room'),
+                    icon: const Icon(CupertinoIcons.moon, size: 17),
+                    label: box.maxWidth >= 1160
+                        ? const SiteText('进入房间')
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       );
     },
   );

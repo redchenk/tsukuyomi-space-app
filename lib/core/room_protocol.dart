@@ -127,11 +127,7 @@ Map<String, dynamic> roomChatBody(
     'model': s.model,
     'stream': stream,
     if (jsonObject) 'response_format': {'type': 'json_object'},
-    if (RegExp(
-      'moonshot|kimi',
-      caseSensitive: false,
-    ).hasMatch('${s.llmUrl} ${s.model}'))
-      'temperature': 1,
+    ...roomChatOptions(roomChatEndpoint(s.llmUrl), s.model),
     'messages': [
       {'role': 'system', 'content': system},
       ...history,
@@ -214,4 +210,31 @@ Stream<String> decodeRoomStream(
   )) {
     if (event.type == 'text') yield event.text;
   }
+}
+
+Map<String, dynamic> roomChatOptions(Uri url, String model) {
+  if (RegExp(r'/responses/?$|/messages/?$').hasMatch(url.path)) return {};
+  if (RegExp(
+    r'moonshot|kimi',
+    caseSensitive: false,
+  ).hasMatch('${url.host} $model')) {
+    return {'temperature': 1};
+  }
+  if (RegExp(
+    r'^(?:o[1-9](?:-|$)|gpt-(?:[5-9]|[1-9]\d)(?:[.-]|$))',
+    caseSensitive: false,
+  ).hasMatch(model)) {
+    return {};
+  }
+  final qwen =
+      [
+        'dashscope.aliyuncs.com',
+        'dashscope-intl.aliyuncs.com',
+        'dashscope-us.aliyuncs.com',
+      ].contains(url.host) &&
+      RegExp(
+        r'^qwen3\.8-(?:flash|max)(?:-|$)',
+        caseSensitive: false,
+      ).hasMatch(model);
+  return {'temperature': qwen ? .6 : .7, if (qwen) 'preserve_thinking': false};
 }

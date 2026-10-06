@@ -38,7 +38,22 @@ class SiteClient implements SiteService, SiteDataService, SiteRoomEventService {
   void Function(String origin, String value)? onReaderCookie;
   void Function(String origin, String? value)? onVisitorCookie;
   void Function(String origin, String? value)? onSessionCookie;
-  int _revision = 0;
+  int _revision = 0, _musicEpoch = 0;
+  String? _musicCookie, _musicOrigin;
+  void Function(String origin, String? value)? onMusicCookie;
+  void cancelMusicRequests() {
+    _musicEpoch++;
+  }
+
+  void setMusicSession(String site, String? value) {
+    _musicEpoch++;
+    _musicOrigin = endpointUri(site).origin;
+    _musicCookie =
+        value != null &&
+            RegExp(r'^tsukuyomi_music=[a-f0-9]{64}$').hasMatch(value)
+        ? value
+        : null;
+  }
 
   /// Identity epoch, including logout/relogin even when the account ID is the same.
   int get sessionRevision => _revision;
@@ -134,7 +149,9 @@ class SiteClient implements SiteService, SiteDataService, SiteRoomEventService {
     if (target.origin != base.origin || !target.path.startsWith('/api/')) {
       throw const ApiFailure('无效的站点接口地址');
     }
-    final revision = _revision;
+    final revision = _revision, musicEpoch = _musicEpoch;
+    final musicRequest = target.path.startsWith('/api/music/');
+    final musicLoginRequest = target.path.startsWith('/api/music/qr');
     final sessionCookie = _cookieFor(base.origin);
     final abort = Completer<void>();
     final req =
@@ -148,9 +165,13 @@ class SiteClient implements SiteService, SiteDataService, SiteRoomEventService {
             'Cache-Control': 'no-cache',
             if (sessionCookie != null ||
                 readerCookies.containsKey(base.origin) ||
-                visitorCookies.containsKey(base.origin))
+                visitorCookies.containsKey(base.origin) ||
+                (musicRequest &&
+                    _musicOrigin == base.origin &&
+                    _musicCookie != null))
               'Cookie': [
                 ?sessionCookie,
+                if (musicRequest && _musicOrigin == base.origin) ?_musicCookie,
                 if (readerCookies.containsKey(base.origin))
                   readerCookies[base.origin]!,
                 if (visitorCookies.containsKey(base.origin))
@@ -173,7 +194,7 @@ class SiteClient implements SiteService, SiteDataService, SiteRoomEventService {
           stream.statusCode,
           headers: stream.headers,
         );
-      })().timeout(timeout);
+      })().timeout(musicRequest ? const Duration(seconds: 15) : timeout);
       // Visitor identity belongs to the browser installation, independently of
       // login. Preserve a late visitor Set-Cookie even if its account changed.
       final visitor = RegExp(r'(?:^|,\s*)tsukuyomi_visitor=([^;,\s]*)')
@@ -191,17 +212,31 @@ class SiteClient implements SiteService, SiteDataService, SiteRoomEventService {
         }
       }
       // A late response must never replace another account's cookie or data.
-      if (revision != _revision) {
+      if (revision != _revision ||
+          (musicLoginRequest && musicEpoch != _musicEpoch)) {
         throw const ApiFailure('账号已切换，请重试', status: 409);
       }
       if (response.statusCode == 401 &&
           !target.path.startsWith('/api/admin/') &&
+          !musicRequest &&
           !{
             '/api/auth/login',
             '/api/auth/register',
             '/api/auth/password/reset',
           }.contains(target.path)) {
         onUnauthorized?.call();
+      }
+      if (musicRequest) {
+        final token = RegExp(r'(?:^|,\s*)tsukuyomi_music=([a-f0-9]*)(?:;|$)')
+            .firstMatch(response.headers['set-cookie'] ?? '');
+        if (token != null &&
+            (token.group(1)!.isEmpty || token.group(1)!.length == 64)) {
+          _musicCookie = token.group(1)!.isEmpty
+              ? null
+              : 'tsukuyomi_music=${token.group(1)}';
+          _musicOrigin = base.origin;
+          onMusicCookie?.call(base.origin, _musicCookie);
+        }
       }
       Map<String, dynamic> json;
       try {
