@@ -297,7 +297,7 @@ jobs:
           merge-multiple: true
       - name: Verify every download before publication
         run: |
-          cp docs/release-guide.md dist/INSTALL.md
+          python tool/release/render_install_guide.py
           cp THIRD_PARTY_NOTICES.md dist/
           python tool/release/verify_dist.py dist
           (cd dist && sha256sum --check SHA256SUMS.txt)
