@@ -19,6 +19,13 @@ def read_version(root=ROOT):
 
 def release_metadata(root=ROOT, tag="", publish=False, prerelease=True):
     version, build_number = read_version(root)
+    app_tag_file = root / "lib/core/app_release.dart"
+    if app_tag_file.is_file():
+        baked = re.search(r"const appReleaseTag = '([^']+)';", app_tag_file.read_text(encoding='utf-8'))
+        if not baked or not re.fullmatch(re.escape(f"v{version}") + r"(?:-[0-9A-Za-z.-]+)?", baked[1]):
+            raise ValueError("In-app updater tag does not match pubspec version")
+        if publish and baked[1] != tag:
+            raise ValueError("In-app updater tag does not match the published release tag")
     tag_pattern = re.escape(f"v{version}")
     if "-" not in version:
         tag_pattern += r"(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?"

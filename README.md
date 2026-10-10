@@ -1,12 +1,14 @@
 # 月读空间 · Flutter 原生客户端
 
-Tsukuyomi Space 的独立 Flutter 客户端。0.6.10 Room / 桌面 Agent 测试版提供原生 Room、统一认证、内容阅读与创作、社区、游戏和管理页面，直接连接原网站 API。
+Tsukuyomi Space 的独立 Flutter 客户端。0.6.11 Room / 桌面 Agent 测试版提供原生 Room、统一认证、内容阅读与创作、社区、游戏和管理页面，直接连接原网站 API。
 
 整站原生页面包含入口、Hub、Wiki、图库、附件库、编辑器、像素工坊、辉夜跑酷、友链、公开主页、管理后台和 Live2D 工作台，支持跨设备事件、中文／日语／英语、全站搜索及八千代导览。后台只向有效登录的 admin／super_admin 显示和开放；本地、合并与云端记忆来源跟进原站最新逻辑。实现与验收边界见 [整站迁移记录](docs/native-full-site-implementation-2026-09-30.md)。
 
 下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。发布包包括 Android APK、macOS Universal DMG、Windows 安装程序、Linux DEB 和供用户自签的 iOS IPA。
 
 所有平台打开即进入 Room，不播放 Access 动画。默认关闭演示；首次使用在聊天区填写模型地址、名称和 Key，保存后直接真实聊天。已有配置直接可用，本地历史先加载，登录与同步随后执行。升级保留独立演示历史。
+
+0.6.11 加入应用内更新：顶部更新图标或菜单 → 应用更新，自动检查 GitHub 新版，展示说明，由用户下载、校验并打开系统安装器；支持取消、正式/预览渠道和稍后提醒。首次需手动安装本版，此后才能在应用内获取新版。macOS / Linux 使用系统安装包，iOS 仍需自签，详见 [应用内更新说明](docs/in-app-updates.md)。
 
 0.6.10 同步网站近期导航纹饰、Hub 图片渐隐和公告，缩小足迹区字体；补齐当前服务商模型目录、参数与能力覆盖、新版角色知识和记忆数量、GitHub 原生认证。见 [0.6.10 同步与验收边界](docs/native-site-sync-v0.6.10.md)。
 

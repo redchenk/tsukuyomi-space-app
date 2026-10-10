@@ -20,6 +20,8 @@ import 'site_explore_menu.dart';
 import 'site_season_picker.dart';
 import 'site_desktop_navigation.dart';
 import 'site_seasonal_surface.dart';
+import '../updates/app_update_page.dart';
+import '../updates/update_copy.dart';
 
 const siteDestinations = <String, String>{
   '/hub': '中枢大厅',
@@ -391,6 +393,8 @@ class SiteHeader extends StatelessWidget {
           'language:zh': '中文',
           'language:ja': '日本語',
           'language:en': 'English',
+          if (AppUpdateScope.maybeOf(context) != null)
+            '/app/update': updateText(context, 'title'),
         },
         onSelected: (value) {
           if (value == 'season') {
@@ -503,6 +507,7 @@ class SiteHeader extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    const AppUpdateButton(),
                     if (!compact && controller != null)
                       IconButton(
                         tooltip: siteTr(context, 'search'),
@@ -551,6 +556,11 @@ class SiteHeader extends StatelessWidget {
                             ? showSiteSeasonPicker(context)
                             : onGo(value),
                         itemBuilder: (_) => [
+                          if (AppUpdateScope.maybeOf(context) != null)
+                            PopupMenuItem(
+                              value: '/app/update',
+                              child: Text(updateText(context, 'title')),
+                            ),
                           const PopupMenuItem(
                             value: 'season',
                             child: SiteText('季节主题'),

@@ -41,6 +41,17 @@ class ReleaseTests(unittest.TestCase):
             release_metadata(self.root, 'v0.5.0-beta.1', publish=True, prerelease=False)
         self.assertEqual(release_metadata(self.root, 'v0.5.0', publish=True, prerelease=False)['prerelease'], 'false')
 
+    def test_updater_identity_must_match_packaged_and_published_version(self):
+        app_tag = self.root / 'lib/core/app_release.dart'
+        app_tag.parent.mkdir(parents=True)
+        app_tag.write_text("const appReleaseTag = 'v0.5.0-beta.1';\n", encoding='utf-8')
+        self.assertEqual(release_metadata(self.root, 'v0.5.0-beta.1', publish=True)['version'], '0.5.0')
+        with self.assertRaises(ValueError):
+            release_metadata(self.root, 'v0.5.0-beta.2', publish=True)
+        app_tag.write_text("const appReleaseTag = 'v0.4.0-beta.1';\n", encoding='utf-8')
+        with self.assertRaises(ValueError):
+            release_metadata(self.root)
+
     def test_workflow_gate_distinguishes_stable_and_preview_tag_pushes(self):
         # Execute the real workflow shell block with local stand-ins so a
         # workflow edit cannot silently change release classification.

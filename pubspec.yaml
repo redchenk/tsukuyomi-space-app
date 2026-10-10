@@ -1,10 +1,12 @@
 name: tsukuyomi_space_app
 description: Native Flutter Room client for Tsukuyomi Space.
 publish_to: none
-version: 0.6.10+16
+version: 0.6.11+17
 environment:
   sdk: ^3.13.4
 dependencies:
+  package_info_plus: ^10.2.1
+  path_provider: ^2.1.6
   flutter:
     sdk: flutter
   flutter_localizations:

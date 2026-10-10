@@ -6,6 +6,7 @@ const nativeSiteRoutes = {
   '/',
   '/room',
   '/room/settings',
+  '/app/update',
   '/live2d',
   '/hub',
   '/stage',

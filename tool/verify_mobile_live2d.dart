@@ -2,12 +2,50 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
+
+import 'package:tsukuyomi_space_app/core/app_update_installer.dart';
 
 // Run this release entrypoint on devices, not only with the host test runner.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
+    if (Platform.isAndroid) {
+      const updates = MethodChannel('space.tsukuyomi/app_update');
+      final abis = await updates.invokeListMethod<String>('supportedAbis');
+      if (abis == null || abis.isEmpty) {
+        throw StateError('Missing native update ABI');
+      }
+      final installed = await InstalledApp.load();
+      final cache = await getApplicationCacheDirectory();
+      final outside = await File('${cache.path}/outside-update.apk')
+          .writeAsString('not an APK');
+      final root = await Directory('${cache.path}/tsukuyomi-updates').create();
+      final invalid = await File('${root.path}/invalid.apk')
+          .writeAsString('not an APK');
+      try {
+        for (final (path, expected) in [
+          (outside.path, 'storage'),
+          (invalid.path, 'package'),
+        ]) {
+          try {
+            await updates.invokeMethod('install', {'path': path});
+            throw StateError('Unsafe update was not blocked');
+          } on PlatformException catch (e) {
+            if (e.code != expected) rethrow;
+          }
+        }
+      } finally {
+        await outside.delete();
+        await invalid.delete();
+      }
+      // ignore: avoid_print
+      print(
+        'TSUKUYOMI_UPDATE_OK abis=$abis platform=${installed.platform.name} version=${installed.version.value} private-cache=$cache',
+      );
+    }
     final model = await loadLive2D();
     if (model.meshes.length < 10 || model.textures.isEmpty) {
       throw StateError('Cubism returned an empty model');

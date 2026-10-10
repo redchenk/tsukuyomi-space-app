@@ -1,0 +1,46 @@
+{
+  "version": "0.6.11+17",
+  "tag": "v0.6.11-beta.1",
+  "checks": {
+    "focused_tests": 57,
+    "ui_cases": 30,
+    "widths": [
+      360,
+      390,
+      768,
+      1280,
+      1920
+    ],
+    "languages": [
+      "zh",
+      "en",
+      "ja"
+    ],
+    "text_scale": 1.5,
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "release_tool_tests": 38,
+    "agent_tool_tests": 3,
+    "live_download": {
+      "tag": "v0.6.10-beta.1",
+      "asset": "tsukuyomi-space-0.6.10-ios-arm64-unsigned.ipa",
+      "bytes": 127570826,
+      "sha256": "a1b800a260ccd25edf295155cd43357e843dbd331a22164dcbea9e5c2415b1b2",
+      "installed": false
+    },
+    "local_macos_release_build": true,
+    "full_local_regression": {
+      "passed": 773,
+      "gated": 35
+    },
+    "macos_codesign_verify": true
+  },
+  "limits": [
+    "Five OS upgrade confirmations require actual device acceptance",
+    "iOS unsigned IPA requires self-signing",
+    "macOS DMG and Linux DEB need system installation steps",
+    "Old versions need manual installation of 0.6.11 first"
+  ]
+}

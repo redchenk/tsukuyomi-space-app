@@ -14,6 +14,9 @@ import 'core/locale_controller.dart';
 import 'core/site_client.dart';
 import 'core/site_routes.dart';
 import 'core/storage.dart';
+import 'core/app_update_controller.dart';
+import 'features/updates/app_update_page.dart';
+import 'features/updates/update_copy.dart';
 import 'core/voice_service.dart';
 import 'features/room/room_controller.dart';
 import 'features/room/room_page.dart';
@@ -48,7 +51,12 @@ Future<void> main() async {
     site: SiteClient(),
     voice: AudioVoice(),
   );
-  runApp(TsukuyomiApp(controller: controller));
+  runApp(
+    TsukuyomiApp(
+      controller: controller,
+      updates: AppUpdateController(preferences: preferences),
+    ),
+  );
   await controller.initialize();
 }
 
@@ -59,8 +67,10 @@ class TsukuyomiApp extends StatefulWidget {
     this.loadNative = true,
     this.modelLoader,
     this.initialPath = '/room',
+    this.updates,
   });
   final RoomController controller;
+  final AppUpdateController? updates;
   final bool loadNative;
   final Future<Live2DModel> Function()? modelLoader;
   final String initialPath;
@@ -68,7 +78,8 @@ class TsukuyomiApp extends StatefulWidget {
   State<TsukuyomiApp> createState() => _TsukuyomiAppState();
 }
 
-class _TsukuyomiAppState extends State<TsukuyomiApp> {
+class _TsukuyomiAppState extends State<TsukuyomiApp>
+    with WidgetsBindingObserver {
   late final AppThemeController _theme;
   late final SeasonThemeController _season;
   late final RoomMusic _music;
@@ -79,10 +90,16 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   late final ValueNotifier<String> _activePath;
   bool get _dark => _theme.dark;
+  int _updateNotification = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    widget.updates?.addListener(_updateChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.updates?.start();
+    });
     _music = RoomMusic(widget.controller);
     widget.controller.registerBackgroundMusic(this, _music.suspend);
     _music.load();
@@ -111,6 +128,37 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
     if (mounted) setState(() {});
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      widget.updates?.checkAutomatically();
+    }
+  }
+
+  void _updateChanged() {
+    final updates = widget.updates;
+    if (!mounted ||
+        updates == null ||
+        updates.notification == _updateNotification) {
+      return;
+    }
+    _updateNotification = updates.notification;
+    final context = _navigator.currentState?.overlay?.context;
+    if (context == null) return;
+    _messenger.currentState?.showSnackBar(
+      SnackBar(
+        content: Text(
+          '${updateText(context, 'new')} · ${updates.release?.tag ?? ''}',
+        ),
+        duration: const Duration(seconds: 10),
+        action: SnackBarAction(
+          label: updateText(context, 'view'),
+          onPressed: () => _navigator.currentState?.pushNamed('/app/update'),
+        ),
+      ),
+    );
+  }
+
   void _toggleTheme() {
     _theme.toggle().then((saved) {
       if (!saved && mounted) {
@@ -123,6 +171,9 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    widget.updates?.removeListener(_updateChanged);
+    widget.updates?.dispose();
     widget.controller.unregisterBackgroundMusic(this);
     _music.dispose();
     _theme.removeListener(_themeChanged);
@@ -137,137 +188,144 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
   }
 
   @override
-  Widget build(BuildContext context) => SiteSeasonScope(
-    controller: _season,
-    child: SiteMusicScope(
-      music: _music,
-      child: SiteControllerScope(
-        controller: widget.controller,
-        child: SiteLocaleScope(
-          controller: _locale,
-          child: MaterialApp(
-            themeAnimationDuration:
-                WidgetsBinding
-                    .instance
-                    .platformDispatcher
-                    .accessibilityFeatures
-                    .disableAnimations
-                ? Duration.zero
-                : const Duration(milliseconds: 650),
-            themeAnimationCurve: Curves.easeOutCubic,
-            navigatorKey: _navigator,
-            navigatorObservers: [_routeObserver],
-            locale: _locale.locale,
-            supportedLocales: const [Locale('zh'), Locale('ja'), Locale('en')],
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            builder: (context, child) => Shortcuts(
-              shortcuts: const {
-                SingleActivator(LogicalKeyboardKey.keyK, meta: true):
-                    _SearchIntent(),
-                SingleActivator(LogicalKeyboardKey.keyK, control: true):
-                    _SearchIntent(),
-              },
-              child: Actions(
-                actions: {
-                  _SearchIntent: CallbackAction<_SearchIntent>(
-                    onInvoke: (_) {
-                      final route = Uri.tryParse(_activePath.value)?.path;
-                      if ([
-                        '/',
-                        '/login',
-                        '/register',
-                        '/live2d',
-                      ].contains(route)) {
-                        return null;
-                      }
-                      final navigatorContext =
-                          _navigator.currentState?.overlay?.context;
-                      if (navigatorContext != null) {
-                        showSiteSearch(
-                          navigatorContext,
-                          widget.controller,
-                          (path) => navigateSite(
+  Widget build(BuildContext context) => AppUpdateScope(
+    controller: widget.updates,
+    child: SiteSeasonScope(
+      controller: _season,
+      child: SiteMusicScope(
+        music: _music,
+        child: SiteControllerScope(
+          controller: widget.controller,
+          child: SiteLocaleScope(
+            controller: _locale,
+            child: MaterialApp(
+              themeAnimationDuration:
+                  WidgetsBinding
+                      .instance
+                      .platformDispatcher
+                      .accessibilityFeatures
+                      .disableAnimations
+                  ? Duration.zero
+                  : const Duration(milliseconds: 650),
+              themeAnimationCurve: Curves.easeOutCubic,
+              navigatorKey: _navigator,
+              navigatorObservers: [_routeObserver],
+              locale: _locale.locale,
+              supportedLocales: const [
+                Locale('zh'),
+                Locale('ja'),
+                Locale('en'),
+              ],
+              localizationsDelegates: const [
+                GlobalMaterialLocalizations.delegate,
+                GlobalWidgetsLocalizations.delegate,
+                GlobalCupertinoLocalizations.delegate,
+              ],
+              builder: (context, child) => Shortcuts(
+                shortcuts: const {
+                  SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+                      _SearchIntent(),
+                  SingleActivator(LogicalKeyboardKey.keyK, control: true):
+                      _SearchIntent(),
+                },
+                child: Actions(
+                  actions: {
+                    _SearchIntent: CallbackAction<_SearchIntent>(
+                      onInvoke: (_) {
+                        final route = Uri.tryParse(_activePath.value)?.path;
+                        if ([
+                          '/',
+                          '/login',
+                          '/register',
+                          '/live2d',
+                        ].contains(route)) {
+                          return null;
+                        }
+                        final navigatorContext =
+                            _navigator.currentState?.overlay?.context;
+                        if (navigatorContext != null) {
+                          showSiteSearch(
                             navigatorContext,
                             widget.controller,
-                            path,
-                          ),
-                        );
-                      }
-                      return null;
-                    },
-                  ),
-                },
-                child: SiteChromeScope(
-                  controller: _chrome,
-                  child: Overlay.wrap(
-                    child: SiteVisitPopupOverlay(
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          child ?? const SizedBox(),
-                          Positioned(
-                            right: 14,
-                            bottom: 12,
-                            child: ValueListenableBuilder<String>(
-                              valueListenable: _activePath,
-                              builder: (context, path, _) {
-                                final route = Uri.tryParse(path)?.path ?? '/';
-                                final hidden =
-                                    [
-                                      '/',
-                                      '/login',
-                                      '/register',
-                                      '/room',
-                                      '/room/settings',
-                                      '/game',
-                                    ].contains(route) ||
-                                    route.startsWith('/room/shared/');
-                                return Offstage(
-                                  offstage: hidden,
-                                  child: TickerMode(
-                                    enabled: !hidden,
-                                    child: SiteGuideButton(
-                                      controller: widget.controller,
-                                      path: path,
-                                      reduced: hidden || !widget.loadNative,
-                                      dialogContext: () => _navigator
-                                          .currentState!
-                                          .overlay!
-                                          .context,
-                                      onGo: (next) => navigateSite(
-                                        _navigator
+                            (path) => navigateSite(
+                              navigatorContext,
+                              widget.controller,
+                              path,
+                            ),
+                          );
+                        }
+                        return null;
+                      },
+                    ),
+                  },
+                  child: SiteChromeScope(
+                    controller: _chrome,
+                    child: Overlay.wrap(
+                      child: SiteVisitPopupOverlay(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            child ?? const SizedBox(),
+                            Positioned(
+                              right: 14,
+                              bottom: 12,
+                              child: ValueListenableBuilder<String>(
+                                valueListenable: _activePath,
+                                builder: (context, path, _) {
+                                  final route = Uri.tryParse(path)?.path ?? '/';
+                                  final hidden =
+                                      [
+                                        '/',
+                                        '/login',
+                                        '/register',
+                                        '/room',
+                                        '/room/settings',
+                                        '/game',
+                                      ].contains(route) ||
+                                      route.startsWith('/room/shared/');
+                                  return Offstage(
+                                    offstage: hidden,
+                                    child: TickerMode(
+                                      enabled: !hidden,
+                                      child: SiteGuideButton(
+                                        controller: widget.controller,
+                                        path: path,
+                                        reduced: hidden || !widget.loadNative,
+                                        dialogContext: () => _navigator
                                             .currentState!
                                             .overlay!
                                             .context,
-                                        widget.controller,
-                                        next,
+                                        onGo: (next) => navigateSite(
+                                          _navigator
+                                              .currentState!
+                                              .overlay!
+                                              .context,
+                                          widget.controller,
+                                          next,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                );
-                              },
+                                  );
+                                },
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
+              title: '月读空间',
+              debugShowCheckedModeBanner: false,
+              scaffoldMessengerKey: _messenger,
+              theme: siteTheme(_dark, season: _season.season),
+              initialRoute: widget.initialPath,
+              onGenerateRoute: _route,
+              onGenerateInitialRoutes: (name) => [
+                _route(RouteSettings(name: name)),
+              ],
             ),
-            title: '月读空间',
-            debugShowCheckedModeBanner: false,
-            scaffoldMessengerKey: _messenger,
-            theme: siteTheme(_dark, season: _season.season),
-            initialRoute: widget.initialPath,
-            onGenerateRoute: _route,
-            onGenerateInitialRoutes: (name) => [
-              _route(RouteSettings(name: name)),
-            ],
           ),
         ),
       ),
@@ -287,6 +345,14 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
         void go(String value) =>
             navigateSite(context, widget.controller, value);
         final c = widget.controller;
+        if (route == '/app/update' && widget.updates != null) {
+          return AppUpdatePage(
+            updates: widget.updates!,
+            room: c,
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
         if (route == '/live2d') {
           return Live2DPage(
             controller: c,

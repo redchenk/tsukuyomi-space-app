@@ -103,6 +103,7 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
               'season' => Icons.eco_outlined,
               'search' => Icons.search,
               'music' => Icons.music_note,
+              '/app/update' => Icons.system_update_alt,
               _ => Icons.language,
             },
           ),
