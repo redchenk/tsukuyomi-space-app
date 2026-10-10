@@ -5,6 +5,7 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:path/path.dart' as paths;
 import 'package:path_provider/path_provider.dart';
 
 import 'app_update_release.dart';
@@ -227,7 +228,7 @@ class AppUpdateService {
     );
     final hash = updateChecksum(checksums, release.installer);
     final root = Directory(
-      '${(await cacheDirectory()).path}/tsukuyomi-updates',
+      paths.join((await cacheDirectory()).path, 'tsukuyomi-updates'),
     );
     token.check();
     if (await FileSystemEntity.type(root.path, followLinks: false) ==
@@ -236,7 +237,7 @@ class AppUpdateService {
     }
     await root.create(recursive: true);
     await _prune(root, release.installer.name);
-    final installer = File('${root.path}/${release.installer.name}');
+    final installer = File(paths.join(root.path, release.installer.name));
     final partial = File('${installer.path}.part');
     IOSink? sink;
     try {
@@ -323,14 +324,17 @@ class AppUpdateService {
     UpdateCancellation token,
   ) async {
     final root = Directory(
-      '${(await cacheDirectory()).path}/tsukuyomi-updates',
+      paths.join((await cacheDirectory()).path, 'tsukuyomi-updates'),
     );
-    final expected = '${root.path}/${release.installer.name}';
+    final expected = paths.join(root.path, release.installer.name);
     if (file.path != expected ||
         await FileSystemEntity.type(file.path, followLinks: false) !=
             FileSystemEntityType.file ||
         await file.resolveSymbolicLinks() !=
-            '${await root.resolveSymbolicLinks()}/${release.installer.name}' ||
+            paths.join(
+              await root.resolveSymbolicLinks(),
+              release.installer.name,
+            ) ||
         await file.length() != release.installer.size) {
       throw const UpdateFailure('integrity');
     }
