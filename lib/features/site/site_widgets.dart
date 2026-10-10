@@ -507,7 +507,7 @@ class SiteHeader extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const AppUpdateButton(),
+                    AppUpdateButton(onOpen: () => onGo('/app/update')),
                     if (!compact && controller != null)
                       IconButton(
                         tooltip: siteTr(context, 'search'),

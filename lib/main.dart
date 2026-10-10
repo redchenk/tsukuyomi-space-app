@@ -145,16 +145,25 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
     _updateNotification = updates.notification;
     final context = _navigator.currentState?.overlay?.context;
     if (context == null) return;
+    // These pages own a save/discard guard. Their header uses the guarded
+    // onGo callback; a global snackbar must not bypass it.
+    final editing = {
+      '/editor',
+      '/room/settings',
+    }.contains(Uri.tryParse(_activePath.value)?.path);
     _messenger.currentState?.showSnackBar(
       SnackBar(
         content: Text(
-          '${updateText(context, 'new')} · ${updates.release?.tag ?? ''}',
+          '${updateText(context, 'new')} · ${updates.release?.tag ?? ''}${editing ? '\n${updateText(context, 'saveBeforeOpen')}' : ''}',
         ),
         duration: const Duration(seconds: 10),
-        action: SnackBarAction(
-          label: updateText(context, 'view'),
-          onPressed: () => _navigator.currentState?.pushNamed('/app/update'),
-        ),
+        action: editing
+            ? null
+            : SnackBarAction(
+                label: updateText(context, 'view'),
+                onPressed: () =>
+                    _navigator.currentState?.pushNamed('/app/update'),
+              ),
       ),
     );
   }

@@ -13,6 +13,7 @@ import 'package:tsukuyomi_space_app/core/app_update_service.dart';
 import 'package:tsukuyomi_space_app/core/locale_controller.dart';
 import 'package:tsukuyomi_space_app/core/site_theme.dart';
 import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
+import 'package:tsukuyomi_space_app/features/settings/settings_page.dart';
 import 'package:tsukuyomi_space_app/features/updates/app_update_page.dart';
 import 'package:tsukuyomi_space_app/main.dart';
 
@@ -215,4 +216,68 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     },
   );
+  testWidgets('update navigation preserves settings save/discard guard', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 960);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final (room, updates, _, _) = await setup();
+    await tester.pumpWidget(
+      TsukuyomiApp(
+        controller: room,
+        updates: updates,
+        loadNative: false,
+        initialPath: '/room/settings',
+      ),
+    );
+    await tester.pumpAndSettle();
+    final model = find.byKey(const Key('setting-model'));
+    await tester.ensureVisible(model);
+    await tester.enterText(model, 'unsaved-update-guard');
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('app-update-button')));
+    await tester.tap(find.byKey(const Key('app-update-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('设置尚未保存'), findsOneWidget);
+    expect(find.byType(AppUpdatePage), findsNothing);
+    await tester.tap(find.text('继续编辑'));
+    await tester.pumpAndSettle();
+    expect(find.byType(RoomSettingsPage), findsOneWidget);
+    expect(
+      tester.widget<TextField>(model).controller!.text,
+      'unsaved-update-guard',
+    );
+    await tester.ensureVisible(find.byKey(const Key('app-update-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('app-update-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('放弃并离开'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppUpdatePage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+  testWidgets('automatic update notice cannot bypass an active editing guard', (
+    tester,
+  ) async {
+    final (room, updates, _, _) = await setup();
+    await tester.pumpWidget(
+      TsukuyomiApp(
+        controller: room,
+        updates: updates,
+        loadNative: false,
+        initialPath: '/room/settings',
+      ),
+    );
+    await tester.pumpAndSettle();
+    await updates.preferences.setBool('app-update.automatic', true);
+    await updates.check(automaticCheck: true);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('保存当前内容后，可从顶部更新图标查看。'), findsOneWidget);
+    expect(find.text('查看更新'), findsNothing);
+    expect(find.byType(AppUpdatePage), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
 }

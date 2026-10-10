@@ -27,7 +27,8 @@ class AppUpdateScope extends InheritedWidget {
 
 /// Only this small indicator observes download progress, not the Room tree.
 class AppUpdateButton extends StatelessWidget {
-  const AppUpdateButton({super.key});
+  const AppUpdateButton({super.key, required this.onOpen});
+  final VoidCallback onOpen;
   @override
   Widget build(BuildContext context) {
     final controller = AppUpdateScope.maybeOf(context);
@@ -39,7 +40,7 @@ class AppUpdateButton extends StatelessWidget {
         tooltip: updateText(context, controller.hasUpdate ? 'new' : 'title'),
         onPressed: () {
           if (ModalRoute.of(context)?.settings.name != '/app/update') {
-            Navigator.of(context).pushNamed('/app/update');
+            onOpen();
           }
         },
         icon: Badge(

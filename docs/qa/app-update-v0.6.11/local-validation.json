@@ -2,7 +2,7 @@
   "version": "0.6.11+17",
   "tag": "v0.6.11-beta.1",
   "checks": {
-    "focused_tests": 57,
+    "focused_tests": 59,
     "ui_cases": 30,
     "widths": [
       360,
@@ -35,7 +35,8 @@
       "passed": 773,
       "gated": 35
     },
-    "macos_codesign_verify": true
+    "macos_codesign_verify": true,
+    "editing_guard_tests": 2
   },
   "limits": [
     "Five OS upgrade confirmations require actual device acceptance",

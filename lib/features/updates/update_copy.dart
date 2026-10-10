@@ -4,6 +4,11 @@ import '../../core/site_localization.dart';
 
 const _copy = <String, (String, String, String)>{
   'title': ('应用更新', 'App updates', 'アプリの更新'),
+  'saveBeforeOpen': (
+    '保存当前内容后，可从顶部更新图标查看。',
+    'Save your changes, then open the update icon in the navigation bar.',
+    '編集中の内容を保存してから、ナビゲーションの更新アイコンを開いてください。',
+  ),
   'intro': ('让月读空间保持最新', 'Keep Tsukuyomi Space up to date', '月読空間を最新の状態に'),
   'description': (
     '从官方 GitHub 获取新版本，下载完成并校验后，由你确认安装。聊天记录与模型配置会保留。',
