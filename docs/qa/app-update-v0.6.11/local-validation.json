@@ -32,16 +32,158 @@
     },
     "local_macos_release_build": true,
     "full_local_regression": {
-      "passed": 773,
+      "passed": 775,
       "gated": 35
     },
     "macos_codesign_verify": true,
-    "editing_guard_tests": 2
+    "editing_guard_tests": 2,
+    "latest_live_download": {
+      "tag": "v0.6.11-beta.1",
+      "asset": "tsukuyomi-space-0.6.11-ios-arm64-unsigned.ipa",
+      "bytes": 127622630,
+      "sha256": "b68e7e2035814dfe62147340bae069a066a1a5173376629be4ebcb6b9143df9b",
+      "installed": false
+    },
+    "ci": {
+      "run_id": 38063268305,
+      "url": "https://github.com/redchenk/tsukuyomi-space-app/actions/runs/38063268305",
+      "source_commit": "8d4bb0e44882330affb0e54f1d93f47a996ef062",
+      "quality": {
+        "passed": 792,
+        "gated": 18
+      },
+      "jobs": [
+        {
+          "name": "metadata",
+          "conclusion": "success"
+        },
+        {
+          "name": "quality",
+          "conclusion": "success"
+        },
+        {
+          "name": "build (ubuntu-22.04, android)",
+          "conclusion": "success"
+        },
+        {
+          "name": "build (macos-15, ios)",
+          "conclusion": "success"
+        },
+        {
+          "name": "build (ubuntu-22.04, linux)",
+          "conclusion": "success"
+        },
+        {
+          "name": "build (windows-2022, windows)",
+          "conclusion": "success"
+        },
+        {
+          "name": "build (macos-15, macos)",
+          "conclusion": "success"
+        },
+        {
+          "name": "native-smoke / android",
+          "conclusion": "success"
+        },
+        {
+          "name": "publish",
+          "conclusion": "success"
+        }
+      ],
+      "desktop_updates": {
+        "windows": 59,
+        "macos": 59,
+        "linux": 59
+      },
+      "desktop_agent": {
+        "windows": 110,
+        "macos": 110,
+        "linux": 110
+      },
+      "android_native_update_probe": true,
+      "android_native_live2d_probe": true
+    }
   },
   "limits": [
     "Five OS upgrade confirmations require actual device acceptance",
     "iOS unsigned IPA requires self-signing",
     "macOS DMG and Linux DEB need system installation steps",
     "Old versions need manual installation of 0.6.11 first"
-  ]
+  ],
+  "release": {
+    "url": "https://github.com/redchenk/tsukuyomi-space-app/releases/tag/v0.6.11-beta.1",
+    "published_at": "2026-10-10T15:52:57Z",
+    "source_commit": "8d4bb0e44882330affb0e54f1d93f47a996ef062",
+    "tag_commit_verified": true,
+    "all_sha256_verified": true,
+    "total_download_bytes": 2207140727,
+    "assets": [
+      {
+        "name": "INSTALL.md",
+        "bytes": 14396,
+        "sha256": "2e658d37cb655bc382b56ccddc2a4c7e03142587589c25ec46e543c4b24ed472",
+        "verified": true
+      },
+      {
+        "name": "SHA256SUMS.txt",
+        "bytes": 1031,
+        "sha256": "db7ac66ca9169f0e8526c3b650c1210bcf77edd5fc30e2dd20b4dab9becaeb20",
+        "verified": true
+      },
+      {
+        "name": "THIRD_PARTY_NOTICES.md",
+        "bytes": 5630,
+        "sha256": "388aabab8504fbb24aec30e1a51f0a03030259f39b75629e0800a01413e32c4a",
+        "verified": true
+      },
+      {
+        "name": "tsukuyomi-space-0.6.11-android-arm64-v8a.apk",
+        "bytes": 155123305,
+        "sha256": "47bb9a20214dba6954f43a73c22c40d92567e7e5b310b885f6d54c086023a153",
+        "verified": true
+      },
+      {
+        "name": "tsukuyomi-space-0.6.11-android-x86_64.apk",
+        "bytes": 160239120,
+        "sha256": "6308cac8634507cd389da56e7139076f2dad56f16973dbfe47f64047eaa0d548",
+        "verified": true
+      },
+      {
+        "name": "tsukuyomi-space-0.6.11-ios-arm64-unsigned.ipa",
+        "bytes": 127622630,
+        "sha256": "b68e7e2035814dfe62147340bae069a066a1a5173376629be4ebcb6b9143df9b",
+        "verified": true
+      },
+      {
+        "name": "tsukuyomi-space-0.6.11-linux-x64.deb",
+        "bytes": 261724758,
+        "sha256": "3ae518c1dd87e469abd29104b0b7e1e1f00ef96f793efe4d276ccb38f76edfac",
+        "verified": true
+      },
+      {
+        "name": "tsukuyomi-space-0.6.11-linux-x64.tar.gz",
+        "bytes": 319924512,
+        "sha256": "031134bf6f01d8d395f702b11794db38ec935f827478076472d3a2a0f2f7e9f7",
+        "verified": true
+      },
+      {
+        "name": "tsukuyomi-space-0.6.11-macos-universal.dmg",
+        "bytes": 550029627,
+        "sha256": "3dba05ffd98858884eea32272b3cf2d27b7095a5f01f7ed6eba4ce720e544d77",
+        "verified": true
+      },
+      {
+        "name": "tsukuyomi-space-0.6.11-windows-x64-setup.exe",
+        "bytes": 268753922,
+        "sha256": "58db48fc6bd9d55e363d3da2012c07c5fe7c4c390a84790827b7242bf2597bd4",
+        "verified": true
+      },
+      {
+        "name": "tsukuyomi-space-0.6.11-windows-x64.zip",
+        "bytes": 363701796,
+        "sha256": "5e3eb838c422703c02df35140d288397f51c9d46ac4e1c96897afb47bafd7ece",
+        "verified": true
+      }
+    ]
+  }
 }
