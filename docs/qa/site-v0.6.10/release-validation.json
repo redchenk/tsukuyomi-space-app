@@ -1,0 +1,430 @@
+{
+  "tag": "v0.6.10-beta.1",
+  "version": "0.6.10+16",
+  "commit": "ad04d37e32345fa77cdf37b18e08918f7cf534d5",
+  "url": "https://github.com/redchenk/tsukuyomi-space-app/releases/tag/v0.6.10-beta.1",
+  "published_at": "2026-10-10T13:31:58Z",
+  "website_source_ref": "836e11b56610cf83550fe7d51a4f830f95f05df5",
+  "all_assets_downloaded_and_hashed": true,
+  "asset_count": 11,
+  "assets": [
+    {
+      "name": "INSTALL.md",
+      "size": 13896,
+      "digest": "sha256:125ecffd9b492b7321f390509a614176e9477aef59a2edd429b3263211a75c99"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 1031,
+      "digest": "sha256:86eef315313bc492c5770557b08f9714d8abcb52214f8324fd7cac2f849aea06"
+    },
+    {
+      "name": "THIRD_PARTY_NOTICES.md",
+      "size": 5630,
+      "digest": "sha256:388aabab8504fbb24aec30e1a51f0a03030259f39b75629e0800a01413e32c4a"
+    },
+    {
+      "name": "tsukuyomi-space-0.6.10-android-arm64-v8a.apk",
+      "size": 155057149,
+      "digest": "sha256:315d03529cea42cfcbb73cda7facb6fcb2bca59602f8dc0246dd6b495a7c2805"
+    },
+    {
+      "name": "tsukuyomi-space-0.6.10-android-x86_64.apk",
+      "size": 160172960,
+      "digest": "sha256:915094439e5900fc16515f77cdca6a226de7fe6de742a524256ea43361993cdd"
+    },
+    {
+      "name": "tsukuyomi-space-0.6.10-ios-arm64-unsigned.ipa",
+      "size": 127570826,
+      "digest": "sha256:a1b800a260ccd25edf295155cd43357e843dbd331a22164dcbea9e5c2415b1b2"
+    },
+    {
+      "name": "tsukuyomi-space-0.6.10-linux-x64.deb",
+      "size": 261680812,
+      "digest": "sha256:b8c352f4e01690fda26dc3fa8ff6a966853298036feeebf1a5b6e4774d510ff1"
+    },
+    {
+      "name": "tsukuyomi-space-0.6.10-linux-x64.tar.gz",
+      "size": 319882929,
+      "digest": "sha256:043bba98b05fb6094714d12152281120846e2efcf61c58d08fd92820dcc52646"
+    },
+    {
+      "name": "tsukuyomi-space-0.6.10-macos-universal.dmg",
+      "size": 550267833,
+      "digest": "sha256:9027438399b06fe42909e38515aa5da7aa10cd3f37f8aa8adcf79859b268544e"
+    },
+    {
+      "name": "tsukuyomi-space-0.6.10-windows-x64-setup.exe",
+      "size": 268725547,
+      "digest": "sha256:d86c8fcfcbb2dffef0c5d64fc4238db1923252a6255159cee037264f8a88916d"
+    },
+    {
+      "name": "tsukuyomi-space-0.6.10-windows-x64.zip",
+      "size": 363645411,
+      "digest": "sha256:e0817440887f3b9a51cdbf30f3640862ac2fd9e41718afc1491bf192ef7c2a71"
+    }
+  ],
+  "ci": [
+    {
+      "id": 38054173938,
+      "name": "Release installers",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/redchenk/tsukuyomi-space-app/actions/runs/38054173938",
+      "jobs": [
+        {
+          "id": 114219128292,
+          "name": "metadata",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114219167644,
+          "name": "quality",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114221052564,
+          "name": "build (macos-15, ios)",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114221052602,
+          "name": "build (windows-2022, windows)",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114221052610,
+          "name": "native-smoke / android",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114221052625,
+          "name": "build (ubuntu-22.04, android)",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114221052628,
+          "name": "build (macos-15, macos)",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114221052647,
+          "name": "build (ubuntu-22.04, linux)",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114224569266,
+          "name": "publish",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        }
+      ]
+    },
+    {
+      "id": 38054173361,
+      "name": "Desktop Agent runtimes",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/redchenk/tsukuyomi-space-app/actions/runs/38054173361",
+      "jobs": [
+        {
+          "id": 114219122867,
+          "name": "runtime (macos-15, macos)",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114219123045,
+          "name": "runtime (windows-2022, windows)",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114219123098,
+          "name": "runtime (ubuntu-22.04, linux)",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        }
+      ]
+    },
+    {
+      "id": 38054173364,
+      "name": "Flutter prototype",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/redchenk/tsukuyomi-space-app/actions/runs/38054173364",
+      "jobs": [
+        {
+          "id": 114219122965,
+          "name": "quality",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114221059672,
+          "name": "native-shells (ubuntu-latest, linux, flutter build linux --debug)",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114221059673,
+          "name": "native-shells (macos-latest, macos, flutter build macos --debug)",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114221059683,
+          "name": "native-shells (windows-2022, windows, flutter build windows --debug)",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        },
+        {
+          "id": 114221059748,
+          "name": "native-shells (ubuntu-latest, android, flutter build apk --debug)",
+          "status": "completed",
+          "conclusion": "success",
+          "step": null
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "No real paid model or OAuth account used",
+    "No new device GPU/P95 benchmark",
+    "Unsigned iOS; unnotarized macOS; unsigned Windows",
+    "Linux OAuth container and model-specific diagnostics/report export not migrated"
+  ],
+  "ci_log_evidence": [
+    {
+      "job_id": 114219128292,
+      "name": "metadata",
+      "conclusion": "success",
+      "test_passes": [],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114219167644,
+      "name": "quality",
+      "conclusion": "success",
+      "test_passes": [
+        {
+          "passed": 733,
+          "skipped": 17
+        }
+      ],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114221052564,
+      "name": "build (macos-15, ios)",
+      "conclusion": "success",
+      "test_passes": [],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114221052602,
+      "name": "build (windows-2022, windows)",
+      "conclusion": "success",
+      "test_passes": [
+        {
+          "passed": 110,
+          "skipped": 0
+        }
+      ],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114221052610,
+      "name": "native-smoke / android",
+      "conclusion": "success",
+      "test_passes": [],
+      "android_live2d_marker": true
+    },
+    {
+      "job_id": 114221052625,
+      "name": "build (ubuntu-22.04, android)",
+      "conclusion": "success",
+      "test_passes": [],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114221052628,
+      "name": "build (macos-15, macos)",
+      "conclusion": "success",
+      "test_passes": [
+        {
+          "passed": 110,
+          "skipped": 0
+        }
+      ],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114221052647,
+      "name": "build (ubuntu-22.04, linux)",
+      "conclusion": "success",
+      "test_passes": [
+        {
+          "passed": 110,
+          "skipped": 0
+        }
+      ],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114224569266,
+      "name": "publish",
+      "conclusion": "success",
+      "test_passes": [],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114219122867,
+      "name": "runtime (macos-15, macos)",
+      "conclusion": "success",
+      "test_passes": [
+        {
+          "passed": 110,
+          "skipped": 0
+        }
+      ],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114219123045,
+      "name": "runtime (windows-2022, windows)",
+      "conclusion": "success",
+      "test_passes": [
+        {
+          "passed": 110,
+          "skipped": 0
+        }
+      ],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114219123098,
+      "name": "runtime (ubuntu-22.04, linux)",
+      "conclusion": "success",
+      "test_passes": [
+        {
+          "passed": 110,
+          "skipped": 0
+        }
+      ],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114219122965,
+      "name": "quality",
+      "conclusion": "success",
+      "test_passes": [
+        {
+          "passed": 716,
+          "skipped": 34
+        }
+      ],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114221059672,
+      "name": "native-shells (ubuntu-latest, linux, flutter build linux --debug)",
+      "conclusion": "success",
+      "test_passes": [],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114221059673,
+      "name": "native-shells (macos-latest, macos, flutter build macos --debug)",
+      "conclusion": "success",
+      "test_passes": [],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114221059683,
+      "name": "native-shells (windows-2022, windows, flutter build windows --debug)",
+      "conclusion": "success",
+      "test_passes": [],
+      "android_live2d_marker": false
+    },
+    {
+      "job_id": 114221059748,
+      "name": "native-shells (ubuntu-latest, android, flutter build apk --debug)",
+      "conclusion": "success",
+      "test_passes": [],
+      "android_live2d_marker": false
+    }
+  ],
+  "installer_contents": [
+    {
+      "manifest": "agent/windows-x64/runtime-manifest.json",
+      "target": "windows-x64",
+      "opencode": "1.18.33",
+      "codex": "0.159.0",
+      "hashed_files": 10
+    },
+    {
+      "manifest": "tsukuyomi-space/agent/linux-x64/runtime-manifest.json",
+      "target": "linux-x64",
+      "opencode": "1.18.33",
+      "codex": "0.159.0",
+      "hashed_files": 11
+    },
+    {
+      "platform": "ios",
+      "version": "0.6.10",
+      "build": "16",
+      "phone_build": true,
+      "unsigned": true
+    },
+    {
+      "manifest": "Contents/Resources/agent/macos-x64/runtime-manifest.json",
+      "target": "macos-x64",
+      "opencode": "1.18.33",
+      "codex": "0.159.0",
+      "hashed_files": 10
+    },
+    {
+      "manifest": "Contents/Resources/agent/macos-arm64/runtime-manifest.json",
+      "target": "macos-arm64",
+      "opencode": "1.18.33",
+      "codex": "0.159.0",
+      "hashed_files": 10
+    },
+    {
+      "platform": "macos",
+      "version": "0.6.10",
+      "build": "16",
+      "architectures": [
+        "x86_64",
+        "arm64"
+      ]
+    }
+  ],
+  "branch_check": "Local and remote branches contain main only",
+  "open_issues": 0
+}

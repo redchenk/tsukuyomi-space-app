@@ -127,15 +127,15 @@
     },
     {
       "name": "seasonal/navigation-spring.png",
-      "sha256": "7fe1c4ce665b23526514836b88892ca8e381755a119f12dea73b0b5d9f4347ea"
+      "sha256": "f573eca8f6274a244757afa503d0f761d2f7619a19fc418da6561b1af65d4507"
     },
     {
       "name": "seasonal/navigation-summer.png",
-      "sha256": "a6ecb7f164cad10d235b1b9a4c54f4debc3e4811e65dde85e8f3fcb72b19b93a"
+      "sha256": "703494403c2a317eef60e77260576412130a99c617f1da44e6f1b9dc1570a5a2"
     },
     {
       "name": "seasonal/navigation-winter.png",
-      "sha256": "d466df071ffc00d7356d1d753259cb4b9c6567be41b1659b1620ec254ded8642"
+      "sha256": "73f45c8a7b9ab581a27175fae3ff45d8fb1795679fdfd34a7f9839e0f5882d0b"
     },
     {
       "name": "web-hub-desktop.jpg",
@@ -171,5 +171,35 @@
     "Linux OAuth has no native supported browser-binding container",
     "Model catalog manual refresh; four diagnostics and report export not migrated",
     "Unsigned iOS; macOS unnotarized; Windows unsigned publisher"
-  ]
+  ],
+  "seasonal_capture": "Four season images were predecoded with precacheImage before capture; rim textures and menu text visually verified.",
+  "final_ci_regression": {
+    "passed": 716,
+    "skipped": 34,
+    "run_id": 38054173364,
+    "job_id": 114219122965
+  },
+  "final_ci_backend_cubism_regression": {
+    "passed": 733,
+    "skipped": 17,
+    "run_id": 38054173938,
+    "job_id": 114219167644
+  },
+  "desktop_agent_ci": {
+    "macos": {
+      "passed": 110,
+      "skipped": 0
+    },
+    "windows": {
+      "passed": 110,
+      "skipped": 0
+    },
+    "linux": {
+      "passed": 110,
+      "skipped": 0
+    },
+    "run_id": 38054173361
+  },
+  "final_release_commit": "ad04d37e32345fa77cdf37b18e08918f7cf534d5",
+  "final_release_validation": "release-validation.json; all published assets downloaded and hashed, installer contents inspected"
 }
