@@ -473,4 +473,110 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+  testWidgets(
+    'GitHub existing email completion requires code and preserves password',
+    (tester) async {
+      final ordinary = <http.Request>[], oauth = <http.Request>[];
+      final c = await authController(
+        MockClient((request) async {
+          ordinary.add(request);
+          if (request.url.path == '/api/auth/me') {
+            return authReply({
+              'id': 'github-user',
+              'username': 'GitHub创作者',
+              'role': 'user',
+            });
+          }
+          return authReply([]);
+        }),
+      );
+      addTearDown(c.dispose);
+      final target = QQOAuthTarget.fromSettings(
+        c.settings.siteUrl,
+        {
+          'githubOAuthStartUrl':
+              'https://yachiyo.hk/api/auth/oauth/github/start',
+        },
+        '/hub',
+        provider: 'github',
+      );
+      final transport =
+          QQOAuthHttp(
+            target.origin,
+            provider: 'github',
+            client: MockClient((request) async {
+              oauth.add(request);
+              if (request.url.path.endsWith('/pending')) {
+                return authReply({
+                  'requiresEmailBinding': true,
+                  'hasEmailMatch': true,
+                  'email': 'github@example.com',
+                  'nickname': 'GitHub创作者',
+                  'suggestedUsername': 'github_writer',
+                });
+              }
+              return authReply({
+                'redirect': '/hub',
+              }, cookie: 'tsukuyomi_session=qq.session; HttpOnly; Path=/');
+            }),
+          )..importCookies([
+            const MapEntry('__Host-tsukuyomi_qq_oauth', 'binding123'),
+          ]);
+      final destinations = <String>[];
+      await authMount(
+        tester,
+        NativeAuthPage(
+          controller: c,
+          onGo: destinations.add,
+          authorizeGitHub:
+              (
+                context,
+                controller, {
+                String redirect = '/hub',
+                bool bindCurrentAccount = false,
+              }) async => QQAuthGrant(
+                target: target,
+                transport: transport,
+                ticket: 'a' * 48,
+                redirect: redirect,
+              ),
+        ),
+      );
+      await tester.ensureVisible(find.byKey(const Key('auth-github')));
+      await tester.tap(find.byKey(const Key('auth-github')));
+      await tester.pumpAndSettle();
+      expect(find.text('绑定邮箱'), findsWidgets);
+      await authField(tester, 'email', 'github@example.com');
+      await authField(tester, 'code', '123456');
+      expect(find.byKey(const Key('auth-password')), findsNothing);
+      await tester.ensureVisible(find.byKey(const Key('auth-submit')));
+      await tester.tap(find.byKey(const Key('auth-submit')));
+      await tester.pumpAndSettle();
+      final complete = oauth.singleWhere((r) => r.url.path.endsWith('/email'));
+      expect(
+        complete.headers['Cookie'],
+        '__Host-tsukuyomi_qq_oauth=binding123',
+      );
+      expect(jsonDecode(complete.body), {
+        'ticket': 'a' * 48,
+        'email': 'github@example.com',
+        'emailCode': '123456',
+        'username': 'github_writer',
+      });
+      expect(
+        ordinary
+            .singleWhere((r) => r.url.path == '/api/auth/me')
+            .headers['Cookie'],
+        'tsukuyomi_session=qq.session',
+      );
+      expect(
+        ordinary.any((r) => (r.headers['Cookie'] ?? '').contains('qq_oauth')),
+        isFalse,
+      );
+      expect(c.account?.username, 'GitHub创作者');
+      expect(destinations, ['/hub']);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 }

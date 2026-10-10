@@ -26,6 +26,7 @@ class NativeAuthPage extends StatefulWidget {
     required this.onGo,
     this.onTheme,
     this.authorize = showQQAuthorization,
+    this.authorizeGitHub = showGitHubAuthorization,
     this.autoStartQQ = false,
     this.onAuthenticated,
   });
@@ -33,7 +34,7 @@ class NativeAuthPage extends StatefulWidget {
   final String path;
   final ValueChanged<String> onGo;
   final VoidCallback? onTheme;
-  final QQAuthorize authorize;
+  final QQAuthorize authorize, authorizeGitHub;
   final bool autoStartQQ;
   final VoidCallback? onAuthenticated;
   @override
@@ -97,6 +98,7 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
       _message = '',
       _origin = '',
       _qqMode = '',
+      _provider = 'qq',
       _bindMethod = 'password';
   bool _busy = false, _failure = false, _showPassword = false;
   int _generation = 0;
@@ -107,21 +109,29 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
   String get redirect =>
       sanitizeAuthRedirect(route.queryParameters['redirect']);
   String get title => _grant != null
-      ? (_qqMode == 'email' ? '绑定邮箱' : 'QQ 登录确认')
+      ? (_qqMode == 'email' ? '绑定邮箱' : '$providerName 登录确认')
       : switch (_mode) {
           'register' => '创建账号',
           'reset' => '重设密码',
           _ => '欢迎回来',
         };
+  String get providerName => _provider == 'github' ? 'GitHub' : 'QQ';
+  bool get githubExisting =>
+      _provider == 'github' &&
+      _qqProfile['hasEmailMatch'] == true &&
+      _email.text.trim().toLowerCase() ==
+          textOf(_qqProfile, 'email').toLowerCase();
   bool get qq => _grant != null;
   bool get needsCode => qq
       ? _qqMode == 'email' || (_qqMode == 'bind' && _bindMethod == 'code')
       : _mode != 'password';
   bool get needsPassword => qq
-      ? _qqMode == 'email' || (_qqMode == 'bind' && _bindMethod == 'password')
+      ? (_qqMode == 'email' && !githubExisting) ||
+            (_qqMode == 'bind' && _bindMethod == 'password')
       : _mode != 'code';
-  bool get newPassword =>
-      qq ? _qqMode == 'email' : ['register', 'reset'].contains(_mode);
+  bool get newPassword => qq
+      ? _qqMode == 'email' && !githubExisting
+      : ['register', 'reset'].contains(_mode);
   String get purpose => qq
       ? (_qqMode == 'email' ? 'oauth_bind' : 'login')
       : switch (_mode) {
@@ -327,21 +337,25 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
     }
   }
 
-  Future<void> _startQQ() async {
+  Future<void> _startQQ([String provider = 'qq']) async {
     if (_busy) return;
     final ticket = ++_generation, authorizingAccount = c.account?.id;
     setState(() {
       _busy = true;
       _message = '';
       _clearQQ();
+      _provider = provider;
     });
     try {
-      final grant = await widget.authorize(
-        context,
-        c,
-        redirect: redirect,
-        bindCurrentAccount: c.account != null && !c.sessionExpired,
-      );
+      final grant =
+          await (provider == 'github'
+              ? widget.authorizeGitHub
+              : widget.authorize)(
+            context,
+            c,
+            redirect: redirect,
+            bindCurrentAccount: c.account != null && !c.sessionExpired,
+          );
       if (!mounted || ticket != _generation) {
         grant?.transport.dispose();
         return;
@@ -363,12 +377,13 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
       }
       final response = await grant.transport.request(
         'GET',
-        '/api/auth/oauth/qq/pending?ticket=${Uri.encodeQueryComponent(grant.ticket)}',
+        '/api/auth/oauth/$_provider/pending?ticket=${Uri.encodeQueryComponent(grant.ticket)}',
       );
       if (!mounted || ticket != _generation) return;
       setState(() {
         _qqProfile = mapOf(response['data']);
-        _qqMode = _qqProfile['requiresEmailBinding'] == true
+        _qqMode =
+            _provider == 'github' || _qqProfile['requiresEmailBinding'] == true
             ? 'email'
             : _qqProfile['hasEmailMatch'] == true
             ? 'bind'
@@ -426,13 +441,13 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
       if (qq) {
         final grant = _grant!;
         final body = <String, dynamic>{'ticket': grant.ticket};
-        final path = '/api/auth/oauth/qq/$_qqMode';
+        final path = '/api/auth/oauth/$_provider/$_qqMode';
         if (_qqMode == 'email') {
           body.addAll({
             'email': _email.text.trim(),
             'emailCode': _code.text.trim(),
             'username': _qqName.text.trim(),
-            'newPassword': _password.text,
+            if (!githubExisting) 'newPassword': _password.text,
           });
         } else if (_qqMode == 'bind') {
           body.addAll({
@@ -590,7 +605,7 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
       const SizedBox(height: 16),
       SiteText(
         _qqMode == 'email'
-            ? 'QQ 未提供真实邮箱。验证邮箱并设置密码后进入；已注册邮箱将合并到对应账号。'
+            ? '$providerName 授权已完成。请验证邮箱；已注册邮箱绑定已有账号并保留其密码，新邮箱需设置密码。'
             : 'QQ 授权已完成。可以开通新账号，也可以验证并绑定已有站内账号。',
       ),
       const SizedBox(height: 20),
@@ -754,7 +769,7 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
         child: NativeSiteSection(
           title: title,
           subtitle: qq
-              ? 'QQ 授权与账号绑定'
+              ? '$providerName 授权与账号绑定'
               : _mode == 'register'
               ? '开始记录你的月下旅程'
               : '探索、记录、分享 · Tsukuyomi Gate',
@@ -837,6 +852,13 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
                     ],
                   ),
                   const Divider(height: 40),
+                  OutlinedButton.icon(
+                    key: const Key('auth-github'),
+                    onPressed: _busy ? null : () => _startQQ('github'),
+                    icon: const Icon(Icons.code),
+                    label: const SiteText('GitHub 登录 / 授权'),
+                  ),
+                  const SizedBox(height: 10),
                   OutlinedButton.icon(
                     key: const Key('auth-qq'),
                     onPressed: _busy ? null : _startQQ,

@@ -56,7 +56,7 @@ class ContextSite extends FakeSite implements SiteDataService {
     final uri = Uri.parse(path);
     if (uri.path == '/api/room/memory') {
       expect(uri.queryParameters['purpose'], 'chat');
-      expect(uri.queryParameters['limit'], '6');
+      expect(uri.queryParameters['limit'], '12');
       if (!memoryRequested.isCompleted) memoryRequested.complete();
       if (memoryFails) throw const ApiFailure('memory offline');
       return memoryGate == null ? memoryResult : memoryGate!.future;

@@ -21,6 +21,7 @@ function flatten(value, prefix = '', target = {}) {
   return target;
 }
 const extras = {};
+const interfaceCopy = JSON.parse(fs.readFileSync(path.join(root, 'src/frontend/i18n/interface-catalog.json'), 'utf8'));
 const nativeCopy = JSON.parse(fs.readFileSync('tool/native_ui_copy.json','utf8'));
 const growth = fs.readFileSync(path.join(root, 'src/frontend/pages/GrowthPage.vue'), 'utf8');
 const growthCopy = growth.slice(growth.indexOf('const copy ='), growth.indexOf('const localizedLevelTitles ='));
@@ -37,6 +38,10 @@ for (const language of ['zh','ja','en']) {
     ...flatten(growthData.tasks, 'growth.tasks'),
     ...flatten(growthData.events, 'growth.events'),
   };
+  for (const [source, locales] of Object.entries(interfaceCopy)) {
+    const key = `sourceUi.${crypto.createHash('sha1').update(source).digest('hex').slice(0,12)}`;
+    extras[language][key] = language === 'zh' ? source : (locales[language] || source);
+  }
   for (const [zh,ja,en] of nativeCopy) {
     const key = `nativeUi.${crypto.createHash('sha1').update(zh).digest('hex').slice(0,12)}`;
     extras[language][key] = ({zh,ja,en})[language].replaceAll('\\n','\n');

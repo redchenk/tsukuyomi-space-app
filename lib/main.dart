@@ -146,6 +146,15 @@ class _TsukuyomiAppState extends State<TsukuyomiApp> {
         child: SiteLocaleScope(
           controller: _locale,
           child: MaterialApp(
+            themeAnimationDuration:
+                WidgetsBinding
+                    .instance
+                    .platformDispatcher
+                    .accessibilityFeatures
+                    .disableAnimations
+                ? Duration.zero
+                : const Duration(milliseconds: 650),
+            themeAnimationCurve: Curves.easeOutCubic,
             navigatorKey: _navigator,
             navigatorObservers: [_routeObserver],
             locale: _locale.locale,

@@ -1,0 +1,26 @@
+[
+  {
+    "source": "src/frontend/assets/navigation/seasons-v1/spring-ornament.webp",
+    "asset": "assets/images/navigation/seasons-v1/spring-ornament.webp",
+    "bytes": 178406,
+    "sha256": "5e36531d0a7484932488ca1d3742c399fcb5f578ee8a8626cf122ea2a55dafb3"
+  },
+  {
+    "source": "src/frontend/assets/navigation/seasons-v1/summer-ornament.webp",
+    "asset": "assets/images/navigation/seasons-v1/summer-ornament.webp",
+    "bytes": 176816,
+    "sha256": "ede477d202ec223232791adbd80258eb76201b607e1319f50ecf09c64065e4e5"
+  },
+  {
+    "source": "src/frontend/assets/navigation/seasons-v1/autumn-ornament.webp",
+    "asset": "assets/images/navigation/seasons-v1/autumn-ornament.webp",
+    "bytes": 170190,
+    "sha256": "e94d8fb18a2ea6edcfb227a685597ea3616eb2a0caca8273d4305df1b209d3ff"
+  },
+  {
+    "source": "src/frontend/assets/navigation/seasons-v1/winter-ornament.webp",
+    "asset": "assets/images/navigation/seasons-v1/winter-ornament.webp",
+    "bytes": 232108,
+    "sha256": "41a9cd0a153149512f98f6973ca8bbe3b040e60456e4053ecad86e5f59ed5b0f"
+  }
+]

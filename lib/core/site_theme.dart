@@ -5,14 +5,19 @@ import 'season_theme.dart';
 /// Website editorial.css / material-components.css at 4b0ade7 (2026-10-06).
 /// Keep these semantic roles shared by Room, content pages and Material controls.
 class SitePalette {
-  const SitePalette(this.dark, {this.season = SiteSeason.spring});
+  const SitePalette(this.dark, {this.season = SiteSeason.spring})
+    : _blended = null;
+  const SitePalette._(this.dark, this.season, this._blended);
+  final List<Color>? _blended;
   final SiteSeason season;
   static SitePalette of(BuildContext context) =>
       Theme.of(context).extension<SiteSeasonColors>()?.palette ??
       SitePalette(Theme.of(context).brightness == Brightness.dark);
-  Color seasonal(Color spring, int slot) => season == SiteSeason.spring
-      ? spring
-      : Color(_colors[season]![dark ? 1 : 0][slot]);
+  Color seasonal(Color spring, int slot) =>
+      _blended?[slot] ??
+      (season == SiteSeason.spring
+          ? spring
+          : Color(_colors[season]![dark ? 1 : 0][slot]));
   final bool dark;
   static const brand = Color(0xffac4d6d);
   static const brandHover = Color(0xff923d5b);
@@ -148,7 +153,32 @@ class SiteSeasonColors extends ThemeExtension<SiteSeasonColors> {
       SiteSeasonColors(palette ?? this.palette);
   @override
   SiteSeasonColors lerp(covariant SiteSeasonColors? other, double t) =>
-      t < .5 ? this : other ?? this;
+      other == null
+      ? this
+      : SiteSeasonColors(
+          SitePalette._(
+            t < .5 ? palette.dark : other.palette.dark,
+            other.palette.season,
+            [
+              for (var i = 0; i < 12; i++)
+                Color.lerp(_values(palette)[i], _values(other.palette)[i], t)!,
+            ],
+          ),
+        );
+  static List<Color> _values(SitePalette p) => [
+    p.background,
+    p.surface,
+    p.low,
+    p.soft,
+    p.ink,
+    p.muted,
+    p.line,
+    p.accent,
+    p.selected,
+    p.cyan,
+    p.primary,
+    p.primaryHover,
+  ];
 }
 
 ThemeData siteTheme(bool dark, {SiteSeason season = SiteSeason.spring}) {

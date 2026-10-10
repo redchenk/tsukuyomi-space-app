@@ -1,5 +1,5 @@
 {
-  "source": "tsukuyomi-space@4b0ade76ac38dd0c0df551862b8b943a9cf96a15/src/frontend/services/room/roomContext.mjs#selectRecentRoomConversation",
+  "source": "tsukuyomi-space@836e11b56610cf83550fe7d51a4f830f95f05df5/src/frontend/services/room/roomContext.mjs#selectRecentRoomConversation",
   "cases": [
     {
       "name": "long answer retains its paired question and both ends",

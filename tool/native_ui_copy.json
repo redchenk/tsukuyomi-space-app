@@ -2848,5 +2848,105 @@
     "下一曲",
     "次の曲",
     "Next track"
+  ],
+  [
+    "模型参数与能力",
+    "モデルのパラメータと機能",
+    "Model parameters and capabilities"
+  ],
+  [
+    "服务商默认 · 单模型覆盖 · 协议字段映射",
+    "プロバイダー既定 · モデル個別設定 · プロトコル項目",
+    "Provider defaults · Model overrides · Protocol fields"
+  ],
+  [
+    "服务商默认",
+    "プロバイダーの既定値",
+    "Provider defaults"
+  ],
+  [
+    "当前模型",
+    "現在のモデル",
+    "Current model"
+  ],
+  [
+    "映射字段",
+    "送信フィールド",
+    "Request field"
+  ],
+  [
+    "不发送",
+    "送信しない",
+    "Omit"
+  ],
+  [
+    "思考模式",
+    "思考モード",
+    "Thinking mode"
+  ],
+  [
+    "推理强度",
+    "推論の強度",
+    "Reasoning effort"
+  ],
+  [
+    "最大输出 Token",
+    "最大出力トークン",
+    "Maximum output tokens"
+  ],
+  [
+    "能力覆盖：未知能力仍可尝试，明确关闭的能力不会发送。",
+    "機能が不明な場合は試行でき、明示的に無効化した機能は送信されません。",
+    "Unknown capabilities can be tried; explicitly disabled capabilities are not sent."
+  ],
+  [
+    "服务商声明",
+    "プロバイダーの宣言",
+    "Provider declaration"
+  ],
+  [
+    "未知",
+    "不明",
+    "Unknown"
+  ],
+  [
+    "填写有效的 API 端点后可设置模型参数",
+    "有効な API エンドポイントを入力するとモデルを設定できます",
+    "Enter a valid API endpoint to configure model parameters"
+  ],
+  [
+    "百炼工作空间 ID",
+    "Bailian ワークスペース ID",
+    "Bailian workspace ID"
+  ],
+  [
+    "每轮检索数量（1–30），多条记忆共享 3000 字上下文预算。",
+    "取得件数（1–30）。複数の記憶で 3000 文字の予算を共有します。",
+    "Memories per turn (1–30), sharing a 3000-character context budget."
+  ],
+  [
+    "GitHub 登录 / 授权",
+    "GitHub ログイン / 認証",
+    "GitHub sign in / authorize"
+  ],
+  [
+    "文本对话",
+    "テキスト会話",
+    "Text chat"
+  ],
+  [
+    "图片输入",
+    "画像入力",
+    "Image input"
+  ],
+  [
+    "工具调用",
+    "ツール呼び出し",
+    "Tool calls"
+  ],
+  [
+    "流式输出",
+    "ストリーミング出力",
+    "Streaming output"
   ]
 ]

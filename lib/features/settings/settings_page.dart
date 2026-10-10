@@ -13,6 +13,10 @@ import '../../core/llm_client.dart';
 import '../../core/room_protocol.dart';
 import '../../core/room_tools.dart';
 import '../../core/room_reference.dart';
+import '../../core/room_knowledge.dart';
+import '../../core/model_runtime.dart';
+import '../../core/model_catalog.dart';
+import 'model_runtime_panel.dart';
 import '../../core/room_archive.dart';
 import '../../core/voice_service.dart';
 import '../room/room_controller.dart';
@@ -74,6 +78,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   List<Map<String, dynamic>> catalog = [], tools = [];
   String expression = 'smile', motion = '';
   double duration = 5000;
+  final ModelCatalog _modelCatalog = ModelCatalog();
+  String _catalogOwner = '';
   LlmClient? testing;
   AudioVoice? testVoice;
   @override
@@ -81,6 +87,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     super.initState();
     section = widget.initialSection;
     _restore();
+    _catalogOwner = c.scope;
     c.addListener(_controllerChanged);
   }
 
@@ -102,6 +109,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   }
 
   void _controllerChanged() {
+    if (_catalogOwner != c.scope) {
+      _catalogOwner = c.scope;
+      _modelCatalog.cancel();
+      catalog = [];
+    }
     if (mounted) setState(() {});
   }
 
@@ -133,6 +145,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       'mcpApiHost',
       'mcpBasePath',
       'mcpAllowlist',
+      'aliyunWorkspaceId',
     ]) {
       values[key] = s.option(
         key,
@@ -147,9 +160,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       fields.putIfAbsent(item.key, () => TextEditingController()).text =
           item.value;
     }
-    if (!options.containsKey('knowledge')) {
-      options['knowledge'] = RoomReference.rows('knowledge');
-    }
+    options['knowledge'] = roomKnowledgeEntries(s);
+    options['knowledgeBuiltinVersion'] = RoomReference.data['knowledgeVersion'];
     savedSnapshot = _snapshot();
   }
 
@@ -173,6 +185,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       'mcpApiHost',
       'mcpBasePath',
       'mcpAllowlist',
+      'aliyunWorkspaceId',
     ]) {
       o[k] = fields[k]!.text.trim();
     }
@@ -216,6 +229,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   Future<bool> _save() async {
     try {
       final s = _value();
+      if (!s.demo) ModelRuntime(s).resolveParameters();
       endpointUri(s.siteUrl);
       if (!s.demo) {
         roomChatEndpoint(s.llmUrl);
@@ -309,6 +323,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   @override
   void dispose() {
     c.removeListener(_controllerChanged);
+    _modelCatalog.close();
     testing?.cancel();
     testVoice?.dispose();
     for (final f in fields.values) {
@@ -333,7 +348,13 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       enabled: !busy,
       obscureText: secret && !showKey,
       maxLines: secret ? 1 : lines,
-      onChanged: (_) => setState(() {}),
+      onChanged: (_) {
+        if (['llmUrl', 'apiKey', 'aliyunWorkspaceId'].contains(key)) {
+          _modelCatalog.cancel();
+          catalog = [];
+        }
+        setState(() {});
+      },
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
@@ -436,6 +457,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         }
         options['ttsProxy'] = preset['useProxy'] == true;
       } else {
+        catalog = [];
         demo = false;
         fields['llmUrl']!.text = '${preset['apiUrl']}';
         fields['model']!.text = '${preset['model']}';
@@ -471,11 +493,52 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   }
 
   Future<void> _catalog() async {
-    final r = await c.workspace.request('GET', '/api/room/models/openrouter');
-    catalog = jsonRows(r['data'] is List ? r['data'] : r['data']?['models']);
-    if (mounted) {
-      setState(() => notice = '已同步 ${catalog.length} 个模型，可选择或输入服务商的模型名');
+    final settings = _value(), owner = c.scope;
+    catalogPlan(settings); // Validate before any credential relay.
+    final rows = <Map<String, dynamic>>[];
+    if (settings.flag('llmProxy')) {
+      var cursor = '';
+      final cursors = <String>{};
+      for (var page = 0; page < 8; page++) {
+        final result = jsonMap(
+          (await c.workspace.request('POST', '/api/room/models/list', {
+            'apiUrl': settings.llmUrl,
+            'apiKey': settings.apiKey,
+            'workspaceId': settings.option('aliyunWorkspaceId'),
+            'cursor': cursor,
+          }))['data'],
+        );
+        if (!mounted || owner != c.scope) return;
+        rows.addAll(jsonRows(result['models']));
+        if (rows.length > 2000) throw const ApiFailure('模型列表数量超过限制');
+        cursor = '${result['nextCursor'] ?? ''}';
+        if (cursor.isEmpty) break;
+        if (!cursors.add(cursor) || page == 7) {
+          throw const ApiFailure('模型列表分页超过限制');
+        }
+      }
+    } else {
+      rows.addAll(await _modelCatalog.load(settings, refresh: true));
     }
+    if (!mounted ||
+        owner != c.scope ||
+        settings.llmUrl != fields['llmUrl']!.text.trim() ||
+        settings.apiKey != fields['apiKey']!.text.trim()) {
+      return;
+    }
+    final runtime = ModelRuntime(settings);
+    final config = normalizeModelRuntime(options['runtimeConfig']);
+    final declarations = config['declarations'] as Map;
+    for (final item in rows) {
+      if (declarations.length >= 64) break;
+      declarations['${runtime.providerKey}#${item['id']}'] =
+          item['capabilities'] ?? {};
+    }
+    setState(() {
+      catalog = rows;
+      options['runtimeConfig'] = config;
+      notice = '已同步 ${catalog.length} 个模型，可选择或输入服务商的模型名';
+    });
   }
 
   Widget _llm() {
@@ -614,7 +677,20 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                   ),
                 )
                 .toList(),
-            onChanged: (v) => setState(() => fields['model']!.text = v ?? ''),
+            onChanged: (v) => setState(() {
+              fields['model']!.text = v ?? '';
+              final runtime = ModelRuntime(_value());
+              final config = normalizeModelRuntime(options['runtimeConfig']);
+              final declarations = config['declarations'] as Map;
+              if (!declarations.containsKey(runtime.modelKey) &&
+                  declarations.length >= 64) {
+                declarations.remove(declarations.keys.first);
+              }
+              declarations[runtime.modelKey] =
+                  catalog.firstWhere((row) => row['id'] == v)['capabilities'] ??
+                  {};
+              options['runtimeConfig'] = config;
+            }),
           ),
         ExpansionTile(
           tilePadding: EdgeInsets.zero,
@@ -637,6 +713,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             ),
             _field('systemPrompt', '补充聊天指令', lines: 5),
             _hint('聊天固定使用八千代的基础身份；日记人设只用于日记生成。'),
+            _field('aliyunWorkspaceId', '百炼工作空间 ID'),
             _field('siteUrl', '月读空间站点'),
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
@@ -645,6 +722,24 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
               onChanged: (v) => setState(() => demo = v),
             ),
           ],
+        ),
+        Builder(
+          builder: (context) {
+            try {
+              final current = _value();
+              ModelRuntime(current).resolveParameters();
+              return ModelRuntimePanel(
+                settings: current,
+                onChanged: (value) =>
+                    setState(() => options['runtimeConfig'] = value),
+              );
+            } catch (_) {
+              return const SiteText(
+                '填写有效的 API 端点后可设置模型参数',
+                style: TextStyle(fontSize: 12),
+              );
+            }
+          },
         ),
         const SizedBox(height: 16),
         Wrap(
@@ -868,7 +963,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   );
   Future<void> _saveKnowledge() async {
     final value = c.settings.copyWith(
-      options: {...c.settings.options, 'knowledge': options['knowledge']},
+      options: {
+        ...c.settings.options,
+        'knowledge': options['knowledge'],
+        'knowledgeBuiltinVersion': RoomReference.data['knowledgeVersion'],
+      },
     );
     await c.storage.saveSettings(value);
     c.settings = value;
@@ -1174,6 +1273,16 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     'memory' => Column(
       children: [
         _toggle('memoryEnabled', '启用长期记忆', fallback: true),
+        _hint('每轮检索数量（1–30），多条记忆共享 3000 字上下文预算。'),
+        Slider(
+          min: 1,
+          max: 30,
+          divisions: 29,
+          value: memoryRetrievalLimit(_value()).toDouble(),
+          label: '${memoryRetrievalLimit(_value())}',
+          onChanged: (value) =>
+              setState(() => options['memoryRetrievalLimit'] = value.round()),
+        ),
         RoomMemoryManager(key: ValueKey(c.scope), controller: c),
       ],
     ),

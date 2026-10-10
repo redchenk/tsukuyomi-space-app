@@ -35,34 +35,60 @@ String sanitizeAuthRedirect(String? value, [String fallback = '/hub']) {
 }
 
 class QQOAuthTarget {
-  const QQOAuthTarget(this.start, this.configuredSite);
+  const QQOAuthTarget(this.start, this.configuredSite, {this.provider = 'qq'});
+  final String provider;
+  String get name => provider == 'github' ? 'GitHub' : 'QQ';
   final Uri start, configuredSite;
   String get origin => start.origin;
   static QQOAuthTarget fromSettings(
     String site,
     Map settings,
-    String redirect,
-  ) {
+    String redirect, {
+    String provider = 'qq',
+    bool bind = false,
+  }) {
+    if (!['qq', 'github'].contains(provider)) throw const ApiFailure('授权服务无效');
     final configured = endpointUri(site),
-        raw = '${settings['qqOAuthStartUrl'] ?? ''}';
+        raw =
+            '${settings[provider == 'github' ? 'githubOAuthStartUrl' : 'qqOAuthStartUrl'] ?? ''}';
     final local = ['localhost', '127.0.0.1', '::1'].contains(configured.host);
+    final alternatives =
+        settings[provider == 'github'
+            ? 'githubOAuthStartUrls'
+            : 'qqOAuthStartUrls'];
+    final sameSite = alternatives is List
+        ? alternatives
+              .map((v) => Uri.tryParse('$v'))
+              .where(
+                (v) =>
+                    v != null &&
+                    v.hasAuthority &&
+                    v.origin == configured.origin,
+              )
+              .firstOrNull
+        : null;
     final endpoint = local
-        ? configured.resolve('/api/auth/oauth/qq/start')
-        : Uri.tryParse(raw);
+        ? configured.resolve('/api/auth/oauth/$provider/start')
+        : sameSite ?? Uri.tryParse(raw);
     if (endpoint == null ||
         !endpoint.hasAuthority ||
         endpoint.userInfo.isNotEmpty ||
         (!local && endpoint.scheme != 'https') ||
         !['http', 'https'].contains(endpoint.scheme) ||
-        endpoint.path != '/api/auth/oauth/qq/start') {
-      throw const ApiFailure('QQ 授权入口配置无效');
+        endpoint.path != '/api/auth/oauth/$provider/start') {
+      throw const ApiFailure('OAuth 授权入口配置无效');
     }
     return QQOAuthTarget(
       endpoint.replace(
-        queryParameters: {'redirect': sanitizeAuthRedirect(redirect)},
+        queryParameters: {
+          'redirect': sanitizeAuthRedirect(redirect),
+          if (provider == 'github') 'site': configured.origin,
+          if (bind) 'action': 'bind',
+        },
         fragment: '',
       ),
       configured,
+      provider: provider,
     );
   }
 
@@ -74,17 +100,18 @@ class QQOAuthTarget {
               uri.origin == origin)) &&
       (uri.origin == origin ||
           uri.origin == configuredSite.origin ||
-          uri.host == 'qq.com' ||
-          uri.host.endsWith('.qq.com'));
+          (provider == 'github'
+              ? uri.host == 'github.com'
+              : uri.host == 'qq.com' || uri.host.endsWith('.qq.com')));
 }
 
 /// Ephemeral OAuth transport. Browser-binding cookies never enter the ordinary
 /// SiteClient cookie jar, disk caches, or logs. Only the server-issued session
 /// is passed to RoomController after /me verification at the configured site.
 class QQOAuthHttp {
-  QQOAuthHttp(this.origin, {http.Client? client})
+  QQOAuthHttp(this.origin, {http.Client? client, this.provider = 'qq'})
     : _client = client ?? http.Client();
-  final String origin;
+  final String origin, provider;
   final http.Client _client;
   final _cookies = <String, String>{};
   static const cookieNames = {
@@ -121,7 +148,14 @@ class QQOAuthHttp {
   ]) async {
     final uri = Uri.parse(origin).resolve(path);
     if (uri.origin != origin ||
-        !paths.contains(uri.path) ||
+        !(provider == 'github'
+                ? {
+                    '/api/auth/oauth/github/pending',
+                    '/api/auth/oauth/github/email',
+                    '/api/auth/email-code',
+                  }
+                : paths)
+            .contains(uri.path) ||
         !['GET', 'POST'].contains(method)) {
       throw const ApiFailure('授权接口地址无效');
     }
@@ -198,6 +232,15 @@ class QQAuthGrant {
 }
 
 const qqOAuthErrors = {
+  'github_not_configured': 'GitHub 登录暂未配置，请稍后再试',
+  'github_start_failed': 'GitHub 登录启动失败，请重试',
+  'github_denied': 'GitHub 授权已取消',
+  'github_missing_code': 'GitHub 回调缺少授权码，请重试',
+  'github_invalid_state': 'GitHub 登录状态已过期，请重新授权',
+  'github_callback_failed': 'GitHub 回调处理失败，请重试',
+  'github_login_required': '请先登录当前账号',
+  'github_account_unavailable': '当前账号不可用',
+  'github_already_bound': '该 GitHub 已绑定其他账号',
   'qq_not_configured': 'QQ 登录暂未配置，请稍后再试',
   'qq_start_failed': 'QQ 登录启动失败，请稍后再试',
   'qq_denied': 'QQ 授权已取消',
@@ -211,6 +254,7 @@ Future<QQAuthGrant?> showQQAuthorization(
   RoomController controller, {
   String redirect = '/hub',
   bool bindCurrentAccount = false,
+  String provider = 'qq',
 }) async {
   if (kIsWeb ||
       ![
@@ -219,7 +263,7 @@ Future<QQAuthGrant?> showQQAuthorization(
         TargetPlatform.macOS,
         TargetPlatform.windows,
       ].contains(defaultTargetPlatform)) {
-    throw const ApiFailure('当前平台没有支持 QQ 浏览器绑定 Cookie 的授权容器，请使用密码或邮箱验证码登录');
+    throw const ApiFailure('当前平台没有支持 OAuth 浏览器绑定 Cookie 的授权容器，请使用密码或邮箱验证码登录');
   }
   final site = controller.settings.siteUrl, account = controller.account?.id;
   final response = await (controller.site as SiteDataService).request(
@@ -231,6 +275,8 @@ Future<QQAuthGrant?> showQQAuthorization(
     site,
     mapOf(response['data']),
     redirect,
+    provider: provider,
+    bind: bindCurrentAccount,
   );
   if (endpointUri(controller.settings.siteUrl).origin !=
           target.configuredSite.origin ||
@@ -258,6 +304,44 @@ Future<QQAuthGrant?> showQQAuthorization(
     throw const ApiFailure('账号或站点已切换，请重新授权');
   }
   return grant;
+}
+
+Future<QQAuthGrant?> showGitHubAuthorization(
+  BuildContext context,
+  RoomController controller, {
+  String redirect = '/hub',
+  bool bindCurrentAccount = false,
+}) => showQQAuthorization(
+  context,
+  controller,
+  redirect: redirect,
+  bindCurrentAccount: bindCurrentAccount,
+  provider: 'github',
+);
+
+Future<bool> showNativeGitHubBinding(
+  BuildContext context,
+  RoomController controller,
+) async {
+  final grant = await showGitHubAuthorization(
+    context,
+    controller,
+    redirect: '/user-center',
+    bindCurrentAccount: true,
+  );
+  if (grant == null) return false;
+  try {
+    if (grant.ticket.isNotEmpty || grant.transport.sessionCookie == null) {
+      throw const ApiFailure('GitHub 绑定未完成，请重新授权');
+    }
+    await controller.acceptSiteSession(
+      grant.target.configuredSite.toString(),
+      grant.transport.sessionCookie!,
+    );
+    return true;
+  } finally {
+    grant.transport.dispose();
+  }
 }
 
 class _QQBrowser extends StatefulWidget {
@@ -338,7 +422,7 @@ class _QQBrowserState extends State<_QQBrowser> {
       }
       if (mounted) setState(() => _ready = true);
     } catch (e) {
-      if (mounted) setState(() => _error = '无法创建 QQ 授权窗口：$e');
+      if (mounted) setState(() => _error = '无法创建 ${widget.target.name} 授权窗口');
     }
   }
 
@@ -351,11 +435,15 @@ class _QQBrowserState extends State<_QQBrowser> {
       return;
     }
     final error = uri.queryParameters['oauth_error'];
-    if (uri.path == '/login' && error != null) {
-      setState(() => _error = qqOAuthErrors[error] ?? 'QQ 登录失败，请重试');
+    if (['/login', '/user-center'].contains(uri.path) && error != null) {
+      setState(
+        () => _error = qqOAuthErrors[error] ?? '${widget.target.name} 登录失败，请重试',
+      );
       return;
     }
-    final ticket = uri.path == '/login' && uri.queryParameters['oauth'] == 'qq'
+    final ticket =
+        uri.path == '/login' &&
+            uri.queryParameters['oauth'] == widget.target.provider
         ? uri.queryParameters['ticket'] ?? ''
         : '';
     final expected = Uri.parse(widget.redirect);
@@ -363,7 +451,7 @@ class _QQBrowserState extends State<_QQBrowser> {
     if (ticket.isNotEmpty &&
         (uri.origin != widget.target.origin ||
             !RegExp(r'^[a-f0-9]{48}$').hasMatch(ticket))) {
-      setState(() => _error = 'QQ 授权站点或票据不匹配，请重新授权');
+      setState(() => _error = '${widget.target.name} 授权站点或票据不匹配，请重新授权');
       return;
     }
     _finishing = true;
@@ -372,8 +460,10 @@ class _QQBrowserState extends State<_QQBrowser> {
       final cookies = await _cookies!.getCookies(
         url: WebUri('${widget.target.origin}/'),
       );
-      transport = QQOAuthHttp(widget.target.origin)
-        ..importCookies(cookies.map((c) => MapEntry(c.name, c.value)));
+      transport = QQOAuthHttp(
+        widget.target.origin,
+        provider: widget.target.provider,
+      )..importCookies(cookies.map((c) => MapEntry(c.name, c.value)));
       if (ticket.isNotEmpty && !transport.hasBinding) {
         throw const ApiFailure('授权浏览器绑定已丢失，请重新授权');
       }
@@ -446,7 +536,9 @@ class _QQBrowserState extends State<_QQBrowser> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                const Expanded(child: SiteText('QQ 授权 · 完成后返回原生应用')),
+                Expanded(
+                  child: SiteText('${widget.target.name} 授权 · 完成后返回原生应用'),
+                ),
                 IconButton(
                   tooltip: '取消授权',
                   onPressed: () => Navigator.pop(context),

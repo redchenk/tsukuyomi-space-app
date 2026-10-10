@@ -6,6 +6,7 @@ on:
     paths:
       - 'lib/core/agent/**'
       - 'lib/core/model_protocol.dart'
+      - 'lib/core/model_runtime.dart'
       - 'lib/core/room_protocol.dart'
       - 'lib/core/llm_client.dart'
       - 'lib/core/room_tools.dart'

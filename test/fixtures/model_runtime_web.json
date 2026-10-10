@@ -1,0 +1,1681 @@
+{
+  "source": "836e11b56610cf83550fe7d51a4f830f95f05df5",
+  "cases": [
+    {
+      "settings": {
+        "apiUrl": "https://api.deepseek.com/chat/completions",
+        "model": "deepseek-chat",
+        "runtimeConfig": {
+          "version": 1,
+          "providers": {
+            "https://api.deepseek.com/chat/completions": {
+              "parameters": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048
+              }
+            }
+          },
+          "models": {}
+        }
+      },
+      "payload": {
+        "model": "deepseek-chat",
+        "stream": true,
+        "temperature": 1,
+        "top_p": 0.9,
+        "max_tokens": 8192,
+        "max_output_tokens": 8192,
+        "options": {
+          "temperature": 1,
+          "num_predict": 8192
+        }
+      },
+      "expected": {
+        "model": "deepseek-chat",
+        "stream": true,
+        "options": {},
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "max_tokens": 2048
+      },
+      "capabilities": {
+        "text": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "image": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "tools": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "streaming": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        }
+      }
+    },
+    {
+      "settings": {
+        "apiUrl": "https://api.deepseek.com/chat/completions",
+        "model": "deepseek-chat",
+        "runtimeConfig": {
+          "version": 1,
+          "providers": {
+            "https://api.deepseek.com/chat/completions": {
+              "parameters": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048
+              }
+            }
+          },
+          "models": {
+            "https://api.deepseek.com/chat/completions#deepseek-chat": {
+              "parameters": {
+                "temperature": 0.2,
+                "maxOutputTokens": 1024
+              },
+              "capabilities": {
+                "streaming": false
+              }
+            }
+          }
+        }
+      },
+      "payload": {
+        "model": "deepseek-chat",
+        "stream": true,
+        "temperature": 1,
+        "top_p": 0.9,
+        "max_tokens": 8192,
+        "max_output_tokens": 8192,
+        "options": {
+          "temperature": 1,
+          "num_predict": 8192
+        }
+      },
+      "expected": {
+        "model": "deepseek-chat",
+        "stream": true,
+        "options": {},
+        "temperature": 0.2,
+        "top_p": 0.9,
+        "max_tokens": 1024
+      },
+      "capabilities": {
+        "text": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "image": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "tools": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "streaming": {
+          "value": false,
+          "source": "manual",
+          "declared": null,
+          "builtin": null
+        }
+      }
+    },
+    {
+      "settings": {
+        "apiUrl": "https://api.openai.com/v1/responses",
+        "model": "gpt-5",
+        "runtimeConfig": {
+          "version": 1,
+          "providers": {
+            "https://api.openai.com/v1/responses": {
+              "parameters": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048
+              }
+            }
+          },
+          "models": {}
+        }
+      },
+      "payload": {
+        "model": "gpt-5",
+        "stream": true,
+        "temperature": 1,
+        "top_p": 0.9,
+        "max_tokens": 8192,
+        "max_output_tokens": 8192,
+        "options": {
+          "temperature": 1,
+          "num_predict": 8192
+        }
+      },
+      "expected": {
+        "model": "gpt-5",
+        "stream": true,
+        "options": {},
+        "max_output_tokens": 2048
+      },
+      "capabilities": {
+        "text": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "image": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "tools": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "streaming": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        }
+      }
+    },
+    {
+      "settings": {
+        "apiUrl": "https://api.openai.com/v1/responses",
+        "model": "gpt-5",
+        "runtimeConfig": {
+          "version": 1,
+          "providers": {
+            "https://api.openai.com/v1/responses": {
+              "parameters": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048
+              }
+            }
+          },
+          "models": {
+            "https://api.openai.com/v1/responses#gpt-5": {
+              "parameters": {
+                "temperature": 0.2,
+                "maxOutputTokens": 1024
+              },
+              "capabilities": {
+                "streaming": false
+              }
+            }
+          }
+        }
+      },
+      "payload": {
+        "model": "gpt-5",
+        "stream": true,
+        "temperature": 1,
+        "top_p": 0.9,
+        "max_tokens": 8192,
+        "max_output_tokens": 8192,
+        "options": {
+          "temperature": 1,
+          "num_predict": 8192
+        }
+      },
+      "expected": {
+        "model": "gpt-5",
+        "stream": true,
+        "options": {},
+        "max_output_tokens": 1024
+      },
+      "capabilities": {
+        "text": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "image": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "tools": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "streaming": {
+          "value": false,
+          "source": "manual",
+          "declared": null,
+          "builtin": null
+        }
+      }
+    },
+    {
+      "settings": {
+        "apiUrl": "https://api.anthropic.com/v1/messages",
+        "model": "claude-sonnet",
+        "runtimeConfig": {
+          "version": 1,
+          "providers": {
+            "https://api.anthropic.com/v1/messages": {
+              "parameters": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048
+              }
+            }
+          },
+          "models": {}
+        }
+      },
+      "payload": {
+        "model": "claude-sonnet",
+        "stream": true,
+        "temperature": 1,
+        "top_p": 0.9,
+        "max_tokens": 8192,
+        "max_output_tokens": 8192,
+        "options": {
+          "temperature": 1,
+          "num_predict": 8192
+        }
+      },
+      "expected": {
+        "model": "claude-sonnet",
+        "stream": true,
+        "options": {},
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "max_tokens": 2048
+      },
+      "capabilities": {
+        "text": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "image": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "tools": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "streaming": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        }
+      }
+    },
+    {
+      "settings": {
+        "apiUrl": "https://api.anthropic.com/v1/messages",
+        "model": "claude-sonnet",
+        "runtimeConfig": {
+          "version": 1,
+          "providers": {
+            "https://api.anthropic.com/v1/messages": {
+              "parameters": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048
+              }
+            }
+          },
+          "models": {
+            "https://api.anthropic.com/v1/messages#claude-sonnet": {
+              "parameters": {
+                "temperature": 0.2,
+                "maxOutputTokens": 1024
+              },
+              "capabilities": {
+                "streaming": false
+              }
+            }
+          }
+        }
+      },
+      "payload": {
+        "model": "claude-sonnet",
+        "stream": true,
+        "temperature": 1,
+        "top_p": 0.9,
+        "max_tokens": 8192,
+        "max_output_tokens": 8192,
+        "options": {
+          "temperature": 1,
+          "num_predict": 8192
+        }
+      },
+      "expected": {
+        "model": "claude-sonnet",
+        "stream": true,
+        "options": {},
+        "temperature": 0.2,
+        "top_p": 0.9,
+        "max_tokens": 1024
+      },
+      "capabilities": {
+        "text": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "image": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "tools": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "streaming": {
+          "value": false,
+          "source": "manual",
+          "declared": null,
+          "builtin": null
+        }
+      }
+    },
+    {
+      "settings": {
+        "apiUrl": "http://localhost:11434/api/chat",
+        "model": "qwen3",
+        "runtimeConfig": {
+          "version": 1,
+          "providers": {
+            "http://localhost:11434/api/chat": {
+              "parameters": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048
+              }
+            }
+          },
+          "models": {}
+        }
+      },
+      "payload": {
+        "model": "qwen3",
+        "stream": true,
+        "temperature": 1,
+        "top_p": 0.9,
+        "max_tokens": 8192,
+        "max_output_tokens": 8192,
+        "options": {
+          "temperature": 1,
+          "num_predict": 8192
+        }
+      },
+      "expected": {
+        "model": "qwen3",
+        "stream": true,
+        "options": {
+          "temperature": 0.7,
+          "top_p": 0.9,
+          "num_predict": 2048
+        }
+      },
+      "capabilities": {
+        "text": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "image": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "tools": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "streaming": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        }
+      }
+    },
+    {
+      "settings": {
+        "apiUrl": "http://localhost:11434/api/chat",
+        "model": "qwen3",
+        "runtimeConfig": {
+          "version": 1,
+          "providers": {
+            "http://localhost:11434/api/chat": {
+              "parameters": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048
+              }
+            }
+          },
+          "models": {
+            "http://localhost:11434/api/chat#qwen3": {
+              "parameters": {
+                "temperature": 0.2,
+                "maxOutputTokens": 1024
+              },
+              "capabilities": {
+                "streaming": false
+              }
+            }
+          }
+        }
+      },
+      "payload": {
+        "model": "qwen3",
+        "stream": true,
+        "temperature": 1,
+        "top_p": 0.9,
+        "max_tokens": 8192,
+        "max_output_tokens": 8192,
+        "options": {
+          "temperature": 1,
+          "num_predict": 8192
+        }
+      },
+      "expected": {
+        "model": "qwen3",
+        "stream": true,
+        "options": {
+          "temperature": 0.2,
+          "top_p": 0.9,
+          "num_predict": 1024
+        }
+      },
+      "capabilities": {
+        "text": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "image": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "tools": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "streaming": {
+          "value": false,
+          "source": "manual",
+          "declared": null,
+          "builtin": null
+        }
+      }
+    },
+    {
+      "settings": {
+        "apiUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+        "model": "qwen3",
+        "runtimeConfig": {
+          "version": 1,
+          "providers": {
+            "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions": {
+              "parameters": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048
+              }
+            }
+          },
+          "models": {}
+        }
+      },
+      "payload": {
+        "model": "qwen3",
+        "stream": true,
+        "temperature": 1,
+        "top_p": 0.9,
+        "max_tokens": 8192,
+        "max_output_tokens": 8192,
+        "options": {
+          "temperature": 1,
+          "num_predict": 8192
+        }
+      },
+      "expected": {
+        "model": "qwen3",
+        "stream": true,
+        "options": {},
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "max_tokens": 2048
+      },
+      "capabilities": {
+        "text": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "image": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "tools": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "streaming": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        }
+      }
+    },
+    {
+      "settings": {
+        "apiUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+        "model": "qwen3",
+        "runtimeConfig": {
+          "version": 1,
+          "providers": {
+            "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions": {
+              "parameters": {
+                "temperature": 0.7,
+                "maxOutputTokens": 2048
+              }
+            }
+          },
+          "models": {
+            "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions#qwen3": {
+              "parameters": {
+                "temperature": 0.2,
+                "maxOutputTokens": 1024
+              },
+              "capabilities": {
+                "streaming": false
+              }
+            }
+          }
+        }
+      },
+      "payload": {
+        "model": "qwen3",
+        "stream": true,
+        "temperature": 1,
+        "top_p": 0.9,
+        "max_tokens": 8192,
+        "max_output_tokens": 8192,
+        "options": {
+          "temperature": 1,
+          "num_predict": 8192
+        }
+      },
+      "expected": {
+        "model": "qwen3",
+        "stream": true,
+        "options": {},
+        "temperature": 0.2,
+        "top_p": 0.9,
+        "max_tokens": 1024
+      },
+      "capabilities": {
+        "text": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "image": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "tools": {
+          "value": null,
+          "source": "unknown",
+          "declared": null,
+          "builtin": null
+        },
+        "streaming": {
+          "value": false,
+          "source": "manual",
+          "declared": null,
+          "builtin": null
+        }
+      }
+    }
+  ],
+  "plans": [
+    {
+      "input": {
+        "apiUrl": "https://api.openai.com/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "openai",
+        "label": "OpenAI",
+        "url": "https://api.openai.com/v1/models",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://openrouter.ai/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "openrouter",
+        "label": "OpenRouter",
+        "url": "https://openrouter.ai/api/v1/models/user?offset=0&limit=500",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.deepseek.com/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "deepseek",
+        "label": "DeepSeek",
+        "url": "https://api.deepseek.com/models",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.moonshot.cn/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "kimi",
+        "label": "Kimi",
+        "url": "https://api.moonshot.cn/v1/models",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.moonshot.ai/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "kimi",
+        "label": "Kimi",
+        "url": "https://api.moonshot.ai/v1/models",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.siliconflow.cn/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "siliconflow",
+        "label": "SiliconFlow",
+        "url": "https://api.siliconflow.cn/v1/models?sub_type=chat",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.siliconflow.com/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "siliconflow",
+        "label": "SiliconFlow",
+        "url": "https://api.siliconflow.com/v1/models?sub_type=chat",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.groq.com/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "groq",
+        "label": "Groq",
+        "url": "https://api.groq.com/openai/v1/models",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.mistral.ai/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "mistral",
+        "label": "Mistral",
+        "url": "https://api.mistral.ai/v1/models",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.together.xyz/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "together",
+        "label": "Together",
+        "url": "https://api.together.xyz/v1/models",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.together.ai/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "together",
+        "label": "Together",
+        "url": "https://api.together.ai/v1/models",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.x.ai/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "xai",
+        "label": "Grok",
+        "url": "https://api.x.ai/v1/models",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://us.api.x.ai/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "xai",
+        "label": "Grok",
+        "url": "https://us.api.x.ai/v1/models",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://generativelanguage.googleapis.com/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "gemini",
+        "label": "Gemini",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
+        "headers": {
+          "Accept": "application/json",
+          "x-goog-api-key": "fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://dashscope.aliyuncs.com/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "aliyun",
+        "label": "阿里云百炼",
+        "url": "https://workspace-test.cn-beijing.maas.aliyuncs.com/api/v1/models?page_no=1&page_size=100&capabilities=TG",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://dashscope-intl.aliyuncs.com/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "aliyun",
+        "label": "阿里云百炼",
+        "url": "https://dashscope-intl.aliyuncs.com/api/v1/models?page_no=1&page_size=100&capabilities=TG",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://dashscope-us.aliyuncs.com/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "aliyun",
+        "label": "阿里云百炼",
+        "url": "https://workspace-test.us-east-1.maas.aliyuncs.com/api/v1/models?page_no=1&page_size=100&capabilities=TG",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://cn-hongkong.dashscope.aliyuncs.com/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "expected": {
+        "provider": "aliyun",
+        "label": "阿里云百炼",
+        "url": "https://cn-hongkong.dashscope.aliyuncs.com/api/v1/models?page_no=1&page_size=100&capabilities=TG",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer fixture-key"
+        },
+        "publicList": false
+      }
+    },
+    {
+      "input": {
+        "apiUrl": "https://open.bigmodel.cn/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "error": "UNSUPPORTED"
+    },
+    {
+      "input": {
+        "apiUrl": "https://ark.cn-beijing.volces.com/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "error": "UNSUPPORTED"
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.minimaxi.com/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "error": "UNSUPPORTED"
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.minimax.io/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "error": "UNSUPPORTED"
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.xiaomimimo.com/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "error": "UNSUPPORTED"
+    },
+    {
+      "input": {
+        "apiUrl": "https://token-plan-cn.xiaomimimo.com/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "error": "UNSUPPORTED"
+    },
+    {
+      "input": {
+        "apiUrl": "https://api.perplexity.ai/v1/chat/completions",
+        "apiKey": "fixture-key",
+        "workspaceId": "workspace-test"
+      },
+      "error": "UNSUPPORTED"
+    }
+  ],
+  "catalogCases": [
+    {
+      "provider": "openai",
+      "payload": {
+        "data": [
+          {
+            "id": "chat-model",
+            "name": "models/gemini-example",
+            "type": "chat",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "capabilities": {
+              "vision": true,
+              "function_calling": false,
+              "streaming": true
+            }
+          },
+          {
+            "id": "text-embedding-small",
+            "name": "models/text-embedding-small",
+            "supportedGenerationMethods": [
+              "embedContent"
+            ]
+          },
+          {
+            "id": "image-generation",
+            "name": "models/image-generation",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "output_modalities": [
+              "image"
+            ]
+          },
+          {
+            "id": "second-model",
+            "name": "models/gemini-second",
+            "type": "chat",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "architecture": {
+              "input_modalities": [
+                "text",
+                "image"
+              ]
+            },
+            "supported_parameters": [
+              "tools"
+            ]
+          },
+          {
+            "id": "chat-model",
+            "name": "models/gemini-example",
+            "type": "chat"
+          }
+        ]
+      },
+      "expected": {
+        "models": [
+          {
+            "id": "chat-model",
+            "nativeId": "chat-model",
+            "label": "models/gemini-example",
+            "contextLength": 0,
+            "created": 0,
+            "inputModalities": [
+              "text",
+              "image"
+            ],
+            "outputModalities": [
+              "text"
+            ],
+            "source": "provider",
+            "capabilities": {
+              "image": true,
+              "tools": false,
+              "streaming": true
+            }
+          },
+          {
+            "id": "second-model",
+            "nativeId": "second-model",
+            "label": "models/gemini-second",
+            "contextLength": 0,
+            "created": 0,
+            "inputModalities": [
+              "text",
+              "image"
+            ],
+            "outputModalities": [
+              "text"
+            ],
+            "source": "provider",
+            "capabilities": {
+              "image": true,
+              "tools": true
+            }
+          }
+        ],
+        "nextCursor": ""
+      }
+    },
+    {
+      "provider": "openrouter",
+      "payload": {
+        "data": [
+          {
+            "id": "chat-model",
+            "name": "models/gemini-example",
+            "type": "chat",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "capabilities": {
+              "vision": true,
+              "function_calling": false,
+              "streaming": true
+            }
+          },
+          {
+            "id": "text-embedding-small",
+            "name": "models/text-embedding-small",
+            "supportedGenerationMethods": [
+              "embedContent"
+            ]
+          },
+          {
+            "id": "image-generation",
+            "name": "models/image-generation",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "output_modalities": [
+              "image"
+            ]
+          },
+          {
+            "id": "second-model",
+            "name": "models/gemini-second",
+            "type": "chat",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "architecture": {
+              "input_modalities": [
+                "text",
+                "image"
+              ]
+            },
+            "supported_parameters": [
+              "tools"
+            ]
+          },
+          {
+            "id": "chat-model",
+            "name": "models/gemini-example",
+            "type": "chat"
+          }
+        ]
+      },
+      "expected": {
+        "models": [
+          {
+            "id": "chat-model",
+            "nativeId": "chat-model",
+            "label": "models/gemini-example",
+            "contextLength": 0,
+            "created": 0,
+            "inputModalities": [
+              "text",
+              "image"
+            ],
+            "outputModalities": [
+              "text"
+            ],
+            "source": "provider",
+            "capabilities": {
+              "image": true,
+              "tools": false,
+              "streaming": true
+            }
+          },
+          {
+            "id": "second-model",
+            "nativeId": "second-model",
+            "label": "models/gemini-second",
+            "contextLength": 0,
+            "created": 0,
+            "inputModalities": [
+              "text",
+              "image"
+            ],
+            "outputModalities": [
+              "text"
+            ],
+            "source": "provider",
+            "capabilities": {
+              "image": true,
+              "tools": true
+            }
+          }
+        ],
+        "nextCursor": ""
+      }
+    },
+    {
+      "provider": "mistral",
+      "payload": {
+        "data": [
+          {
+            "id": "chat-model",
+            "name": "models/gemini-example",
+            "type": "chat",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "capabilities": {
+              "vision": true,
+              "function_calling": false,
+              "streaming": true
+            }
+          },
+          {
+            "id": "text-embedding-small",
+            "name": "models/text-embedding-small",
+            "supportedGenerationMethods": [
+              "embedContent"
+            ]
+          },
+          {
+            "id": "image-generation",
+            "name": "models/image-generation",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "output_modalities": [
+              "image"
+            ]
+          },
+          {
+            "id": "second-model",
+            "name": "models/gemini-second",
+            "type": "chat",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "architecture": {
+              "input_modalities": [
+                "text",
+                "image"
+              ]
+            },
+            "supported_parameters": [
+              "tools"
+            ]
+          },
+          {
+            "id": "chat-model",
+            "name": "models/gemini-example",
+            "type": "chat"
+          }
+        ]
+      },
+      "expected": {
+        "models": [
+          {
+            "id": "chat-model",
+            "nativeId": "chat-model",
+            "label": "models/gemini-example",
+            "contextLength": 0,
+            "created": 0,
+            "inputModalities": [
+              "text",
+              "image"
+            ],
+            "outputModalities": [
+              "text"
+            ],
+            "source": "provider",
+            "capabilities": {
+              "image": true,
+              "tools": false,
+              "streaming": true
+            }
+          },
+          {
+            "id": "second-model",
+            "nativeId": "second-model",
+            "label": "models/gemini-second",
+            "contextLength": 0,
+            "created": 0,
+            "inputModalities": [
+              "text",
+              "image"
+            ],
+            "outputModalities": [
+              "text"
+            ],
+            "source": "provider",
+            "capabilities": {
+              "image": true,
+              "tools": true
+            }
+          }
+        ],
+        "nextCursor": ""
+      }
+    },
+    {
+      "provider": "together",
+      "payload": {
+        "data": [
+          {
+            "id": "chat-model",
+            "name": "models/gemini-example",
+            "type": "chat",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "capabilities": {
+              "vision": true,
+              "function_calling": false,
+              "streaming": true
+            }
+          },
+          {
+            "id": "text-embedding-small",
+            "name": "models/text-embedding-small",
+            "supportedGenerationMethods": [
+              "embedContent"
+            ]
+          },
+          {
+            "id": "image-generation",
+            "name": "models/image-generation",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "output_modalities": [
+              "image"
+            ]
+          },
+          {
+            "id": "second-model",
+            "name": "models/gemini-second",
+            "type": "chat",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "architecture": {
+              "input_modalities": [
+                "text",
+                "image"
+              ]
+            },
+            "supported_parameters": [
+              "tools"
+            ]
+          },
+          {
+            "id": "chat-model",
+            "name": "models/gemini-example",
+            "type": "chat"
+          }
+        ]
+      },
+      "expected": {
+        "models": [
+          {
+            "id": "chat-model",
+            "nativeId": "chat-model",
+            "label": "models/gemini-example",
+            "contextLength": 0,
+            "created": 0,
+            "inputModalities": [
+              "text",
+              "image"
+            ],
+            "outputModalities": [
+              "text"
+            ],
+            "source": "provider",
+            "capabilities": {
+              "image": true,
+              "tools": false,
+              "streaming": true
+            }
+          },
+          {
+            "id": "second-model",
+            "nativeId": "second-model",
+            "label": "models/gemini-second",
+            "contextLength": 0,
+            "created": 0,
+            "inputModalities": [
+              "text",
+              "image"
+            ],
+            "outputModalities": [
+              "text"
+            ],
+            "source": "provider",
+            "capabilities": {
+              "image": true,
+              "tools": true
+            }
+          }
+        ],
+        "nextCursor": ""
+      }
+    },
+    {
+      "provider": "gemini",
+      "payload": {
+        "models": [
+          {
+            "id": "chat-model",
+            "name": "models/gemini-example",
+            "type": "chat",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "capabilities": {
+              "vision": true,
+              "function_calling": false,
+              "streaming": true
+            }
+          },
+          {
+            "id": "text-embedding-small",
+            "name": "models/text-embedding-small",
+            "supportedGenerationMethods": [
+              "embedContent"
+            ]
+          },
+          {
+            "id": "image-generation",
+            "name": "models/image-generation",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "output_modalities": [
+              "image"
+            ]
+          },
+          {
+            "id": "second-model",
+            "name": "models/gemini-second",
+            "type": "chat",
+            "supportedGenerationMethods": [
+              "generateContent"
+            ],
+            "architecture": {
+              "input_modalities": [
+                "text",
+                "image"
+              ]
+            },
+            "supported_parameters": [
+              "tools"
+            ]
+          },
+          {
+            "id": "chat-model",
+            "name": "models/gemini-example",
+            "type": "chat"
+          }
+        ],
+        "nextPageToken": "next"
+      },
+      "expected": {
+        "models": [
+          {
+            "id": "gemini-example",
+            "nativeId": "gemini-example",
+            "label": "models/gemini-example",
+            "contextLength": 0,
+            "created": 0,
+            "inputModalities": [
+              "text",
+              "image"
+            ],
+            "outputModalities": [
+              "text"
+            ],
+            "source": "provider",
+            "capabilities": {
+              "image": true,
+              "tools": false,
+              "streaming": true
+            }
+          },
+          {
+            "id": "gemini-second",
+            "nativeId": "gemini-second",
+            "label": "models/gemini-second",
+            "contextLength": 0,
+            "created": 0,
+            "inputModalities": [
+              "text",
+              "image"
+            ],
+            "outputModalities": [
+              "text"
+            ],
+            "source": "provider",
+            "capabilities": {
+              "image": true,
+              "tools": true
+            }
+          }
+        ],
+        "nextCursor": "next"
+      }
+    },
+    {
+      "provider": "aliyun",
+      "payload": {
+        "output": {
+          "models": [
+            {
+              "id": "chat-model",
+              "name": "models/gemini-example",
+              "type": "chat",
+              "supportedGenerationMethods": [
+                "generateContent"
+              ],
+              "capabilities": {
+                "vision": true,
+                "function_calling": false,
+                "streaming": true
+              }
+            },
+            {
+              "id": "text-embedding-small",
+              "name": "models/text-embedding-small",
+              "supportedGenerationMethods": [
+                "embedContent"
+              ]
+            },
+            {
+              "id": "image-generation",
+              "name": "models/image-generation",
+              "supportedGenerationMethods": [
+                "generateContent"
+              ],
+              "output_modalities": [
+                "image"
+              ]
+            },
+            {
+              "id": "second-model",
+              "name": "models/gemini-second",
+              "type": "chat",
+              "supportedGenerationMethods": [
+                "generateContent"
+              ],
+              "architecture": {
+                "input_modalities": [
+                  "text",
+                  "image"
+                ]
+              },
+              "supported_parameters": [
+                "tools"
+              ]
+            },
+            {
+              "id": "chat-model",
+              "name": "models/gemini-example",
+              "type": "chat"
+            }
+          ],
+          "total": 200
+        }
+      },
+      "expected": {
+        "models": [
+          {
+            "id": "chat-model",
+            "nativeId": "chat-model",
+            "label": "models/gemini-example",
+            "contextLength": 0,
+            "created": 0,
+            "inputModalities": [
+              "text",
+              "image"
+            ],
+            "outputModalities": [
+              "text"
+            ],
+            "source": "provider",
+            "capabilities": {
+              "image": true,
+              "tools": false,
+              "streaming": true
+            }
+          },
+          {
+            "id": "second-model",
+            "nativeId": "second-model",
+            "label": "models/gemini-second",
+            "contextLength": 0,
+            "created": 0,
+            "inputModalities": [
+              "text",
+              "image"
+            ],
+            "outputModalities": [
+              "text"
+            ],
+            "source": "provider",
+            "capabilities": {
+              "image": true,
+              "tools": true
+            }
+          }
+        ],
+        "nextCursor": "2"
+      }
+    }
+  ]
+}

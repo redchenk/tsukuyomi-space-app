@@ -1,0 +1,175 @@
+{
+  "version": "0.6.10+16",
+  "website_source_ref": "836e11b56610cf83550fe7d51a4f830f95f05df5",
+  "previous_website_ref": "4b0ade76ac38dd0c0df551862b8b943a9cf96a15",
+  "local_analysis": "No issues found",
+  "format_files": 218,
+  "local_regression": {
+    "passed": 711,
+    "skipped": 34,
+    "log": "/tmp/tsukuyomi-v0610-full.log"
+  },
+  "local_backend_cubism_regression": {
+    "passed": 728,
+    "skipped": 17,
+    "log": "/tmp/tsukuyomi-v0610-integrated.log",
+    "fixture": "git archive 836e11b; disposable SQLite and external protocol/music fixtures"
+  },
+  "final_affected_controls_and_transport": {
+    "passed": 104,
+    "skipped": 1,
+    "log": "/tmp/tsukuyomi-v0610-final-focus.log"
+  },
+  "tool_tests": {
+    "release": 37,
+    "agent": 3
+  },
+  "screenshots": [
+    {
+      "name": "native-hub-1280-dark.png",
+      "sha256": "c06823137d555b5b94ce9dc8d497650ee18b140528a8a464aed9431ff07e0c14"
+    },
+    {
+      "name": "native-hub-1280-light.png",
+      "sha256": "07c8a7a8f6886903c85f8b930615397dc0b26a6861bbe0eeeaeef0f2b2e745f8"
+    },
+    {
+      "name": "native-hub-1920-dark.png",
+      "sha256": "dbf75b3a30c837271e121b6fcfbf12ccd21de3bc0aa9cd65fea50d0abb71ec84"
+    },
+    {
+      "name": "native-hub-1920-light.png",
+      "sha256": "28496a836338f39f0f10d4e1eb659bcd0484c014afa25dea8fb7284b7e45d4f9"
+    },
+    {
+      "name": "native-hub-360-dark.png",
+      "sha256": "5fe1bab6e439d72d5e57a152abb0978cc5870922cb7c8d68a6ec3d86df9c0ec8"
+    },
+    {
+      "name": "native-hub-360-light.png",
+      "sha256": "5769457a77d38203e1fa6262797bdbcaf26ec1a3480ea300bb56cc605646b78b"
+    },
+    {
+      "name": "native-hub-390-dark.png",
+      "sha256": "6e7411bb7f24e8b6c849e3853b3e96c0450f17ec2d68b016b4d60fc86ccea4c0"
+    },
+    {
+      "name": "native-hub-390-light.png",
+      "sha256": "2dba26dd08e664ef793fd2fbbeef54314c62b932ea85b0fff13d2cfc21bf380a"
+    },
+    {
+      "name": "native-hub-768-dark.png",
+      "sha256": "c7f76c0ab41201b778bed40a5c58f281a40ec487ae6003d86b92d5f19da2321a"
+    },
+    {
+      "name": "native-hub-768-light.png",
+      "sha256": "d97761691caa22697a530bd5bddd713611733394001eddf5256114c6f0c26225"
+    },
+    {
+      "name": "native-hub-footer-1280-dark.png",
+      "sha256": "5dcf32a9a7742fc8da79f28df56f12a27b99603eb3173c1cd5f4eeaf0845b33c"
+    },
+    {
+      "name": "native-hub-footer-1280-light.png",
+      "sha256": "e3eacdecae679320702422980b683a0a92a0860a1fb5e017350b8da4c49b3f9b"
+    },
+    {
+      "name": "native-hub-footer-1920-dark.png",
+      "sha256": "e5484b09a5148547daf759884b6d59ebe11415e684942cca2c71b04922ca20e8"
+    },
+    {
+      "name": "native-hub-footer-1920-light.png",
+      "sha256": "f6d8f0f910aed4401db6ba0d72bbaf9bb8b4ed543d58c2ec3886c73dceaf866c"
+    },
+    {
+      "name": "native-hub-footer-360-dark.png",
+      "sha256": "cb4dae7ed829217676494cf20570e10248707b9c0bb6377fdf5c30f83d592178"
+    },
+    {
+      "name": "native-hub-footer-360-light.png",
+      "sha256": "1551f4156b154128a765f896d3b60209c6e0ba6bc8ba959479f19225fd728307"
+    },
+    {
+      "name": "native-hub-footer-390-dark.png",
+      "sha256": "ef1f08d4c727f32f7a591823fd5f84ca98556c19c6100af14aecd01930786f54"
+    },
+    {
+      "name": "native-hub-footer-390-light.png",
+      "sha256": "1f74f41c611305ae4234eb9a0ad629dfd2b85a67ffa2e5557dc5ad46b07f98be"
+    },
+    {
+      "name": "native-hub-footer-768-dark.png",
+      "sha256": "a7f2b1bfc5852a6c4dbf00cc34708d57e15a11234dc3fd2eb5a6846f48c57960"
+    },
+    {
+      "name": "native-hub-footer-768-light.png",
+      "sha256": "d4d9e9b0f5a059ad5c3044cd5df8975316cbc6c1b9b05cb9c633c191176f2ae0"
+    },
+    {
+      "name": "seasonal/music-1280.png",
+      "sha256": "122ac8226717ae06f3090d2890ff51ad218d8d3f84de29d4cd4760e90e0db5c9"
+    },
+    {
+      "name": "seasonal/music-390.png",
+      "sha256": "2680287feb39ffeb3c68beb7cb80407bac15b12635aa31e4c4ca8249fad1fb2f"
+    },
+    {
+      "name": "seasonal/music-cloud-1280.png",
+      "sha256": "cb235f08ca323083534d5d7fdadbf5c7e598e22ce185d0ddff15d71390dc501d"
+    },
+    {
+      "name": "seasonal/music-cloud-390.png",
+      "sha256": "4c474116ad05ffefbe5d2e5a28187e75dce8cd2720ff7af96deaac70a8a0c5b5"
+    },
+    {
+      "name": "seasonal/navigation-autumn.png",
+      "sha256": "123bcb05f3ca3afec89027272fdc47977d17d210c6e4dca8ef702d3dabed1502"
+    },
+    {
+      "name": "seasonal/navigation-spring.png",
+      "sha256": "7fe1c4ce665b23526514836b88892ca8e381755a119f12dea73b0b5d9f4347ea"
+    },
+    {
+      "name": "seasonal/navigation-summer.png",
+      "sha256": "a6ecb7f164cad10d235b1b9a4c54f4debc3e4811e65dde85e8f3fcb72b19b93a"
+    },
+    {
+      "name": "seasonal/navigation-winter.png",
+      "sha256": "d466df071ffc00d7356d1d753259cb4b9c6567be41b1659b1620ec254ded8642"
+    },
+    {
+      "name": "web-hub-desktop.jpg",
+      "sha256": "f0f6cfe997adc68a6e0fe94f306d703dce6ab3b9c1a045be3ff15342ebf825de"
+    },
+    {
+      "name": "web-hub-footer-desktop.jpg",
+      "sha256": "5fb2756ff7166678ab7c407f2312f5f3f841c189742420d5218c07143531bcfd"
+    },
+    {
+      "name": "web-hub-footer-mobile.jpg",
+      "sha256": "79380b23113fc579e3837a1345b9eb8aaf49fa1a568de4d5514cbee57167ba80"
+    }
+  ],
+  "ui_widths": [
+    360,
+    390,
+    768,
+    1280,
+    1920
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "layout_scenarios": 840,
+  "model_controls_scenarios": 12,
+  "local_macos_build": "passed; before final catalogue cancellation guard, final commit will be validated by release CI",
+  "source_assets": "4 assets byte-identical to original website and manifest SHA-256",
+  "limits": [
+    "No paid model or real OAuth account used",
+    "No new device GPU/P95 benchmark",
+    "Linux OAuth has no native supported browser-binding container",
+    "Model catalog manual refresh; four diagnostics and report export not migrated",
+    "Unsigned iOS; macOS unnotarized; Windows unsigned publisher"
+  ]
+}

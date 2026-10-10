@@ -1,4 +1,5 @@
 import 'models.dart';
+import 'model_runtime.dart';
 import 'model_protocol.dart';
 
 Uri roomChatEndpoint(String value) {
@@ -45,6 +46,30 @@ Map<String, String> roomChatHeaders(RoomSettings s, Uri uri) => {
   },
 };
 Map<String, dynamic> roomChatBody(
+  RoomSettings s,
+  String system,
+  List<Map<String, dynamic>> history,
+  String text, {
+  Map<String, dynamic>? image,
+  bool stream = true,
+  bool jsonObject = false,
+}) {
+  final runtime = ModelRuntime(s)..require('text');
+  if (image != null) runtime.require('image');
+  return runtime.apply(
+    _roomChatBody(
+      s,
+      system,
+      history,
+      text,
+      image: image,
+      stream: stream && !runtime.unsupported('streaming'),
+      jsonObject: jsonObject,
+    ),
+  );
+}
+
+Map<String, dynamic> _roomChatBody(
   RoomSettings s,
   String system,
   List<Map<String, dynamic>> history,

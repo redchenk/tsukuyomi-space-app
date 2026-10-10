@@ -3,6 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
+import { createRequire } from 'node:module';
 const root = path.resolve(process.argv[2] || '../tsukuyomi-space');
 const read = p => fs.readFileSync(path.join(root, 'src/frontend', p), 'utf8');
 const ctx = vm.createContext({});
@@ -22,6 +23,8 @@ const page = read('pages/RoomSettingsPage.vue');
 vm.runInContext(page.slice(page.indexOf('const LLM_PRESETS'), page.indexOf('const BEGINNER_LLM_PROVIDERS')), ctx);
 const chat = read('composables/room/useRoomChat.js');
 vm.runInContext(chat.slice(chat.indexOf('function fallbackRoomPersona()'),chat.indexOf('function applyRoomAct(')),ctx);
-const result = vm.runInContext('JSON.stringify({chatPersona:fallbackRoomPersona(),chatProtocol:roomProtocolPrompt(),llmPresets:LLM_PRESETS,aliyunPresets:ALIYUN_LLM_PRESETS,mimoPresets:MIMO_LLM_PRESETS,ttsPresets:TTS_PRESETS,knowledge:DEFAULT_ROOM_KNOWLEDGE_ENTRIES,music:MUSIC_TRACKS,live2d:roomLive2DManifest,expressions:YACHIYO_EXPRESSION_PRESETS.map(p=>({...p,cubism:mapTrackingFrameToYachiyoCubismParameters(p.vts)})),actions:exportedBehaviorActions})', ctx);
-fs.writeFileSync('lib/core/room_reference_data.dart', "// Generated from the website. Run tool/sync_room_reference.mjs to update.\nconst roomReferenceJson = r'''" + result + "''';\n");
+const result = vm.runInContext('JSON.stringify({chatPersona:fallbackRoomPersona(),chatProtocol:roomProtocolPrompt(),llmPresets:LLM_PRESETS,aliyunPresets:ALIYUN_LLM_PRESETS,mimoPresets:MIMO_LLM_PRESETS,ttsPresets:TTS_PRESETS,knowledge:DEFAULT_ROOM_KNOWLEDGE_ENTRIES,knowledgeVersion:ROOM_KNOWLEDGE_VERSION,legacyKnowledge:LEGACY_ROOM_KNOWLEDGE_ENTRIES,previousKnowledgeIds:PREVIOUS_ROOM_KNOWLEDGE_IDS,previousKnowledgeVersion:PREVIOUS_ROOM_KNOWLEDGE_VERSION,previousKnowledgeOverrides:PREVIOUS_ROOM_KNOWLEDGE_OVERRIDES,music:MUSIC_TRACKS,live2d:roomLive2DManifest,expressions:YACHIYO_EXPRESSION_PRESETS.map(p=>({...p,cubism:mapTrackingFrameToYachiyoCubismParameters(p.vts)})),actions:exportedBehaviorActions})', ctx);
+const parsed = JSON.parse(result);
+parsed.catalogProviders = createRequire(import.meta.url)(path.join(root, 'shared/model-catalog.cjs')).PROVIDERS;
+fs.writeFileSync('lib/core/room_reference_data.dart', "// Generated from the website. Run tool/sync_room_reference.mjs to update.\nconst roomReferenceJson = r'''" + JSON.stringify(parsed) + "''';\n");
 console.log('Room presets, knowledge, music and Live2D manifests synchronized.');

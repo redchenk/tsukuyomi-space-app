@@ -1,3 +1,5 @@
+import 'site_seasonal_surface.dart';
+
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -252,12 +254,30 @@ class _NavigationState extends State<SiteDesktopNavigation> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  siteDestinationLabel(context, route),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+                Row(
+                  children: [
+                    Icon(switch (route) {
+                      '/wiki' => Icons.menu_book_outlined,
+                      '/plaza' => Icons.forum_outlined,
+                      '/gallery' => Icons.photo_library_outlined,
+                      '/game' => Icons.sports_esports_outlined,
+                      '/agent-os' => Icons.auto_awesome_outlined,
+                      '/reality' => Icons.public_outlined,
+                      '/friend-links' => Icons.link,
+                      '/growth' => Icons.trending_up,
+                      _ => Icons.rss_feed,
+                    }, size: 18),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        siteDestinationLabel(context, route),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 6),
                 SiteText(
@@ -401,23 +421,27 @@ class _NavigationState extends State<SiteDesktopNavigation> {
             onExit: (_) => _scheduleClose(),
             child: Material(
               elevation: 8,
-              color: RoomStyle(context).surface,
+              color: Colors.transparent,
               borderRadius: BorderRadius.circular(24),
               clipBehavior: Clip.antiAlias,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: math.max(
-                    80,
-                    MediaQuery.sizeOf(context).height - _position.dy - 16,
+              child: SiteSeasonalSurface(
+                radius: 24,
+                menu: true,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: math.max(
+                      80,
+                      MediaQuery.sizeOf(context).height - _position.dy - 16,
+                    ),
                   ),
-                ),
-                child: AnimatedSize(
-                  duration: MediaQuery.disableAnimationsOf(context)
-                      ? Duration.zero
-                      : const Duration(milliseconds: 520),
-                  curve: Curves.easeOutCubic,
-                  alignment: Alignment.topLeft,
-                  child: SingleChildScrollView(child: _panel()),
+                  child: AnimatedSize(
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 520),
+                    curve: Curves.easeOutCubic,
+                    alignment: Alignment.topLeft,
+                    child: SingleChildScrollView(child: _panel()),
+                  ),
                 ),
               ),
             ),

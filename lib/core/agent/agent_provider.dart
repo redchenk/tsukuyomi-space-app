@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 import '../models.dart';
+import '../model_runtime.dart';
 import '../model_protocol.dart';
 import '../room_protocol.dart';
 import 'agent_types.dart';
@@ -52,6 +53,7 @@ class AgentProviderBridge {
     Map<String, dynamic> input, {
     required bool stream,
   }) {
+    final runtime = ModelRuntime(settings)..require('text');
     final protocol = roomProtocol(roomChatEndpoint(settings.llmUrl));
     final raw = (input['messages'] as List).cast<Map>();
     final lastUser = raw.lastIndexWhere((m) => m['role'] == 'user');
@@ -223,7 +225,11 @@ class AgentProviderBridge {
     }
     if (pending.isNotEmpty) throw const ApiFailure('Agent 工具调用没有配对结果');
     final tools = (input['tools'] as List? ?? []).cast<Map>();
-    final body = <String, dynamic>{'model': settings.model, 'stream': stream};
+    if (tools.isNotEmpty) runtime.require('tools');
+    final body = <String, dynamic>{
+      'model': settings.model,
+      'stream': stream && !runtime.unsupported('streaming'),
+    };
     if (protocol == 'responses') {
       body.addAll({
         'instructions': systems.join('\n'),
@@ -288,8 +294,9 @@ class AgentProviderBridge {
         }
       }
     }
-    modelBound(body, agentMaxJsonBytes);
-    return body;
+    final configured = runtime.apply(body);
+    modelBound(configured, agentMaxJsonBytes);
+    return configured;
   }
 
   void _remember(ModelCompletion value) {

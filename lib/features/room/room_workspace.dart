@@ -12,6 +12,7 @@ import '../../core/room_context.dart';
 import '../../core/room_protocol.dart';
 import '../../core/room_reference.dart';
 import '../../core/room_memory.dart';
+import '../../core/room_knowledge.dart';
 import '../../core/room_memory_source.dart';
 import '../../core/room_tools.dart';
 import '../../core/site_client.dart';
@@ -58,7 +59,7 @@ class RoomWorkspace extends ChangeNotifier {
                 ).compareTo(roomMemoryScore(text, '${a['content']}')),
               ));
       return [
-        for (final m in rows.take(6))
+        for (final m in rows.take(memoryRetrievalLimit(c.settings)))
           {
             ...m,
             'context': roomMemoryExcerpt('${m['content']}', text),
@@ -71,7 +72,7 @@ class RoomWorkspace extends ChangeNotifier {
     if (!online || c.settings.demo || c.site is! SiteDataService) return [];
     final query = {
       'purpose': 'chat',
-      'limit': '6',
+      'limit': '${memoryRetrievalLimit(c.settings)}',
       'q': text,
       'excludeTurnIds': jsonEncode(excluded),
       if (snapshotIds != null) 'memoryIds': jsonEncode(snapshotIds),
@@ -90,7 +91,7 @@ class RoomWorkspace extends ChangeNotifier {
               allowed(row) &&
               (snapshotIds == null || snapshotIds.contains(row['id'])),
         )
-        .take(6)
+        .take(memoryRetrievalLimit(c.settings))
         .toList();
   }
 
@@ -670,27 +671,14 @@ class RoomWorkspace extends ChangeNotifier {
         if (profile.isNotEmpty) '访客资料：\n${_referenceFacts(profile)}',
       ].where((value) => value.isNotEmpty).join('\n'),
     };
-    if (s.flag('knowledgeEnabled', true)) {
-      final entries = s.options.containsKey('knowledge')
-          ? s.rows('knowledge')
-          : RoomReference.rows('knowledge');
-      final enabled = entries.where((v) => v['enabled'] != false).toList();
-      int score(Map v) => '${v['title']} ${v['tags']}'
-          .split(RegExp(r'[,，\s]+'))
-          .where((t) => t.length > 1 && text.contains(t))
-          .length;
-      enabled.sort((a, b) => score(b).compareTo(score(a)));
-      sections['knowledge'] = enabled
-          .take(6)
-          .map(
-            (v) => {
-              'id': v['id'],
-              'title': v['title'],
-              'content': v['content'],
-            },
-          )
-          .toList();
-    }
+    final knowledge = selectRoomKnowledge(
+      text,
+      s,
+      history: c.turns
+          .where((turn) => !excludeTurnIds.contains(turn.id))
+          .toList(),
+    );
+    sections['knowledge'] = knowledge;
     sections['memories'] = _memoryReferences(memoryRows);
     if (image != null &&
         s.option('visionMode') == 'mcp' &&
@@ -706,7 +694,18 @@ class RoomWorkspace extends ChangeNotifier {
             .where(
               (path) =>
                   !path.startsWith('persona') ||
-                  s.flag('knowledgeEnabled', true),
+                  s.flag('knowledgeEnabled', true) &&
+                      shouldRetrieveRoomPersona(
+                        roomKnowledgeQuery(
+                          text,
+                          c.turns
+                              .where(
+                                (turn) => !excludeTurnIds.contains(turn.id),
+                              )
+                              .toList(),
+                        ),
+                        knowledge,
+                      ),
             )
             .map((path) async {
               try {

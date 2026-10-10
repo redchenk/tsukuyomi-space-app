@@ -1,7 +1,7 @@
 name: tsukuyomi_space_app
 description: Native Flutter Room client for Tsukuyomi Space.
 publish_to: none
-version: 0.6.9+15
+version: 0.6.10+16
 environment:
   sdk: ^3.13.4
 dependencies:
@@ -52,6 +52,7 @@ flutter:
     - assets/images/seasons/winter-v1/
     - assets/images/room/lakeside-v1/
     - assets/images/navigation/
+    - assets/images/navigation/seasons-v1/
     - assets/live2d/
     - assets/live2d/textures/
     - assets/game/

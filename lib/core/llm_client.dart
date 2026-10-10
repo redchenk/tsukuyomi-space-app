@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'models.dart';
+import 'model_runtime.dart';
 import 'model_protocol.dart';
 import 'room_conversation.dart';
 import 'room_protocol.dart';
@@ -111,6 +112,8 @@ class LlmClient implements ChatService {
       ];
       final jsonKey = '$direct:${settings.model}';
       final useJson = jsonObject && !_plainJsonEndpoints.contains(jsonKey);
+      final runtime = ModelRuntime(settings)..require('text');
+      if (image != null) runtime.require('image');
       final baseBody = proxy
           ? {
               'message': message,
@@ -120,6 +123,7 @@ class LlmClient implements ChatService {
               'model': settings.model,
               'systemPrompt': system,
               'image': image,
+              'runtimeConfig': runtime.transport(),
             }
           : roomChatBody(
               settings,
@@ -129,7 +133,10 @@ class LlmClient implements ChatService {
               image: image,
               jsonObject: useJson,
             );
-      if (jsonObject && !proxy && direct.host == 'api.deepseek.com') {
+      if (jsonObject &&
+          !proxy &&
+          direct.host == 'api.deepseek.com' &&
+          runtime.resolveParameters()['maxOutputTokens']['value'] == null) {
         baseBody[roomProtocol(direct) == 'responses'
                 ? 'max_output_tokens'
                 : 'max_tokens'] =
@@ -152,7 +159,8 @@ class LlmClient implements ChatService {
             ..body = jsonEncode(value);
       final turns = <Map<String, dynamic>>[],
           cache = <String, Map<String, dynamic>>{};
-      final enabled = jsonObject || executeTool == null
+      final enabled =
+          jsonObject || executeTool == null || runtime.unsupported('tools')
           ? <Map<String, dynamic>>[]
           : tools;
       var executed = 0, visibleBytes = 0, visibleChars = 0;
@@ -186,6 +194,7 @@ class LlmClient implements ChatService {
                 definitions,
                 turns,
               );
+        if (runtime.unsupported('streaming')) body['stream'] = false;
         var response = await client
             .send(requestFor(body))
             .timeout(const Duration(seconds: 30));

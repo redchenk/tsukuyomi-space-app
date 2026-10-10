@@ -1,3 +1,4 @@
+import 'qq_auth.dart';
 import '../../core/site_localization.dart';
 
 import 'dart:convert';
@@ -284,6 +285,27 @@ class _UserCenterPageState extends State<UserCenterPage>
       if (mounted && scope == _accountScope && epoch == _epoch) {
         setState(() => _loadingTabs.remove(tab));
       }
+    }
+  }
+
+  Future<void> _bindOAuth(String provider) async {
+    if (_saving || !loggedIn) return;
+    final scope = _accountScope;
+    setState(() {
+      _saving = true;
+      _error = '';
+    });
+    try {
+      final bound = provider == 'github'
+          ? await showNativeGitHubBinding(context, c)
+          : await showNativeQQBinding(context, c);
+      if (bound && mounted && scope == _accountScope) await _load();
+    } catch (e) {
+      if (mounted && scope == _accountScope) {
+        setState(() => _error = e is ApiFailure ? e.message : '授权未完成，请重试');
+      }
+    } finally {
+      if (mounted && scope == _accountScope) setState(() => _saving = false);
     }
   }
 
@@ -729,12 +751,53 @@ class _UserCenterPageState extends State<UserCenterPage>
             if (!rowsOf(_profile['oauth_accounts'])
                 .any((account) => account['provider'] == 'qq'))
               OutlinedButton(
-                onPressed: () async {
-                  if (await showNativeQQBinding(context, c) && mounted) {
-                    await _load();
-                  }
-                },
+                onPressed: _saving ? null : () => _bindOAuth('qq'),
                 child: const SiteText('绑定 QQ 账号'),
+              ),
+          ],
+        ),
+      ),
+      NativeSiteSection(
+        title: 'GitHub 账号',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final account in rowsOf(_profile['oauth_accounts']))
+              if (account['provider'] == 'github') ...[
+                Text('已绑定：${textOf(account, 'nickname', 'GitHub 用户')}'),
+                Text('绑定时间：${dateText(account['created_at'])}'),
+                TextButton(
+                  onPressed: _saving
+                      ? null
+                      : () async {
+                          final scope = _accountScope;
+                          if (!await _confirm(
+                            '解绑 GitHub',
+                            '解绑后可继续使用邮箱和密码登录。请在当前密码框输入密码以确认。',
+                          )) {
+                            return;
+                          }
+                          if (!mounted || scope != _accountScope || !loggedIn) {
+                            return;
+                          }
+                          await _write(
+                            'POST',
+                            '/api/auth/oauth/github/unlink',
+                            {'currentPassword': _currentPassword.text},
+                            'GitHub 已解绑',
+                          );
+                          if (mounted && scope == _accountScope) {
+                            _currentPassword.clear();
+                          }
+                        },
+                  child: const SiteText('解绑 GitHub'),
+                ),
+              ],
+            if (!rowsOf(_profile['oauth_accounts'])
+                .any((account) => account['provider'] == 'github'))
+              OutlinedButton(
+                onPressed: _saving ? null : () => _bindOAuth('github'),
+                child: const SiteText('绑定 GitHub 账号'),
               ),
           ],
         ),

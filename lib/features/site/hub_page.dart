@@ -16,6 +16,8 @@ import 'login_dialog.dart';
 import 'native_site_shell.dart';
 import 'site_widgets.dart';
 import 'site_chrome.dart';
+import 'site_notice.dart';
+import 'site_seasonal_surface.dart';
 
 /// Native counterpart of the website HubPage and its aggregated preview API.
 class HubPage extends StatefulWidget {
@@ -256,11 +258,11 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
             child: Center(child: CircularProgressIndicator()),
           )
         else if (_data.isNotEmpty) ...[
-          RepaintBoundary(child: _scenes()),
+          RepaintBoundary(child: HubFeatheredSurface(child: _scenes())),
           const SizedBox(height: 20),
           RepaintBoundary(child: _plaza()),
         ],
-        RepaintBoundary(child: _stats()),
+        RepaintBoundary(child: HubFeatheredSurface(child: _stats())),
       ],
     ),
   );
@@ -421,15 +423,22 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
         tilePadding: EdgeInsets.zero,
         leading: const Icon(CupertinoIcons.bell, size: 18),
         title: const SiteText('站内公告', style: TextStyle(fontSize: 13)),
-        subtitle: Text(_setting('visitPopupTitle', '欢迎来到月读空间')),
+        enabled: _settings.isNotEmpty,
+        subtitle: Text(
+          announcementContent(_settings) ==
+                  textOf(_settings, 'siteAnnouncement').trim()
+              ? noticeSummary(announcementContent(_settings))
+              : textOf(_settings, 'visitPopupTitle'),
+        ),
         children: [
           Align(
             alignment: Alignment.centerLeft,
             child: Padding(
               padding: const EdgeInsets.only(left: 30, bottom: 20),
-              child: SelectableText(
-                _setting('visitPopupContent', '首次访问弹窗尚未配置内容。'),
-                style: const TextStyle(height: 1.9),
+              child: SiteNotice(
+                content: announcementContent(_settings),
+                site: c.settings.siteUrl,
+                onGo: widget.onGo,
               ),
             ),
           ),
@@ -594,11 +603,27 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
           }
         }
         return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(mobile ? 10 : 0),
           child: Stack(
             fit: StackFit.expand,
             children: [
-              imageWidget,
+              ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (bounds) => LinearGradient(
+                  begin: mobile ? Alignment.centerLeft : Alignment.topCenter,
+                  end: mobile ? Alignment.centerRight : Alignment.bottomCenter,
+                  colors: [
+                    Colors.black,
+                    Colors.black.withValues(alpha: .88),
+                    Colors.black.withValues(alpha: .38),
+                    Colors.transparent,
+                  ],
+                  stops: mobile
+                      ? const [.65, .78, .92, 1]
+                      : const [.60, .74, .90, 1],
+                ).createShader(bounds),
+                child: imageWidget,
+              ),
               if (!mobile)
                 Positioned(
                   top: 10,
@@ -684,14 +709,14 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
         child: Material(
           color: p.surface,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(18),
             side: BorderSide(color: p.line),
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: () => widget.onGo(path),
             child: Padding(
-              padding: EdgeInsets.all(mobile ? 10 : 12),
+              padding: EdgeInsets.all(mobile ? 10 : 0),
               child: mobile
                   ? Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -706,14 +731,14 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
                       ],
                     )
                   : ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: 296 * scale),
+                      constraints: BoxConstraints(minHeight: 320 * scale),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          SizedBox(height: 160, child: media()),
-                          const SizedBox(height: 12),
+                          SizedBox(height: 180, child: media()),
+                          const SizedBox(height: 6),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                             child: details(),
                           ),
                           const SizedBox(height: 8),
@@ -870,26 +895,51 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
       }
       final uptime = (stats['uptime'] as num? ?? 0).toInt();
       final days = uptime ~/ 86400, hours = uptime % 86400 ~/ 3600;
+      String count(dynamic value) => '$value'.replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+        (match) => '${match[1]},',
+      );
+      final language = SiteLocaleScope.maybeOf(context)?.language ?? 'zh';
+      final duration = language == 'zh'
+          ? (days > 0 ? '$days天$hours时' : '${hours > 0 ? hours : 1}小时')
+          : language == 'ja'
+          ? (days > 0 ? '$days日 $hours時間' : '${hours > 0 ? hours : 1}時間')
+          : (days > 0 ? '${days}d ${hours}h' : '${hours > 0 ? hours : 1}h');
       final values = {
-        '今日访问': '${stats['todayViews'] ?? 0}',
-        '总访问': '${stats['totalViews'] ?? 0}',
-        '注册用户': '${stats['users'] ?? 0}',
-        '站内文章': '${stats['articles'] ?? 0}',
-        '广场留言': '${stats['messages'] ?? 0}',
-        '运行时间': uptime == 0
-            ? '--'
-            : days > 0
-            ? '$days天$hours时'
-            : '${hours > 0 ? hours : 1}小时',
+        '今日访问': count(stats['todayViews'] ?? 0),
+        '总访问': count(stats['totalViews'] ?? 0),
+        '注册用户': count(stats['users'] ?? 0),
+        '站内文章': count(stats['articles'] ?? 0),
+        '广场留言': count(stats['messages'] ?? 0),
+        '运行时间': uptime == 0 ? '--' : duration,
       };
       final columns = box.maxWidth >= 700 ? 6 : 3;
+      final p = RoomStyle(context);
+      const sans = 'Roboto';
+      const fallback = [
+        'PingFang SC',
+        'Microsoft YaHei',
+        'Noto Sans CJK SC',
+        'Arial',
+      ];
+      final valueSize = box.maxWidth >= 700 ? 18.0 : 16.0;
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40),
+        key: const Key('hub-community-stats'),
+        padding: const EdgeInsets.fromLTRB(0, 32, 0, 20),
         child: Column(
           children: [
             SiteText(
               '一起留下的足迹',
-              style: TextStyle(fontSize: 14, color: RoomStyle(context).muted),
+              key: const Key('hub-stats-title'),
+              style: TextStyle(
+                fontFamily: sans,
+                fontFamilyFallback: fallback,
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+                height: 1.5,
+                letterSpacing: .15,
+                color: p.muted,
+              ),
             ),
             const SizedBox(height: 18),
             Wrap(
@@ -900,13 +950,29 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
                     width: box.maxWidth / columns,
                     child: Column(
                       children: [
-                        Text(entry.value, style: const TextStyle(fontSize: 22)),
-                        const SizedBox(height: 4),
                         Text(
+                          entry.value,
+                          key: Key('hub-stat-value-${entry.key}'),
+                          style: TextStyle(
+                            fontFamily: sans,
+                            fontFamilyFallback: fallback,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                            fontSize: valueSize,
+                            fontWeight: FontWeight.w500,
+                            height: 1.4,
+                            color: p.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        SiteText(
                           entry.key,
                           style: TextStyle(
+                            fontFamily: sans,
+                            fontFamilyFallback: fallback,
                             fontSize: 11,
-                            color: RoomStyle(context).muted,
+                            height: 1.5,
+                            fontWeight: FontWeight.w400,
+                            color: p.muted,
                           ),
                         ),
                       ],

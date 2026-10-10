@@ -10,6 +10,8 @@ import '../room/room_controller.dart';
 import 'native_article_document.dart' show nativeArticleUrl;
 import 'site_notification.dart';
 import 'site_widgets.dart' show openSiteLink;
+import 'site_notice.dart';
+import 'site_navigation.dart';
 
 String visitPopupSignature(Map<String, dynamic> settings) =>
     Uri.encodeComponent(
@@ -555,10 +557,21 @@ class SiteVisitPopupOverlay extends StatelessWidget {
                                       .headlineSmall,
                                 ),
                                 const SizedBox(height: 16),
-                                Text(popup.content),
+                                SiteNotice(
+                                  content: popup.content,
+                                  site: controller!.room.settings.siteUrl,
+                                  onGo: (path) {
+                                    controller.closeVisitPopup();
+                                    navigateSite(
+                                      context,
+                                      controller.room,
+                                      path,
+                                    );
+                                  },
+                                ),
                                 const SizedBox(height: 24),
                                 FilledButton(
-                                  onPressed: controller!.closeVisitPopup,
+                                  onPressed: controller.closeVisitPopup,
                                   child: Text(popup.button),
                                 ),
                               ],

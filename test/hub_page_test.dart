@@ -8,6 +8,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tsukuyomi_space_app/core/models.dart';
+import 'package:tsukuyomi_space_app/core/site_theme.dart';
 import 'package:tsukuyomi_space_app/core/site_client.dart';
 import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
 import 'package:tsukuyomi_space_app/features/site/hub_page.dart';
@@ -527,42 +528,63 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    for (final size in [const Size(1280, 900), const Size(390, 844)]) {
-      tester.view.physicalSize = size;
-      final site = HubSite(
-        (method, path, body) async =>
-            path == '/api/settings' ? publicSettings : preview(),
-      );
-      final c = await controller(site);
-      await tester.pumpWidget(
-        RepaintBoundary(
-          key: const Key('hub-capture'),
-          child: MaterialApp(
-            debugShowCheckedModeBanner: false,
-            home: HubPage(controller: c, onGo: (_) {}),
-          ),
-        ),
-      );
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 300)),
-      );
-      await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
-      final boundary = tester.renderObject<RenderRepaintBoundary>(
-        find.byKey(const Key('hub-capture')),
-      );
-      await tester.runAsync(() async {
-        final image = await boundary.toImage();
-        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        final output = File(
-          'artifacts/hub-parity/native-hub-${size.width > 860 ? 'desktop' : 'mobile'}.png',
+    for (final size in [
+      const Size(360, 844),
+      const Size(390, 844),
+      const Size(768, 900),
+      const Size(1280, 900),
+      const Size(1920, 1080),
+    ]) {
+      for (final dark in [false, true]) {
+        tester.view.physicalSize = size;
+        final site = HubSite(
+          (method, path, body) async =>
+              path == '/api/settings' ? publicSettings : preview(),
         );
-        await output.parent.create(recursive: true);
-        await output.writeAsBytes(bytes!.buffer.asUint8List());
-        image.dispose();
-      });
-      await tester.pumpWidget(const SizedBox.shrink());
-      c.dispose();
+        final c = await controller(site);
+        await tester.pumpWidget(
+          RepaintBoundary(
+            key: const Key('hub-capture'),
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              theme: siteTheme(dark),
+              home: HubPage(controller: c, onGo: (_) {}),
+            ),
+          ),
+        );
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 300)),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+          find.byKey(const Key('hub-capture')),
+        );
+        await tester.runAsync(() async {
+          final image = await boundary.toImage();
+          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+          final output = File(
+            'artifacts/site-v0610/native-hub-${size.width.toInt()}-${dark ? 'dark' : 'light'}.png',
+          );
+          await output.parent.create(recursive: true);
+          await output.writeAsBytes(bytes!.buffer.asUint8List());
+          image.dispose();
+        });
+        await tester.ensureVisible(
+          find.byKey(const Key('hub-community-stats')),
+        );
+        await tester.pumpAndSettle();
+        await tester.runAsync(() async {
+          final image = await boundary.toImage();
+          final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+          await File(
+            'artifacts/site-v0610/native-hub-footer-${size.width.toInt()}-${dark ? 'dark' : 'light'}.png',
+          ).writeAsBytes(bytes!.buffer.asUint8List());
+          image.dispose();
+        });
+        await tester.pumpWidget(const SizedBox.shrink());
+        c.dispose();
+      }
     }
   }, skip: !const bool.fromEnvironment('CAPTURE_UI'));
 }
