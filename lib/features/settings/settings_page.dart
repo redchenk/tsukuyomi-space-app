@@ -1331,6 +1331,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 testVoice ??= AudioVoice();
                 testVoice!
                   ..siteCookie = c.site.cookie
+                  ..siteAccountId = c.account?.id
                   ..siteService = c.site;
                 await testVoice!.speak(
                   _value(),

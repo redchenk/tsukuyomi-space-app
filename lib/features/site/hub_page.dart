@@ -1,3 +1,4 @@
+import 'app_registration_link.dart';
 import '../../core/season_theme.dart';
 import '../../core/site_localization.dart';
 
@@ -980,14 +981,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
                   ),
               ],
             ),
-            if (textOf(_settings, 'beianText').isNotEmpty)
-              TextButton(
-                onPressed: () => openSiteLink(
-                  c.settings.siteUrl,
-                  _setting('beianUrl', 'https://beian.miit.gov.cn/'),
-                ),
-                child: Text(textOf(_settings, 'beianText')),
-              ),
+            const AppRegistrationLink(),
             if (textOf(_settings, 'mpsBeianText').isNotEmpty)
               TextButton(
                 onPressed: () => openSiteLink(

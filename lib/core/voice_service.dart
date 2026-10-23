@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
 
 import 'models.dart';
@@ -93,26 +94,30 @@ abstract class VoiceService extends ChangeNotifier {
 }
 
 class AudioVoice extends VoiceService {
-  final _player = AudioPlayer();
+  final AudioPlayer _player;
   final _clock = Stopwatch();
   final _subscriptions = <StreamSubscription<dynamic>>[];
   Duration _position = Duration.zero;
   WavEnvelope? _envelope;
-  final _tts = TtsClient();
-  final _translator = LlmClient();
+  final TtsClient _tts;
+  final LlmClient _translator;
   set siteCookie(String? value) {
     _tts.siteCookie = value;
     _translator.siteCookie = value;
   }
 
   set siteService(SiteService value) => _tts.siteService = value;
+  set siteAccountId(String? value) => _translator.siteAccountId = value;
 
   SpeechSource? _source;
   int _generation = 0;
   bool _disposed = false;
   @override
   bool playing = false;
-  AudioVoice() {
+  AudioVoice({AudioPlayer? player, http.Client Function()? clientFactory})
+    : _player = player ?? AudioPlayer(),
+      _tts = TtsClient(clientFactory: clientFactory),
+      _translator = LlmClient(clientFactory: clientFactory) {
     _subscriptions.add(
       _player.onPositionChanged.listen((p) {
         _position = p;

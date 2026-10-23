@@ -923,6 +923,7 @@ class RoomController extends ChangeNotifier {
       if (voice is AudioVoice) {
         (voice as AudioVoice)
           ..siteCookie = site.cookie
+          ..siteAccountId = account?.id
           ..siteService = site;
       }
       await voice.speak(settings, speechRoomText(text));

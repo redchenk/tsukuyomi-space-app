@@ -53,6 +53,11 @@
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="wtloginmqq"/>
+        </intent>
+        <package android:name="com.tencent.mobileqq"/>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="alipays"/>
         </intent>
         <package android:name="com.eg.android.AlipayGphone"/>

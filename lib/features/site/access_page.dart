@@ -1,3 +1,4 @@
+import 'app_registration_link.dart';
 import '../../core/site_localization.dart';
 
 import 'dart:async';
@@ -214,18 +215,7 @@ class _AccessPageState extends State<AccessPage>
                           height: 1.7,
                         ),
                       ),
-                      if (textOf(_settings, 'beianText').isNotEmpty)
-                        TextButton(
-                          onPressed: () => widget.onGo(
-                            textOf(_settings, 'beianUrl').isEmpty
-                                ? 'https://beian.miit.gov.cn/'
-                                : textOf(_settings, 'beianUrl'),
-                          ),
-                          child: Text(
-                            textOf(_settings, 'beianText'),
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                        ),
+                      const AppRegistrationLink(color: Colors.white70),
                       if (textOf(_settings, 'mpsBeianText').isNotEmpty)
                         TextButton(
                           onPressed: () => widget.onGo(
