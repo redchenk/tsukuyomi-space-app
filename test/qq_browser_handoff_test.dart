@@ -159,5 +159,6 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pump();
     },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
   );
 }

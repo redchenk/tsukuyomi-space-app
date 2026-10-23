@@ -81,3 +81,7 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    implementation(files("libs/qq-open-sdk.jar"))
+}

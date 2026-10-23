@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models.dart';
+import '../../core/native_qq_sdk.dart';
 import '../../core/site_client.dart';
 import '../room/room_controller.dart';
 import 'site_widgets.dart';
@@ -146,6 +147,8 @@ class QQOAuthHttp {
     'tsukuyomi_qq_oauth',
   };
   static const paths = {
+    '/api/auth/oauth/qq/native/start',
+    '/api/auth/oauth/qq/native/complete',
     '/api/auth/oauth/qq/pending',
     '/api/auth/oauth/qq/email',
     '/api/auth/oauth/qq/bind',
@@ -297,6 +300,79 @@ Future<QQAuthGrant?> showQQAuthorization(
     'GET',
     '/api/settings',
   );
+  if (provider == 'qq' && defaultTargetPlatform == TargetPlatform.android) {
+    if (mapOf(response['data'])['qqNativeAppId'] != NativeQQSdk.appId) {
+      throw const ApiFailure('当前站点尚未启用 QQ 原生登录，请稍后重试或使用密码登录');
+    }
+    final configured = endpointUri(site);
+    if (configured.scheme != 'https' &&
+        !(configured.scheme == 'http' &&
+            ['localhost', '127.0.0.1', '::1'].contains(configured.host))) {
+      throw const ApiFailure('QQ 原生登录需要安全的站点地址');
+    }
+    if (!context.mounted) return null;
+    final consent = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('使用 QQ 登录'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '继续后将启用深圳市腾讯计算机系统有限公司的 QQ 互联 SDK，'
+                '检查 QQ 安装情况并打开 QQ。腾讯会处理设备型号等必要信息；'
+                '月读空间会接收你授权的账号标识、昵称和头像，用于登录或绑定账号。'
+                '你也可以取消并使用密码或邮箱登录。',
+              ),
+              TextButton(
+                onPressed: () => launchUrl(
+                  Uri.parse('https://wiki.connect.qq.com/qq互联sdk隐私保护声明/'),
+                  mode: LaunchMode.externalApplication,
+                ),
+                child: const Text('阅读 QQ 互联 SDK 隐私保护声明'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('同意并打开 QQ'),
+          ),
+        ],
+      ),
+    );
+    if (consent != true || !context.mounted) return null;
+    final target = QQOAuthTarget(
+      configured.resolve('/api/auth/oauth/qq/native/start'),
+      configured,
+    );
+    final transport = QQOAuthHttp(configured.origin);
+    if (bindCurrentAccount) {
+      final session = RegExp(r'(?:^|;\s*)tsukuyomi_session=([A-Za-z0-9._~\-]+)')
+          .firstMatch(controller.site.cookie ?? '');
+      if (session != null) {
+        transport.importCookies([MapEntry('tsukuyomi_session', session[1]!)]);
+      }
+    }
+    return authorizeNativeQQ(
+      target,
+      transport,
+      NativeQQSdk(),
+      redirect: redirect,
+      bind: bindCurrentAccount,
+      isCurrent: () =>
+          context.mounted &&
+          account == controller.account?.id &&
+          endpointUri(controller.settings.siteUrl).origin == configured.origin,
+    );
+  }
   final target = QQOAuthTarget.fromSettings(
     site,
     mapOf(response['data']),
@@ -330,6 +406,68 @@ Future<QQAuthGrant?> showQQAuthorization(
     throw const ApiFailure('账号或站点已切换，请重新授权');
   }
   return grant;
+}
+
+/// Exchanges only in-memory SDK credentials at the configured site's origin.
+/// The server verifies the QQ token, AppID and OpenID before issuing a session.
+Future<QQAuthGrant?> authorizeNativeQQ(
+  QQOAuthTarget target,
+  QQOAuthHttp transport,
+  NativeQQSdk sdk, {
+  required bool Function() isCurrent,
+  String redirect = '/hub',
+  bool bind = false,
+}) async {
+  var retained = false;
+  void checkCurrent() {
+    if (!isCurrent()) throw const ApiFailure('账号或站点已切换，请重新授权');
+    if (transport.origin != target.configuredSite.origin ||
+        target.origin != transport.origin) {
+      throw const ApiFailure('QQ 授权站点不匹配');
+    }
+  }
+
+  try {
+    checkCurrent();
+    final start = mapOf(
+      (await transport.request('POST', '/api/auth/oauth/qq/native/start', {
+        'action': bind ? 'bind' : 'login',
+        'redirect': sanitizeAuthRedirect(redirect),
+      }))['data'],
+    );
+    if (start['appId'] != NativeQQSdk.appId ||
+        !RegExp(r'^[a-f0-9]{48}$').hasMatch('${start['state'] ?? ''}') ||
+        !transport.hasBinding) {
+      throw const ApiFailure('QQ 原生登录配置无效');
+    }
+    checkCurrent();
+    final credentials = await sdk.login();
+    if (credentials == null) return null;
+    checkCurrent();
+    final complete = mapOf(
+      (await transport.request('POST', '/api/auth/oauth/qq/native/complete', {
+        ...credentials,
+        'state': start['state'],
+      }))['data'],
+    );
+    checkCurrent();
+    final ticket = '${complete['ticket'] ?? ''}';
+    if (ticket.isEmpty
+        ? transport.sessionCookie == null
+        : !RegExp(r'^[a-f0-9]{48}$').hasMatch(ticket) ||
+              !transport.hasBinding) {
+      throw const ApiFailure('QQ 授权未返回有效会话');
+    }
+    retained = true;
+    return QQAuthGrant(
+      target: target,
+      transport: transport,
+      ticket: ticket,
+      redirect: sanitizeAuthRedirect('${complete['redirect'] ?? redirect}'),
+    );
+  } finally {
+    if (!retained) transport.dispose();
+  }
 }
 
 Future<QQAuthGrant?> showGitHubAuthorization(

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+python3 "$(dirname "$0")/prepare_qq_sdk.py"
 # User-level properties override the template's 8 GB heap. Leave capacity for
 # Flutter's compiler, native C++ compilation, Kotlin and the hosted runner.
 gradle_config_dir="${GRADLE_USER_HOME:-$HOME/.gradle}"
