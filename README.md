@@ -1,12 +1,12 @@
 # 月读空间 · Flutter 原生客户端
 
-Tsukuyomi Space 的独立 Flutter 客户端。0.6.24 Live2D / 桌面 Agent 测试版提供原生 Room、统一认证、内容阅读与创作、社区、游戏和管理页面，直接连接原网站 API。
+Tsukuyomi Space 的独立 Flutter 客户端。0.6.28 官方八千代语音 / Live2D / 桌面 Agent 测试版提供原生 Room、统一认证、内容阅读与创作、社区、游戏和管理页面，直接连接原网站 API。
 
 站内直供、原生支付中心、充值订单、用量账单及支付宝移动支付的开发同步与验收边界见 [站内直供与原生支付中心](docs/native-official-payments-2026-10-21.md)。移动应用的 App 支付采用独立服务端凭据，SDK 回调后由主站查单确认到账。
 
 整站原生页面包含入口、Hub、Wiki、图库、附件库、编辑器、像素工坊、辉夜跑酷、友链、公开主页、管理后台和 Live2D 工作台，支持跨设备事件、中文／日语／英语、全站搜索及八千代导览。后台只向有效登录的 admin／super_admin 显示和开放；本地、合并与云端记忆来源跟进原站最新逻辑。实现与验收边界见 [整站迁移记录](docs/native-full-site-implementation-2026-09-30.md)。
 
-下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。发布包包括 Android APK、macOS Universal DMG、Windows 安装程序、Linux DEB 和供用户自签的 iOS IPA。
+下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。发布包包括 Android APK、macOS Universal DMG、Windows 安装程序、Linux DEB，以及供用户自签的 iOS IPA 和 HarmonyOS HAP。
 
 所有平台打开即进入 Room，不播放 Access 动画。默认关闭演示；首次使用在聊天区填写模型地址、名称和 Key，保存后直接真实聊天。已有配置直接可用，本地历史先加载，登录与同步随后执行。升级保留独立演示历史。
 
