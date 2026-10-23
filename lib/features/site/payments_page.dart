@@ -11,6 +11,7 @@ import '../room/room_controller.dart';
 import 'login_dialog.dart';
 import 'native_site_shell.dart';
 import 'official_service_admin.dart';
+import 'official_tts_history.dart';
 
 class PaymentsPage extends StatefulWidget {
   const PaymentsPage({
@@ -575,6 +576,7 @@ class _PaymentsPageState extends State<PaymentsPage>
                 ],
               ),
           ]),
+          OfficialTtsHistory(controller: c),
           _section('站内直供', [
             if (_officialLoading) const LinearProgressIndicator(),
             if (_officialError.isNotEmpty) Text(_officialError),

@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-23",
+  "scope": "Native official TTS integration; no new release published",
+  "websiteContractCommit": "df729dd34c9194b9f467fd7e68b4a3d8321817d6",
+  "liveReadiness": {
+    "url": "https://yachiyo.hk/api/tts/official/status",
+    "httpStatus": 200,
+    "online": true,
+    "priceAtoms": "50000000",
+    "language": "ja",
+    "maxCharacters": 1000,
+    "retentionHours": 24,
+    "method": "read-only GET; no user synthesis or wallet debit"
+  },
+  "checks": {
+    "targetedDartAnalyze": "passed; no issues in the eight implementation files and two new test files",
+    "focusedFlutterTests": {
+      "passed": 106,
+      "skipped": 1,
+      "failed": 0,
+      "log": "focused-tests.log",
+      "files": [
+        "test/official_tts_test.dart",
+        "test/official_tts_ui_test.dart",
+        "test/room_providers_test.dart",
+        "test/compatible_services_test.dart",
+        "test/room_settings_test.dart",
+        "test/official_payments_test.dart",
+        "test/payments_page_test.dart",
+        "test/native_audio_envelope_test.dart",
+        "test/speech_source_test.dart"
+      ]
+    },
+    "captureFlutterTests": "6 passed with CAPTURE_UI=true and native fonts",
+    "macosDebugBuild": "passed: flutter build macos --debug --no-pub",
+    "diffWhitespace": "passed",
+    "protectedExistingDirtyFiles": {
+      "count": 16,
+      "sha256Unchanged": true,
+      "repositories": ["tsukuyomi-space-app", "tsukuyomi-space"]
+    }
+  },
+  "visualQa": {
+    "fixtureOnly": true,
+    "reviewed": ["settings-390.png", "settings-1280.png"],
+    "result": "Price, status, translation disclosure, save-only and paid preview fit the mobile and desktop layouts"
+  },
+  "acceptanceBoundaries": [
+    "No real paid voice job, payment, wallet mutation or provider configuration change",
+    "No physical-device playback, voice-quality or lip-sync acceptance",
+    "No new installer release or Google Play submission",
+    "Existing dirty persona and dialogue changes remain outside this feature commit"
+  ]
+}

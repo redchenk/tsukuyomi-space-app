@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import 'models.dart';
+import 'official_tts.dart';
+import 'site_client.dart';
 
 class SpeechAudio {
   const SpeechAudio(this.bytes, this.format);
@@ -16,19 +18,32 @@ class SpeechAudio {
 /// Same model/input/voice/response_format contract as the website's ttsTransport.
 class TtsClient {
   TtsClient({http.Client Function()? clientFactory})
-    : _clientFactory = clientFactory ?? http.Client.new;
+    : _clientFactory = clientFactory ?? http.Client.new,
+      _official = OfficialTtsClient(clientFactory: clientFactory);
   final http.Client Function() _clientFactory;
+  final OfficialTtsClient _official;
   http.Client? _active;
   String? siteCookie;
+  set siteService(SiteService? value) => _official.site = value;
 
   void cancel() {
+    _official.cancel();
     _active?.close();
     _active = null;
   }
 
-  Future<SpeechAudio> synthesize(RoomSettings settings, String text) async {
+  Future<SpeechAudio> synthesize(
+    RoomSettings settings,
+    String text, {
+    Future<String> Function(String text, String language)? prepareText,
+  }) async {
     cancel();
     final provider = settings.option('ttsProvider', 'openai-compatible');
+    if (provider == 'official') {
+      return _audio(
+        await _official.synthesize(settings, text, prepareText: prepareText),
+      );
+    }
     var uri = ['openai', 'openai-compatible', 'custom'].contains(provider)
         ? compatibleEndpoint(settings.ttsUrl, speech: true)
         : endpointUri(
@@ -237,18 +252,7 @@ class TtsClient {
               ])
             : base64Decode(encoded);
       }
-      final wav =
-          bytes.length >= 44 &&
-          ascii.decode(bytes.sublist(0, 4), allowInvalid: true) == 'RIFF' &&
-          ascii.decode(bytes.sublist(8, 12), allowInvalid: true) == 'WAVE';
-      final mp3 =
-          bytes.length > 3 &&
-          ((bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33) ||
-              (bytes[0] == 0xff && bytes[1] & 0xe0 == 0xe0));
-      if (!wav && !mp3) {
-        throw const ApiFailure('服务未返回 WAV / MP3 音频，请检查接口和音频格式');
-      }
-      return SpeechAudio(bytes, wav ? 'wav' : 'mp3');
+      return _audio(bytes);
     } on FormatException {
       throw const ApiFailure('语音服务返回无效音频数据');
     } on TimeoutException {
@@ -259,6 +263,21 @@ class TtsClient {
       client.close();
       if (identical(client, _active)) _active = null;
     }
+  }
+
+  SpeechAudio _audio(Uint8List bytes) {
+    final wav =
+        bytes.length >= 44 &&
+        ascii.decode(bytes.sublist(0, 4), allowInvalid: true) == 'RIFF' &&
+        ascii.decode(bytes.sublist(8, 12), allowInvalid: true) == 'WAVE';
+    final mp3 =
+        bytes.length > 3 &&
+        ((bytes[0] == 0x49 && bytes[1] == 0x44 && bytes[2] == 0x33) ||
+            (bytes[0] == 0xff && bytes[1] & 0xe0 == 0xe0));
+    if (!wav && !mp3) {
+      throw const ApiFailure('服务未返回 WAV / MP3 音频，请检查接口和音频格式');
+    }
+    return SpeechAudio(bytes, wav ? 'wav' : 'mp3');
   }
 }
 

@@ -410,7 +410,23 @@ class RoomController extends ChangeNotifier {
     }
     endpointUri(value.siteUrl);
     if (!value.demo) endpointUri(value.llmUrl);
-    if (value.speak) endpointUri(value.ttsUrl);
+    if (value.speak) {
+      if (value.option('ttsProvider') == 'official') {
+        if (account == null ||
+            !sessionVerified ||
+            sessionExpired ||
+            account!.scope == 'admin' ||
+            account!.id != value.option('officialTtsAccount') ||
+            endpointUri(value.siteUrl).origin !=
+                value.option('officialTtsOrigin') ||
+            endpointUri(value.siteUrl).origin !=
+                endpointUri(settings.siteUrl).origin) {
+          throw const ApiFailure('请登录后重新保存官方语音设置');
+        }
+      } else {
+        endpointUri(value.ttsUrl);
+      }
+    }
     busy = true;
     _changed();
     try {
@@ -901,11 +917,15 @@ class RoomController extends ChangeNotifier {
 
     voice.addListener(onPlayback);
     try {
-      if (voice is AudioVoice) (voice as AudioVoice).siteCookie = site.cookie;
+      if (voice is AudioVoice) {
+        (voice as AudioVoice)
+          ..siteCookie = site.cookie
+          ..siteService = site;
+      }
       await voice.speak(settings, speechRoomText(text));
       onPlayback();
     } catch (e) {
-      if (!_disposed) {
+      if (!_disposed && generation == _generation) {
         error = e is ApiFailure ? e.message : '语音播放失败，对话已保存；请检查 TTS 设置';
         _changed();
       }

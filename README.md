@@ -100,11 +100,11 @@ flutter run -d macos
 - **模型 API 地址 / Base URL**：例如本机 `http://localhost:11434/v1/chat/completions`，或你的服务商提供的 HTTPS 地址。
 - **模型名称**：填写该端点实际提供的模型 ID。
 - **API Key**：只在服务需要时填写，不使用 GitHub 令牌。
-- **语音回复**：可选。选择服务预设，填写对应地址、模型、音色和独立密钥，先试听再保存。
+- **语音回复**：可选。登录后可选择「官方直供 · 八千代语音」，使用网站余额，无需供应商密钥；也可选择其他服务，填写对应地址、模型、音色和独立密钥。
 
 聊天支持 OpenAI 兼容 Chat Completions / Responses、Anthropic Messages、Ollama 和网站代理，处理 **SSE、NDJSON 和完整 JSON**。UTF-8 分片、CRLF、结束标记、超时、取消和截断均有测试。设置中的 MCP 支持 REST 桥接与 Streamable HTTP 握手。模型可在对话中按白名单调用搜索和当前图片理解，工具结果配对后继续流式回复；原有关键词预读保留兼容。未完成回复不写入历史，保留用户输入供重试。桌面 Enter 发送、Shift + Enter 换行，也支持 ⌘ Enter / Ctrl Enter；⌘ K / Ctrl K 打开本机历史搜索。移动端回车换行，点击按钮发送。
 
-TTS 支持 OpenAI 兼容、MiMo、MiniMax、ElevenLabs、GPT-SoVITS 和网站代理，设置中可独立试听与停止。WAV/MP3 解码后分析真实 PCM 的 20ms RMS 音量包络，并与播放器时间对齐控制口型；仅解码不可用时采用降级包络。真实供应商音色与音素级口型仍需验收。语音失败不撤销已保存的文字对话。
+TTS 支持网站官方直供、OpenAI 兼容、MiMo、MiniMax、ElevenLabs、GPT-SoVITS 和网站代理，设置中可独立试听与停止。官方直供成功合成 ¥0.05/条，中文先通过当前聊天模型翻译为日语；状态、免合成保存、付费试听、会话缓存重播与语音账单见[接入说明](docs/native-official-tts-2026-10-23.md)。WAV/MP3 解码后分析真实 PCM 的 20ms RMS 音量包络，并与播放器时间对齐控制口型；仅解码不可用时采用降级包络。真实供应商音色与音素级口型仍需验收。语音失败不撤销已保存的文字对话。
 
 远程服务要求 HTTPS；HTTP 仅用于 localhost/回环地址及 Android 模拟器主机 `10.0.2.2`。手机上的 localhost 指手机自身，不能直接访问电脑的 Ollama。原生应用的网络访问仍受各平台网络权限约束。
 
