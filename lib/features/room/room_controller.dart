@@ -463,7 +463,7 @@ class RoomController extends ChangeNotifier {
     }
     if (kIsWeb) throw const ApiFailure('请使用原生应用登录；Web 仅用于界面预览');
     final previousCookie = site.cookie, previousAccount = account;
-    final previousExpired = sessionExpired;
+    final previousExpired = sessionExpired, previousVerified = sessionVerified;
     busy = true;
     error = '';
     _changed();
@@ -486,6 +486,7 @@ class RoomController extends ChangeNotifier {
       _setSessionCookie(previousCookie);
       account = previousAccount;
       sessionExpired = previousExpired;
+      sessionVerified = previousVerified;
       await _writeCredential(_sessionKey, previousCookie);
       rethrow;
     } finally {
@@ -667,7 +668,7 @@ class RoomController extends ChangeNotifier {
       throw const ApiFailure('授权会话与当前站点不匹配');
     }
     final previousCookie = site.cookie, previousAccount = account;
-    final previousExpired = sessionExpired;
+    final previousExpired = sessionExpired, previousVerified = sessionVerified;
     busy = true;
     _changed();
     try {
@@ -680,6 +681,7 @@ class RoomController extends ChangeNotifier {
       await _writeCredential(_sessionKey, site.cookie);
       account = verified;
       sessionExpired = false;
+      sessionVerified = true;
       await _rememberAccount();
       await _loadScope();
       error = '';
@@ -687,6 +689,7 @@ class RoomController extends ChangeNotifier {
       _setSessionCookie(previousCookie);
       account = previousAccount;
       sessionExpired = previousExpired;
+      sessionVerified = previousVerified;
       await _writeCredential(_sessionKey, previousCookie);
       rethrow;
     } finally {
