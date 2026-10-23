@@ -1,0 +1,137 @@
+{
+  "tag": "v0.6.28-beta.1",
+  "releaseCommit": "ee54e2498e87ed35f1c91f3b6253302f3e87df46",
+  "verifiedAtUtc": "2026-10-23T15:18:41.680753+00:00",
+  "origin": "mirror",
+  "publicDownloadsVerified": 16,
+  "checksumManifestsVerified": true,
+  "assets": [
+    {
+      "name": "INSTALL.md",
+      "size": 17932,
+      "sha256": "5ebdb9ef3b756ff936443ce01bd737a70f3363f1410cd15a9a61730e36f127ae",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/INSTALL.md",
+      "downloadVerified": true
+    },
+    {
+      "name": "OHOS-BUILD-INFO.json",
+      "size": 559,
+      "sha256": "8291d41ae51812e8ac1a09c101ac9583fc668f9a24a633ee9fc841d4352b3908",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/OHOS-BUILD-INFO.json",
+      "downloadVerified": true
+    },
+    {
+      "name": "OHOS-INSTALL.md",
+      "size": 1845,
+      "sha256": "8bb28e4b945f95675911647397a7efdcc30fe5d493fd021c0c34b42e3f082906",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/OHOS-INSTALL.md",
+      "downloadVerified": true
+    },
+    {
+      "name": "OHOS-SHA256SUMS.txt",
+      "size": 379,
+      "sha256": "e7f584e29ee950965166a91a560e96bf1a2a17219dd8801b1b47ef1a644a2a78",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/OHOS-SHA256SUMS.txt",
+      "downloadVerified": true
+    },
+    {
+      "name": "OHOS-THIRD-PARTY-NOTICES.md",
+      "size": 6955,
+      "sha256": "652317c146bc41e544d84676205ec5a3dd393a3427594322da6adc2c31f4ab4d",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/OHOS-THIRD-PARTY-NOTICES.md",
+      "downloadVerified": true
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "size": 1031,
+      "sha256": "6e0d1656889ae4f903b1355ce80da95637ffdb7ae27648056dc496334ecf2e1a",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/SHA256SUMS.txt",
+      "downloadVerified": true
+    },
+    {
+      "name": "THIRD_PARTY_NOTICES.md",
+      "size": 6955,
+      "sha256": "652317c146bc41e544d84676205ec5a3dd393a3427594322da6adc2c31f4ab4d",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/THIRD_PARTY_NOTICES.md",
+      "downloadVerified": true
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-35-ohos-arm64-unsigned.hap",
+      "size": 154191768,
+      "sha256": "d09ab229c6f4e1de2e87a4cf707d2f1b9cda78e3888473c57d1755065cd43969",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-35-ohos-arm64-unsigned.hap",
+      "downloadVerified": true
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-android-arm64-v8a.apk",
+      "size": 159462189,
+      "sha256": "38d44c493c390fd73c4fb613ae50fa61e3695fd024b6d95445cc4660661ebbdc",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-android-arm64-v8a.apk",
+      "downloadVerified": true
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-android-x86_64.apk",
+      "size": 164574296,
+      "sha256": "2b819eb724f7e233203af9c7e1581776d3033b94fb32e034213ce096defec702",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-android-x86_64.apk",
+      "downloadVerified": true
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-ios-arm64-unsigned.ipa",
+      "size": 128228911,
+      "sha256": "42b3b80f9ce850bb6bd3c5b22b391e3c5e74bd431461cdddeaa03954273377a1",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-ios-arm64-unsigned.ipa",
+      "downloadVerified": true
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-linux-x64.deb",
+      "size": 261976474,
+      "sha256": "ad1a936cc1922eabc359c6f7ac02e15987a011bec879d430f1af569950d4337b",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-linux-x64.deb",
+      "downloadVerified": true
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-linux-x64.tar.gz",
+      "size": 320291640,
+      "sha256": "e687a170e7229703e6e8aeb1be71ead4202480ac374fb06a4514bd21358ca6b2",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-linux-x64.tar.gz",
+      "downloadVerified": true
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-macos-universal.dmg",
+      "size": 551454900,
+      "sha256": "72726c2d193f6b9c81f591d1561577a4579bd2d389e1a1ecbb6f2f5dd08a74c8",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-macos-universal.dmg",
+      "downloadVerified": true
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-windows-x64-setup.exe",
+      "size": 269078509,
+      "sha256": "54101e1b7f5096c93b76c5fe1b617d6ffdfc21321cca0d1cf34445887efabbbd",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-windows-x64-setup.exe",
+      "downloadVerified": true
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-windows-x64.zip",
+      "size": 364200982,
+      "sha256": "53303ad82d10619f2896dfbe5f5e5337da958dc4dac1d0fb820286a7f3231057",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-windows-x64.zip",
+      "downloadVerified": true
+    }
+  ],
+  "ohosBuildInfo": {
+    "source": "ee54e2498e87ed35f1c91f3b6253302f3e87df46",
+    "flutter": "CPF-Flutter 3ffe70c6280cc6ddf613bffa59dd70611f238f7e",
+    "sdk": "26.0.0.821",
+    "signed": false,
+    "file": "tsukuyomi-space-0.6.28-35-ohos-arm64-unsigned.hap",
+    "sha256": "d09ab229c6f4e1de2e87a4cf707d2f1b9cda78e3888473c57d1755065cd43969",
+    "release_tag": "v0.6.28-beta.1",
+    "release_commit": "ee54e2498e87ed35f1c91f3b6253302f3e87df46",
+    "version": "0.6.28",
+    "build_number": 35,
+    "minimum_os": "HarmonyOS 6.0.2 / API 22",
+    "architecture": "arm64",
+    "compile_sdk": "26.0.0.105"
+  }
+}

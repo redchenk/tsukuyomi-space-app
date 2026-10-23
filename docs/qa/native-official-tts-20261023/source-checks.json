@@ -1,0 +1,152 @@
+{
+  "tag": "v0.6.28-beta.1",
+  "version": "0.6.28+35",
+  "releaseCommit": "ee54e2498e87ed35f1c91f3b6253302f3e87df46",
+  "mergedPullRequest": 11,
+  "releaseRun": 39969831642,
+  "verifiedHapRun": 39969824009,
+  "verifiedHapArtifact": 12508743286,
+  "releaseQuality": {
+    "job": 120469378687,
+    "passed": 1054,
+    "skipped": 19,
+    "releaseScriptTests": 40,
+    "agentScriptTests": 3,
+    "dartAnalyze": "passed"
+  },
+  "cleanLocalFullTests": {
+    "passed": 1032,
+    "skipped": 41
+  },
+  "prChecks": {
+    "run": 39967563464,
+    "quality": "success",
+    "macos": "success",
+    "windows": "success",
+    "linux": "success",
+    "android": "success"
+  },
+  "publicReleaseId": 421978054,
+  "releasePublishedAt": "2026-10-23T15:02:43Z",
+  "hapPublishRun": 39974965530,
+  "cancelledDuplicateHapRun": 39974861336,
+  "baseDistributionRun": 39974861213,
+  "skippedDistributionRun": 39975126065,
+  "fullDistributionRun": 39976259972,
+  "distributionOrigin": "https://downloads.yachiyo.hk",
+  "distributionReceiver": "39.105.82.189",
+  "distributionLocation": "Alibaba Cloud Beijing",
+  "platformChecks": {
+    "runs": [
+      {
+        "runId": 39969831642,
+        "jobs": [
+          {
+            "id": 120469257957,
+            "name": "metadata",
+            "conclusion": "success"
+          },
+          {
+            "id": 120469378687,
+            "name": "quality",
+            "conclusion": "success"
+          },
+          {
+            "id": 120476024727,
+            "name": "build (macos-15, ios)",
+            "conclusion": "success"
+          },
+          {
+            "id": 120476024784,
+            "name": "build (ubuntu-22.04, linux)",
+            "conclusion": "success"
+          },
+          {
+            "id": 120476024847,
+            "name": "build (ubuntu-22.04, android)",
+            "conclusion": "success"
+          },
+          {
+            "id": 120476024904,
+            "name": "native-smoke / android",
+            "conclusion": "success"
+          },
+          {
+            "id": 120476024915,
+            "name": "build (windows-2022, windows)",
+            "conclusion": "success"
+          },
+          {
+            "id": 120476024957,
+            "name": "build (macos-15, macos)",
+            "conclusion": "success"
+          },
+          {
+            "id": 120486090017,
+            "name": "publish",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "runId": 39969824009,
+        "jobs": [
+          {
+            "id": 120469239093,
+            "name": "quality",
+            "conclusion": "success"
+          },
+          {
+            "id": 120469240029,
+            "name": "build",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "runId": 39974965530,
+        "jobs": [
+          {
+            "id": 120487053320,
+            "name": "source",
+            "conclusion": "success"
+          },
+          {
+            "id": 120487179841,
+            "name": "publish",
+            "conclusion": "success"
+          },
+          {
+            "id": 120487181066,
+            "name": "hap",
+            "conclusion": "skipped"
+          }
+        ]
+      }
+    ],
+    "androidNativeMarkers": [
+      "TSUKUYOMI_ROOM_IME_OK",
+      "TSUKUYOMI_ROOM_LAZY_OK",
+      "TSUKUYOMI_LIVE2D_BATCH_OK",
+      "TSUKUYOMI_LIVE2D_ASYNC_OK",
+      "TSUKUYOMI_GAME_CONTINUITY_OK",
+      "TSUKUYOMI_LIVE2D_DETAIL_OK",
+      "TSUKUYOMI_LIVE2D_RENDER_OK",
+      "TSUKUYOMI_GAME_AUDIO_OK",
+      "TSUKUYOMI_GAME_RIDING_OK",
+      "TSUKUYOMI_UPDATE_OK",
+      "TSUKUYOMI_LIVE2D_OK"
+    ]
+  },
+  "distributionPipelineUnchanged": true,
+  "appUpdaterSourceUnchanged": true,
+  "preservedDirtyFiles": {
+    "app": 6,
+    "website": 10,
+    "allSha256Unchanged": true
+  },
+  "fullDistributionConclusion": "success",
+  "fullDistributionJob": 120491532624,
+  "fullDistributionLogMarker": "Distributed v0.6.28-beta.1: 16 verified files",
+  "verifiedAtUtc": "2026-10-23T15:19:00Z"
+}

@@ -1,0 +1,4 @@
+00:00 +0: loading /Users/yxy/.codex/worktrees/release-official-tts/tsukuyomi-space-app/test/app_update_network_test.dart
+00:00 +0: official distribution release detects and downloads a verified installer
+TSUKUYOMI_UPDATE_DISTRIBUTION_OK v0.6.28-beta.1 tsukuyomi-space-0.6.28-ios-arm64-unsigned.ipa size=128228911 sha256=42b3b80f9ce850bb6bd3c5b22b391e3c5e74bd431461cdddeaa03954273377a1
+00:36 +1: All tests passed!

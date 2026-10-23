@@ -1,0 +1,24 @@
+{
+  "tag": "v0.6.28-beta.1",
+  "verifiedAtUtc": "2026-10-23T15:19:00.954463+00:00",
+  "origin": "https://downloads.yachiyo.hk",
+  "catalogContainsOnlyLatest": true,
+  "catalogAssetsMatchGitHub": 16,
+  "catalogHeaders": {
+    "Cache-Control": "no-store",
+    "Last-Modified": "Fri, 23 Oct 2026 15:18:03 GMT",
+    "Content-Type": "application/json"
+  },
+  "currentApkRange": {
+    "status": 206,
+    "contentRange": "bytes 0-31/159462189",
+    "bytes": 32
+  },
+  "oldApkStatus": 404,
+  "updaterLiveTest": {
+    "passed": true,
+    "version": "v0.6.28-beta.1",
+    "installer": "tsukuyomi-space-0.6.28-ios-arm64-unsigned.ipa",
+    "sha256": "sha256:42b3b80f9ce850bb6bd3c5b22b391e3c5e74bd431461cdddeaa03954273377a1"
+  }
+}

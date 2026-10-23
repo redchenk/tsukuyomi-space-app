@@ -1,0 +1,85 @@
+{
+  "page": "https://yachiyo.hk/download",
+  "links": [
+    {
+      "text": "下载 macOS 通用版",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-macos-universal.dmg"
+    },
+    {
+      "text": "下载 Windows 安装器",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-windows-x64-setup.exe"
+    },
+    {
+      "text": "便携 ZIP · 347.3 MB",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-windows-x64.zip"
+    },
+    {
+      "text": "完整安装说明",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/INSTALL.md"
+    },
+    {
+      "text": "下载 macOS 通用版",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-macos-universal.dmg"
+    },
+    {
+      "text": "完整安装说明",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/INSTALL.md"
+    },
+    {
+      "text": "下载 Android 手机版",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-android-arm64-v8a.apk"
+    },
+    {
+      "text": "x86_64 模拟器 APK · 157 MB",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-android-x86_64.apk"
+    },
+    {
+      "text": "完整安装说明",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/INSTALL.md"
+    },
+    {
+      "text": "下载鸿蒙自签包",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-35-ohos-arm64-unsigned.hap"
+    },
+    {
+      "text": "安装与签名说明",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/OHOS-INSTALL.md"
+    },
+    {
+      "text": "完整安装说明",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/OHOS-INSTALL.md"
+    },
+    {
+      "text": "下载 SHA-256 清单",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/OHOS-SHA256SUMS.txt"
+    },
+    {
+      "text": "下载 Linux DEB",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-linux-x64.deb"
+    },
+    {
+      "text": "便携 tar.gz · 305.5 MB",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-linux-x64.tar.gz"
+    },
+    {
+      "text": "完整安装说明",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/INSTALL.md"
+    },
+    {
+      "text": "下载 iOS 自签包",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/tsukuyomi-space-0.6.28-ios-arm64-unsigned.ipa"
+    },
+    {
+      "text": "完整安装说明",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/INSTALL.md"
+    },
+    {
+      "text": "完整安装说明",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/INSTALL.md"
+    },
+    {
+      "text": "下载 SHA-256 清单",
+      "url": "https://downloads.yachiyo.hk/releases/v0.6.28-beta.1/SHA256SUMS.txt"
+    }
+  ]
+}

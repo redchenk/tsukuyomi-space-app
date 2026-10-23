@@ -1,0 +1,88 @@
+{
+  "tag": "v0.6.28-beta.1",
+  "packages": [
+    {
+      "name": "tsukuyomi-space-0.6.28-android-arm64-v8a.apk",
+      "zipCrc": true,
+      "cubismGpuAndDependencies": true
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-android-x86_64.apk",
+      "zipCrc": true,
+      "cubismGpuAndDependencies": true
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-ios-arm64-unsigned.ipa",
+      "zipCrc": true,
+      "version": "0.6.28+35",
+      "iphoneOS": true,
+      "signed": false
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-35-ohos-arm64-unsigned.hap",
+      "zipCrc": true,
+      "version": "0.6.28+35",
+      "nativeCoreAndModel": true,
+      "signed": false
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-windows-x64.zip",
+      "zipCrc": true,
+      "runtimes": [
+        {
+          "filesVerified": 10,
+          "opencode": "1.18.33",
+          "codex": "0.159.0",
+          "licensesVerified": true
+        }
+      ],
+      "webview2Bootstrapper": true
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-linux-x64.tar.gz",
+      "tarReadable": true,
+      "runtimes": [
+        {
+          "filesVerified": 11,
+          "opencode": "1.18.33",
+          "codex": "0.159.0",
+          "licensesVerified": true
+        }
+      ]
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-linux-x64.deb",
+      "debianControl": true,
+      "version": "0.6.28",
+      "architecture": "amd64"
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-windows-x64-setup.exe",
+      "peExecutable": true
+    },
+    {
+      "name": "tsukuyomi-space-0.6.28-macos-universal.dmg",
+      "dmgVerified": true,
+      "version": "0.6.28+35",
+      "architectures": [
+        "x86_64",
+        "arm64"
+      ],
+      "codesignVerified": true,
+      "runtimes": [
+        {
+          "filesVerified": 10,
+          "opencode": "1.18.33",
+          "codex": "0.159.0",
+          "licensesVerified": true
+        },
+        {
+          "filesVerified": 10,
+          "opencode": "1.18.33",
+          "codex": "0.159.0",
+          "licensesVerified": true
+        }
+      ]
+    }
+  ]
+}
