@@ -17,6 +17,7 @@ import '../../core/room_knowledge.dart';
 import '../../core/model_runtime.dart';
 import '../../core/model_catalog.dart';
 import '../../core/official_api.dart';
+import '../../core/official_tts.dart';
 import '../../core/site_client.dart';
 import 'model_runtime_panel.dart';
 import '../../core/room_archive.dart';
@@ -30,6 +31,7 @@ import '../site/site_widgets.dart';
 import '../site/site_navigation.dart';
 import '../site/login_dialog.dart';
 import 'room_memory_manager.dart';
+import 'official_tts_panel.dart';
 
 const roomSections = <String, (String, IconData, String)>{
   'llm': ('聊天模型', CupertinoIcons.chat_bubble, '基础与陪伴'),
@@ -93,6 +95,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   String _catalogOwner = '';
   LlmClient? testing;
   AudioVoice? testVoice;
+  Map<String, dynamic> _officialTtsStatus = {};
+  String _voiceOwner = '';
   @override
   void initState() {
     super.initState();
@@ -121,6 +125,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   }
 
   void _controllerChanged() {
+    final owner = '${c.account?.id}|${c.site.cookie}|${c.sessionExpired}';
+    if (_voiceOwner != owner) {
+      _voiceOwner = owner;
+      unawaited(testVoice?.stop());
+    }
     if (_catalogOwner != c.scope) {
       _catalogOwner = c.scope;
       _modelCatalog.cancel();
@@ -242,14 +251,39 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
 
   Future<bool> _save() async {
     try {
-      final s = _value();
+      var s = _value();
       if (!s.demo) ModelRuntime(s).resolveParameters();
       endpointUri(s.siteUrl);
       if (!s.demo) {
         roomChatEndpoint(s.llmUrl);
         if (s.model.isEmpty) throw const ApiFailure('请填写聊天模型');
       }
-      if (s.speak) {
+      if (s.option('ttsProvider') == 'official') {
+        if (s.speak &&
+            (c.account == null ||
+                !c.sessionVerified ||
+                c.sessionExpired ||
+                c.account!.scope == 'admin')) {
+          throw const ApiFailure('请登录后使用官方语音');
+        }
+        final account = c.account, cookie = c.site.cookie;
+        if (account != null && s.speak) {
+          final verified = await c.site.me(s.siteUrl);
+          if (verified.id != account.id ||
+              c.account?.id != account.id ||
+              c.site.cookie != cookie) {
+            throw const ApiFailure('账号已变化，请重新保存官方语音设置');
+          }
+        }
+        s = s.copyWith(
+          options: {
+            ...s.options,
+            'officialTtsAccount': account?.id ?? '',
+            'officialTtsOrigin': endpointUri(s.siteUrl).origin,
+            'textLang': '${_officialTtsStatus['language'] ?? 'ja'}',
+          },
+        );
+      } else if (s.speak) {
         endpointUri(s.ttsUrl);
         if (s.option('ttsProvider') == 'gpt-sovits' &&
             s.option('refAudioPath').isEmpty &&
@@ -263,7 +297,10 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       }
       final effective = s.usesOfficialApi ? await _verifiedOfficial(s) : s;
       await c.configure(effective);
-      if (effective.usesOfficialApi) options = {...effective.options};
+      if (effective.usesOfficialApi ||
+          effective.option('ttsProvider') == 'official') {
+        options = {...effective.options};
+      }
       if (mounted) {
         setState(() {
           savedSnapshot = _snapshot();
@@ -441,13 +478,14 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     String label,
     Future<void> Function() task, {
     bool primary = false,
+    bool enabled = true,
   }) => primary
       ? FilledButton(
-          onPressed: busy ? null : () => _run(task),
+          onPressed: busy || !enabled ? null : () => _run(task),
           child: Text(label),
         )
       : OutlinedButton(
-          onPressed: busy ? null : () => _run(task),
+          onPressed: busy || !enabled ? null : () => _run(task),
           child: Text(label),
         );
   Widget _hint(String text) => Padding(
@@ -1162,6 +1200,19 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   );
   Widget _tts() {
     final provider = '${options['ttsProvider'] ?? 'openai-compatible'}';
+    final official = provider == 'official';
+    final loggedIn =
+        c.account != null &&
+        c.account!.scope != 'admin' &&
+        c.sessionVerified &&
+        !c.sessionExpired;
+    final ready = _officialTtsStatus['online'] == true;
+    var price = '0.05';
+    try {
+      price = moneyAtoms(_officialTtsStatus['priceAtoms'] ?? '50000000');
+    } catch (_) {
+      // Keep the published price hint if readiness data is incomplete.
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1172,19 +1223,38 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           value: speak,
           onChanged: (v) => setState(() => speak = v),
         ),
+        OfficialTtsPanel(
+          controller: c,
+          onStatus: (status) {
+            if (mounted) setState(() => _officialTtsStatus = status);
+          },
+          onPayments: () => unawaited(_go('/payments')),
+        ),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
+            ActionChip(
+              key: const ValueKey('official-tts-preset'),
+              label: const Text('官方直供 · 八千代语音'),
+              onPressed: !loggedIn || !ready || busy
+                  ? null
+                  : () => setState(() {
+                      options['ttsProvider'] = 'official';
+                      speak = true;
+                    }),
+            ),
             for (final e in RoomReference.map('ttsPresets').entries)
-              ActionChip(
-                label: Text('${e.value['label']}'),
-                onPressed: () => _preset(jsonMap(e.value), tts: true),
-              ),
+              if (e.value['provider'] != 'official')
+                ActionChip(
+                  label: Text('${e.value['label']}'),
+                  onPressed: () => _preset(jsonMap(e.value), tts: true),
+                ),
           ],
         ),
         const SizedBox(height: 24),
         _selectOption('ttsProvider', '语音服务', {
+          'official': '官方直供 · 八千代语音',
           'mimo': 'MiMo',
           'openai': 'OpenAI',
           'openai-compatible': 'OpenAI 兼容',
@@ -1193,57 +1263,82 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           'gpt-sovits': 'GPT-SoVITS',
           'custom': '自定义',
         }, fallback: 'openai-compatible'),
-        if (provider != 'gpt-sovits')
-          _field('ttsKey', '语音 API Key', secret: true),
-        _field('voice', provider == 'gpt-sovits' ? '默认参考音频（可选）' : '音色 ID'),
-        _field('ttsUrl', 'TTS API 地址'),
-        _field('ttsModel', '语音模型'),
-        _selectOption('textLang', '文本语言', {
-          'auto': '自动',
-          'zh': '中文',
-          'ja': '日语',
-          'en': '英语',
-          'yue': '粤语',
-          'ko': '韩语',
-        }, fallback: 'auto'),
-        if (provider == 'gpt-sovits') ...[
-          const SiteText('本机 GPT-SoVITS 直接连接；公网地址通过网站代理，需要登录。'),
-          const SizedBox(height: 10),
-          _field('refAudioPath', '参考音频在服务端的路径'),
-          _field('promptText', '参考音频文本', lines: 3),
-          _selectOption('promptLang', '参考语言', {
-            'ja': '日语',
+        if (official) ...[
+          _hint('官方音色采用日语朗读。中文回复会先通过当前聊天模型翻译，翻译按该模型的规则计费；固定日文试听不发起翻译。'),
+          if (!loggedIn)
+            TextButton(
+              onPressed: () => showSiteLogin(context, c),
+              child: const SiteText('登录月读空间'),
+            ),
+          _hint('无需填写供应商地址、模型、API Key 或权重。仅保存设置不会合成或扣费。'),
+        ] else ...[
+          if (provider != 'gpt-sovits')
+            _field('ttsKey', '语音 API Key', secret: true),
+          _field('voice', provider == 'gpt-sovits' ? '默认参考音频（可选）' : '音色 ID'),
+          _field('ttsUrl', 'TTS API 地址'),
+          _field('ttsModel', '语音模型'),
+          _selectOption('textLang', '文本语言', {
+            'auto': '自动',
             'zh': '中文',
+            'ja': '日语',
             'en': '英语',
             'yue': '粤语',
             'ko': '韩语',
-            'auto': '自动',
-          }, fallback: 'ja'),
-          _field('gptWeightPath', 'GPT 权重路径'),
-          _field('sovitsWeightPath', 'SoVITS 权重路径'),
-        ] else
-          _toggle('ttsProxy', '通过网站代理生成语音'),
-        DropdownButtonFormField<String>(
-          initialValue: fields['ttsFormat']!.text,
-          decoration: InputDecoration(
-            labelText: siteTranslate(context, 'OpenAI 兼容音频格式'),
+          }, fallback: 'auto'),
+          if (provider == 'gpt-sovits') ...[
+            const SiteText('本机 GPT-SoVITS 直接连接；公网地址通过网站代理，需要登录。'),
+            const SizedBox(height: 10),
+            _field('refAudioPath', '参考音频在服务端的路径'),
+            _field('promptText', '参考音频文本', lines: 3),
+            _selectOption('promptLang', '参考语言', {
+              'ja': '日语',
+              'zh': '中文',
+              'en': '英语',
+              'yue': '粤语',
+              'ko': '韩语',
+              'auto': '自动',
+            }, fallback: 'ja'),
+            _field('gptWeightPath', 'GPT 权重路径'),
+            _field('sovitsWeightPath', 'SoVITS 权重路径'),
+          ] else
+            _toggle('ttsProxy', '通过网站代理生成语音'),
+          DropdownButtonFormField<String>(
+            initialValue: fields['ttsFormat']!.text,
+            decoration: InputDecoration(
+              labelText: siteTranslate(context, 'OpenAI 兼容音频格式'),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'wav', child: SiteText('WAV · 支持音量口型')),
+              DropdownMenuItem(value: 'mp3', child: SiteText('MP3')),
+            ],
+            onChanged: (v) => setState(() => fields['ttsFormat']!.text = v!),
           ),
-          items: const [
-            DropdownMenuItem(value: 'wav', child: SiteText('WAV · 支持音量口型')),
-            DropdownMenuItem(value: 'mp3', child: SiteText('MP3')),
-          ],
-          onChanged: (v) => setState(() => fields['ttsFormat']!.text = v!),
-        ),
+        ],
         const SizedBox(height: 18),
         Wrap(
           spacing: 10,
           children: [
-            _button('语音试听', () async {
-              testVoice ??= AudioVoice();
-              testVoice!.siteCookie = c.site.cookie;
-              await testVoice!.speak(_value(), '你好，我是八千代。今天也一起慢慢聊吧。');
-              if (mounted) setState(() => notice = '试听已开始');
-            }, primary: true),
+            if (official)
+              _button('仅保存设置', () async {
+                await _save();
+              }),
+            _button(
+              official ? '保存并试听 · ¥$price' : '语音试听',
+              () async {
+                if (official && !await _save()) return;
+                testVoice ??= AudioVoice();
+                testVoice!
+                  ..siteCookie = c.site.cookie
+                  ..siteService = c.site;
+                await testVoice!.speak(
+                  _value(),
+                  official ? officialTtsPreview : '你好，我是八千代。今天也一起慢慢聊吧。',
+                );
+                if (mounted) setState(() => notice = '试听已开始');
+              },
+              primary: true,
+              enabled: !official || (loggedIn && ready && speak),
+            ),
             OutlinedButton(
               onPressed: () async {
                 await testVoice?.stop();

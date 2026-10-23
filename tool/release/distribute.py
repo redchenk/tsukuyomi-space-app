@@ -83,8 +83,8 @@ def main():
             if 'sha256:' + digest != asset['digest']:
                 raise ValueError('Download digest mismatch')
         key, known = root / 'push-key', root / 'known-hosts'
-        key.write_text(os.environ['APP_DISTRIBUTION_SSH_KEY'].strip() + '\n'); key.chmod(0o600)
-        known.write_text(os.environ['APP_DISTRIBUTION_KNOWN_HOSTS'].strip() + '\n'); known.chmod(0o600)
+        key.write_text(os.environ['APP_DISTRIBUTION_SSH_KEY'].strip() + '\n', encoding='utf-8'); key.chmod(0o600)
+        known.write_text(os.environ['APP_DISTRIBUTION_KNOWN_HOSTS'].strip() + '\n', encoding='utf-8'); known.chmod(0o600)
         process = subprocess.Popen(['ssh', '-i', str(key), '-o', 'IdentitiesOnly=yes', '-o', 'BatchMode=yes',
             '-o', 'StrictHostKeyChecking=yes', '-o', f'UserKnownHostsFile={known}', '-o', 'ConnectTimeout=15',
             '-o', 'ServerAliveInterval=15', '-o', 'ServerAliveCountMax=3', '-T', f'tsukuyomi-download@{HOST}'], stdin=subprocess.PIPE)
@@ -105,7 +105,7 @@ def main():
                   'verified_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
                   'public_release_downloads_verified': len(assets), 'receiver_accepted': True,
                   'assets': [{'name': a['name'], 'size': a['size'], 'sha256': a['digest'][7:]} for a in assets]}
-        Path('distribution-validation.json').write_text(json.dumps(report, indent=2) + '\n')
+        Path('distribution-validation.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
         print(f"Distributed {release['tag_name']}: {len(assets)} verified files")
 
 

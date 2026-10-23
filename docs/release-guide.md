@@ -1,11 +1,11 @@
-# 月读空间 0.6.27 测试版
+# 月读空间 0.6.28 测试版
 
 ## 安装
 
 - Android：安装 `android-arm64-v8a.apk`（绝大多数手机）。x86_64 模拟器选择 x86_64。当前 Cubism SDK 已不提供 32 位 ARM 库，因此不发布 32 位 APK。允许安装来自浏览器或文件管理器的应用。所有 APK 使用同一持久发行密钥签名，可覆盖升级本测试版。
 - macOS：打开 DMG，将应用拖到 Applications。Universal 包同时支持 Apple Silicon 和 Intel。当前没有 Developer ID 签名和公证；首次启动可能需在“系统设置 → 隐私与安全性”允许打开此应用。无需关闭系统安全功能。
 - Windows 10/11 x64：运行 setup.exe。按当前用户安装，无需管理员权限；当前未使用商业代码签名，SmartScreen 可能显示未知发布者。安装程序包含经过微软签名验证的 WebView2 引导程序，缺少运行时会联网安装，以支持 QQ 登录。便携 ZIP 解压完整目录后也可运行，使用 QQ 前需运行包内的 `MicrosoftEdgeWebview2Setup.exe`。
-- Linux x64：使用 Ubuntu 22.04 构建，推荐 `sudo apt install ./tsukuyomi-space-0.6.27-linux-x64.deb` 自动安装该版本所需音视频运行库。需桌面登录会话及 Secret Service（如已解锁的 GNOME Keyring）保存密钥。其它发行版须具备相同运行库 ABI，尤其是构建时链接的 libmpv；tar.gz 为便携包，不包含系统 GTK、Secret Service、GStreamer、libmpv 和 libepoxy。DEB 的依赖根据实际安装包中全部 ELF 自动推导。
+- Linux x64：使用 Ubuntu 22.04 构建，推荐 `sudo apt install ./tsukuyomi-space-0.6.28-linux-x64.deb` 自动安装该版本所需音视频运行库。需桌面登录会话及 Secret Service（如已解锁的 GNOME Keyring）保存密钥。其它发行版须具备相同运行库 ABI，尤其是构建时链接的 libmpv；tar.gz 为便携包，不包含系统 GTK、Secret Service、GStreamer、libmpv 和 libepoxy。DEB 的依赖根据实际安装包中全部 ELF 自动推导。
 - iOS：下载 `ios-arm64-unsigned.ipa`，使用自签工具导入，并用自己的 Apple 账号或证书签名。签名器需重新签署 App 和所有内嵌 Framework，配置对应描述文件与 Keychain entitlement。IPA 是真实 iPhoneOS arm64 构建，不是模拟器包；未签名文件不能直接点击安装。签名有效期、设备数量与刷新方式取决于签名账号及工具。本版未做已签名 iPhone 真机验收。
 
 ## 配置真实模型和语音
@@ -13,12 +13,12 @@
 1. 打开即进入 Room，点击“开始分步配置”，选择站内直供、云端 API 或本机模型。站内直供需要网站账号与可用额度；默认关闭演示。
 2. 按步骤填写连接信息。自己的模型 API 地址可填服务商 Base URL（如 `https://api.example.com/v1`）或完整 `/v1/chat/completions` 地址，再填模型 ID 和 API Key；语音和其他设置可以稍后配置。
 3. 点击“测试连接”，查看成功或失败原因后保存，也可跳过测试。测试会调用所选服务并可能产生用量，但不会写入聊天历史。回到 Room 发送一句话、收到完整回复后，即完成首次对话。可随时从“开始使用与发现功能”查看配置步骤、游戏与社区入口、好感度规则和舞台检查方法。
-4. 开启“语音回复”，单独填写 TTS 服务地址、模型 ID、音色 ID 和 Key。即使共用服务商，也需要在语音栏填写 Key。
-5. 点击“语音试听”；WAV 和 MP3 均使用真实音频解码后的音量包络驱动口型。保存后新回复会自动朗读，可停止或重播。
+4. 开启“语音回复”，登录网站账号后可选择“官方直供 · 八千代语音”，使用网站余额，无需供应商密钥；也可选择其它服务，单独填写 TTS 地址、模型、音色和 Key。
+5. 官方渠道可“仅保存设置”（不合成、不收费），或点击“保存并试听 · ¥0.05”。其它服务点击“语音试听”。保存后新回复会自动朗读，可停止或重播；WAV 和 MP3 使用真实音频解码后的音量包络驱动口型。
 
-根域名自动补 `/v1/chat/completions` 或 `/v1/audio/speech`；带版本的 Base URL 在末尾补对应路径。自定义网关请填写完整路径。支持 OpenAI Chat Completions / Responses、Anthropic Messages、Ollama 及网站代理；自动处理 SSE、NDJSON 和完整 JSON，明确不支持流式的网关会回退一次。语音支持 OpenAI 兼容 Speech、MiMo、MiniMax、ElevenLabs、GPT-SoVITS 及网站代理。选择对应预设后填写自己的地址、模型和密钥。
+根域名自动补 `/v1/chat/completions` 或 `/v1/audio/speech`；带版本的 Base URL 在末尾补对应路径。自定义网关请填写完整路径。支持 OpenAI Chat Completions / Responses、Anthropic Messages、Ollama 及网站代理；自动处理 SSE、NDJSON 和完整 JSON，明确不支持流式的网关会回退一次。语音支持网站官方直供、OpenAI 兼容 Speech、MiMo、MiniMax、ElevenLabs、GPT-SoVITS 及网站代理。
 
-请求直接从设备发送到所填写的服务商，消耗你自己的服务额度；安装包不含共享 Key。API Key 保存在系统安全存储，对话缓存保存在本机。启用网站账号同步后，对话按现有房间逻辑同步到对应站点。
+自带服务的请求直接从设备发送到所填写的服务商，消耗你自己的服务额度；安装包不含共享 Key。官方语音使用当前站点的固定接口与既有钱包，成功合成 ¥0.05/条，失败不收费，超级管理员豁免由服务端核实。官方音色为日语，中文回复先通过当前聊天模型翻译，翻译按该模型规则计费；固定日文试听不调用翻译。有效缓存重播及网络重试复用原任务；停止不会撤销已提交的合成，应用重启或缓存失效后不承诺复用。可在支付中心查看语音账单，详情见[官方 TTS 说明](https://github.com/redchenk/tsukuyomi-space-app/blob/v0.6.28-beta.1/docs/native-official-tts-2026-10-23.md)。API Key 保存在系统安全存储，对话缓存保存在本机。启用网站账号同步后，对话按现有房间逻辑同步到对应站点。
 
 远程接口需 HTTPS。本机 HTTP 支持 localhost、127.0.0.1、::1；Android 模拟器可用 10.0.2.2 连接宿主机。手机 localhost 指向手机本身；连接电脑上的服务请提供 HTTPS 地址。
 

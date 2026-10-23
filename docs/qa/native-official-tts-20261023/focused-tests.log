@@ -1,0 +1,110 @@
+File modified during build. Build must be rerun.
+00:00 +0: loading /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_test.dart
+00:00 +0: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: base URLs, prefixed gateways and complete routes normalize without duplication
+00:00 +1: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_test.dart: official channel uses the fixed same-site job contract, not supplier keys or prices
+00:00 +2: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +3: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +4: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +5: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +6: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +7: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +8: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +9: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +10: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +11: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +12: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +13: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +14: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +15: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: actual HTTP LLM and TTS contracts use separate keys and decode returned bytes
+00:00 +16: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_test.dart: HTTP 429 never causes a hidden new paid request
+00:00 +17: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: JSON-only compatible LLM responses work even when streaming is requested
+00:00 +18: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: JSON-only compatible LLM responses work even when streaming is requested
+00:00 +19: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: JSON-only compatible LLM responses work even when streaming is requested
+00:00 +20: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_test.dart: saved account and origin must match before any paid transport is opened
+00:00 +21: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: provider auth failures are actionable and never echo provider secrets
+00:00 +22: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: provider auth failures are actionable and never echo provider secrets
+00:00 +23: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_test.dart: Unicode length is enforced before translation, rather than splitting surrogate pairs
+00:00 +24: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/compatible_services_test.dart: audio format persists separately from keys
+00:00 +25: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_test.dart: server job IDs cannot redirect private audio requests to arbitrary paths
+00:00 +26: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_test.dart: invalid audio does not trigger new synthesis or discard a paid job
+00:00 +27: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_test.dart: public readiness has no cookie or account headers and does not create a job
+00:00 +28: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +29: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +30: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +31: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +32: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +33: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +34: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +35: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +36: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +37: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +38: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +39: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +40: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +41: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +42: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:00 +43: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:01 +44: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:01 +45: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:01 +46: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:01 +47: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:01 +48: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:01 +49: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:01 +50: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:01 +51: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:01 +52: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: official voice saves without URL/model/key and without synthesis at 390.0
+00:01 +53: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: MCP transport can be selected and saved in zh at 390.0
+00:02 +54: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/payments_page_test.dart: operator settings use current account, precise rates, and never echo or overwrite a saved key
+00:02 +55: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/payments_page_test.dart: operator settings use current account, precise rates, and never echo or overwrite a saved key
+00:02 +56: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/payments_page_test.dart: operator settings use current account, precise rates, and never echo or overwrite a saved key
+00:02 +57: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: guest cannot select the official preset or start a charged preview
+00:02 +58: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: MCP transport can be selected and saved in ja at 390.0
+00:02 +59: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/payments_page_test.dart: native payment centre renders at 390.0 without plugin coupling or layout errors
+00:02 +60: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: offline selection can be saved but paid audition stays disabled
+00:02 +61: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: MCP transport can be selected and saved in ja at 1280.0
+00:03 +62: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: MCP transport can be selected and saved in ja at 1280.0
+00:03 +63: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: saving after account switch explicitly binds official voice to the new account
+00:03 +64: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: saving after account switch explicitly binds official voice to the new account
+00:03 +65: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/official_tts_ui_test.dart: saving after account switch explicitly binds official voice to the new account
+00:03 +66: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: MCP transport can be selected and saved in en at 390.0
+00:03 +67: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/payments_page_test.dart: late Alice responses are hidden after switching to Bob
+00:03 +68: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/payments_page_test.dart: late Alice responses are hidden after switching to Bob
+00:03 +69: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: MCP transport can be selected and saved in en at 1280.0
+00:03 +70: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings llm at 320.0 has usable controls without overflow
+00:03 +71: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings tts at 320.0 has usable controls without overflow
+00:03 +72: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings memory at 320.0 has usable controls without overflow
+00:03 +73: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings knowledge at 320.0 has usable controls without overflow
+00:04 +74: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings model at 320.0 has usable controls without overflow
+00:04 +75: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings diary at 320.0 has usable controls without overflow
+00:04 +76: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings mcp at 320.0 has usable controls without overflow
+00:04 +77: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings debug at 320.0 has usable controls without overflow
+00:04 +78: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings llm at 390.0 has usable controls without overflow
+00:04 +79: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings tts at 390.0 has usable controls without overflow
+00:04 +80: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings memory at 390.0 has usable controls without overflow
+00:04 +81: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings knowledge at 390.0 has usable controls without overflow
+00:05 +82: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings model at 390.0 has usable controls without overflow
+00:05 +83: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings diary at 390.0 has usable controls without overflow
+00:05 +84: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings mcp at 390.0 has usable controls without overflow
+00:05 +85: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings debug at 390.0 has usable controls without overflow
+00:05 +86: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings llm at 861.0 has usable controls without overflow
+00:05 +87: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings tts at 861.0 has usable controls without overflow
+00:05 +88: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings memory at 861.0 has usable controls without overflow
+00:05 +89: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings knowledge at 861.0 has usable controls without overflow
+00:05 +90: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings model at 861.0 has usable controls without overflow
+00:05 +91: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings diary at 861.0 has usable controls without overflow
+00:06 +92: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings mcp at 861.0 has usable controls without overflow
+00:06 +93: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings debug at 861.0 has usable controls without overflow
+00:06 +94: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings llm at 1280.0 has usable controls without overflow
+00:06 +95: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings tts at 1280.0 has usable controls without overflow
+00:06 +96: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings memory at 1280.0 has usable controls without overflow
+00:06 +97: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings knowledge at 1280.0 has usable controls without overflow
+00:06 +98: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings model at 1280.0 has usable controls without overflow
+00:06 +99: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings diary at 1280.0 has usable controls without overflow
+00:06 +100: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings mcp at 1280.0 has usable controls without overflow
+00:06 +101: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Room settings debug at 1280.0 has usable controls without overflow
+00:06 +102: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: model edits save without exposing secrets in preferences
+00:06 +103: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Anthropic workspace ID shows only for Claude and is saved
+00:07 +104: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Claude connection test rejects a max_tokens stop
+00:07 +105: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: Claude connection test rejects a refusal stop
+00:08 +106: /Users/yxy/Desktop/codex/tsukuyomi-space-app/test/room_settings_test.dart: capture settings desktop and mobile using native fonts
+00:08 +106 ~1: All tests passed!
