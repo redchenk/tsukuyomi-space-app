@@ -98,7 +98,7 @@ void main() {
       await tester.tap(find.byKey(const Key('deletion-submit')));
       await tester.pumpAndSettle();
       expect(site.writes.single['confirmation'], 'DELETE_ACCOUNT');
-      expect(site.writes.single['policyVersion'], '2026-10-22');
+      expect(site.writes.single['policyVersion'], '2026-10-24');
       expect(find.text('等待站长核验'), findsOneWidget);
       expect(find.byKey(const Key('deletion-submit')), findsNothing);
       expect(tester.takeException(), isNull);
