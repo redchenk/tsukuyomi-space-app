@@ -72,8 +72,7 @@ void main() {
       final platform = BrowserPlatform();
       InAppWebViewPlatform.instance = platform;
       addTearDown(() {
-        InAppWebViewPlatform.instance = oldPlatform;
-        debugDefaultTargetPlatformOverride = null;
+        if (oldPlatform != null) InAppWebViewPlatform.instance = oldPlatform;
       });
       final launches = <String>[];
       var installed = true;
