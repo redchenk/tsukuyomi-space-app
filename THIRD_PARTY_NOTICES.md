@@ -1,5 +1,15 @@
 # Third-party notices
 
+## QQ native login on Android
+
+Android includes Tencent QQ Connect SDK 3.5.19, downloaded from Tencent's
+official SDK page and pinned by SHA-256 in `tool/release/prepare_qq_sdk.py`.
+Copyright Tencent. Its developer agreement and privacy statement apply:
+https://wiki.connect.qq.com/开发者协议/
+https://wiki.connect.qq.com/qq互联sdk隐私保护声明/
+The source archive is not committed. QQ login initializes the SDK only after
+the user explicitly consents. This app does not use its sharing functionality.
+
 ## HarmonyOS branch adaptation
 
 The HarmonyOS platform project and initial plugin port were contributed by

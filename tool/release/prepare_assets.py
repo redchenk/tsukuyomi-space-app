@@ -38,6 +38,8 @@ def fetch(url, path, expected):
             time.sleep(3 * (attempt + 1))
 
 def main():
+    from prepare_qq_sdk import main as prepare_qq
+    prepare_qq()
     CACHE.mkdir(parents=True, exist_ok=True)
     archive = CACHE / f'{SDK_NAME}.zip'
     fetch(SDK_URL, archive, SDK_SHA256)

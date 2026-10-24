@@ -1,3 +1,5 @@
+import 'app_registration_link.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -596,7 +598,7 @@ class SiteBeianLinks extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = SiteChromeScope.maybeOf(context);
     if (controller == null || controller.hideDomesticRegistration) {
-      return const SizedBox();
+      return const AppRegistrationLink();
     }
     final beian = controller.beian;
     Widget link(String label, String value, {bool mps = false}) {
@@ -639,7 +641,7 @@ class SiteBeianLinks extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (beian.text.isNotEmpty) link(beian.text, beian.url),
+        const AppRegistrationLink(),
         if (beian.mpsText.isNotEmpty)
           link(beian.mpsText, beian.mpsUrl, mps: true),
       ],
@@ -665,18 +667,13 @@ bool siteShowsBeian(String path) {
       !page.startsWith('/room/');
 }
 
-/// Common footer for native page shells. Empty/unavailable settings occupy no
-/// space; the configured registration identifiers stay literal in every locale.
+/// Native app filing stays available independently of website settings.
 class SiteBeianFooter extends StatelessWidget {
   const SiteBeianFooter({super.key, this.path});
   final String? path;
   @override
   Widget build(BuildContext context) {
-    final controller = SiteChromeScope.maybeOf(context);
-    if (controller == null ||
-        controller.hideDomesticRegistration ||
-        !siteShowsBeian(path ?? ModalRoute.of(context)?.settings.name ?? '') ||
-        (controller.beian.text.isEmpty && controller.beian.mpsText.isEmpty)) {
+    if (!siteShowsBeian(path ?? ModalRoute.of(context)?.settings.name ?? '')) {
       return const SizedBox.shrink();
     }
     return const Padding(

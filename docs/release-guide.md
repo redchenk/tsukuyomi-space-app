@@ -1,11 +1,15 @@
-# 月读空间 0.6.28 测试版
+# 月读空间 0.6.29 测试版
+
+App 备案号：**苏ICP备2026030780号-3A**，应用入口及页脚可查看并进入工信部查询。小米安装器仍提示无法识别备案时，请在提醒内选择“填写申诉”，按[小米官方指南](https://dev.mi.com/xiaomihyperos/documentation/detail?pId=1781)填写备案对应信息；此提示由系统侧识别决定。
+
+本版修复密码登录后中文自动朗读的账号传递。Android 已预置官方 QQ 原生 SDK；移动应用仍在腾讯审核，配套服务端尚未上线，因此本版 QQ 原生登录暂不可用，请使用月读空间密码或邮箱登录。SDK 仅在用户选择 QQ 登录并单独同意后初始化；平台审核与 K90 实号授权验证仍待完成。
 
 ## 安装
 
 - Android：安装 `android-arm64-v8a.apk`（绝大多数手机）。x86_64 模拟器选择 x86_64。当前 Cubism SDK 已不提供 32 位 ARM 库，因此不发布 32 位 APK。允许安装来自浏览器或文件管理器的应用。所有 APK 使用同一持久发行密钥签名，可覆盖升级本测试版。
 - macOS：打开 DMG，将应用拖到 Applications。Universal 包同时支持 Apple Silicon 和 Intel。当前没有 Developer ID 签名和公证；首次启动可能需在“系统设置 → 隐私与安全性”允许打开此应用。无需关闭系统安全功能。
 - Windows 10/11 x64：运行 setup.exe。按当前用户安装，无需管理员权限；当前未使用商业代码签名，SmartScreen 可能显示未知发布者。安装程序包含经过微软签名验证的 WebView2 引导程序，缺少运行时会联网安装，以支持 QQ 登录。便携 ZIP 解压完整目录后也可运行，使用 QQ 前需运行包内的 `MicrosoftEdgeWebview2Setup.exe`。
-- Linux x64：使用 Ubuntu 22.04 构建，推荐 `sudo apt install ./tsukuyomi-space-0.6.28-linux-x64.deb` 自动安装该版本所需音视频运行库。需桌面登录会话及 Secret Service（如已解锁的 GNOME Keyring）保存密钥。其它发行版须具备相同运行库 ABI，尤其是构建时链接的 libmpv；tar.gz 为便携包，不包含系统 GTK、Secret Service、GStreamer、libmpv 和 libepoxy。DEB 的依赖根据实际安装包中全部 ELF 自动推导。
+- Linux x64：使用 Ubuntu 22.04 构建，推荐 `sudo apt install ./tsukuyomi-space-0.6.29-linux-x64.deb` 自动安装该版本所需音视频运行库。需桌面登录会话及 Secret Service（如已解锁的 GNOME Keyring）保存密钥。其它发行版须具备相同运行库 ABI，尤其是构建时链接的 libmpv；tar.gz 为便携包，不包含系统 GTK、Secret Service、GStreamer、libmpv 和 libepoxy。DEB 的依赖根据实际安装包中全部 ELF 自动推导。
 - iOS：下载 `ios-arm64-unsigned.ipa`，使用自签工具导入，并用自己的 Apple 账号或证书签名。签名器需重新签署 App 和所有内嵌 Framework，配置对应描述文件与 Keychain entitlement。IPA 是真实 iPhoneOS arm64 构建，不是模拟器包；未签名文件不能直接点击安装。签名有效期、设备数量与刷新方式取决于签名账号及工具。本版未做已签名 iPhone 真机验收。
 
 ## 配置真实模型和语音
@@ -18,7 +22,7 @@
 
 根域名自动补 `/v1/chat/completions` 或 `/v1/audio/speech`；带版本的 Base URL 在末尾补对应路径。自定义网关请填写完整路径。支持 OpenAI Chat Completions / Responses、Anthropic Messages、Ollama 及网站代理；自动处理 SSE、NDJSON 和完整 JSON，明确不支持流式的网关会回退一次。语音支持网站官方直供、OpenAI 兼容 Speech、MiMo、MiniMax、ElevenLabs、GPT-SoVITS 及网站代理。
 
-自带服务的请求直接从设备发送到所填写的服务商，消耗你自己的服务额度；安装包不含共享 Key。官方语音使用当前站点的固定接口与既有钱包，成功合成 ¥0.05/条，失败不收费，超级管理员豁免由服务端核实。官方音色为日语，中文回复先通过当前聊天模型翻译，翻译按该模型规则计费；固定日文试听不调用翻译。有效缓存重播及网络重试复用原任务；停止不会撤销已提交的合成，应用重启或缓存失效后不承诺复用。可在支付中心查看语音账单，详情见[官方 TTS 说明](https://github.com/redchenk/tsukuyomi-space-app/blob/v0.6.28-beta.1/docs/native-official-tts-2026-10-23.md)。API Key 保存在系统安全存储，对话缓存保存在本机。启用网站账号同步后，对话按现有房间逻辑同步到对应站点。
+自带服务的请求直接从设备发送到所填写的服务商，消耗你自己的服务额度；安装包不含共享 Key。官方语音使用当前站点的固定接口与既有钱包，成功合成 ¥0.05/条，失败不收费，超级管理员豁免由服务端核实。官方音色为日语，中文回复先通过当前聊天模型翻译，翻译按该模型规则计费；固定日文试听不调用翻译。有效缓存重播及网络重试复用原任务；停止不会撤销已提交的合成，应用重启或缓存失效后不承诺复用。可在支付中心查看语音账单，详情见[官方 TTS 说明](https://github.com/redchenk/tsukuyomi-space-app/blob/v0.6.29-beta.1/docs/native-official-tts-2026-10-23.md)。API Key 保存在系统安全存储，对话缓存保存在本机。启用网站账号同步后，对话按现有房间逻辑同步到对应站点。
 
 远程接口需 HTTPS。本机 HTTP 支持 localhost、127.0.0.1、::1；Android 模拟器可用 10.0.2.2 连接宿主机。手机 localhost 指向手机本身；连接电脑上的服务请提供 HTTPS 地址。
 
@@ -26,9 +30,11 @@
 
 0.6.9 的四季配色、分组导航、昼夜背景、网易云音乐和协议同步见 [网站同步记录](https://github.com/redchenk/tsukuyomi-space-app/blob/v0.6.9-beta.1/docs/native-site-sync-v0.6.9.md)。网易云使用网站既有后端，扫码、版权 / 会员曲目与网络播放仍需真实账号验收。
 
+0.6.29 修复设置页头像误弹登录与演示模式被误判为未登录；保存语音配置保持当前聊天模式。
+
 ## 原生整站页面与恢复
 
-主舞台、广场、成长、百科、图库、投稿编辑器、游戏、友情链接、个人中心与后台均为原生页面，使用设置中的站点账号。支持简体中文、日语与英文。密码、邮箱验证码登录、注册及重设密码使用网站同一服务。Android、iOS、macOS 和 Windows 支持 QQ 授权窗口，并使用原生注册、绑定邮箱及账号绑定页面接续；QQ 实号与提供商回调仍需用户实际账号验收。Linux 可使用密码或邮箱登录。
+主舞台、广场、成长、百科、图库、投稿编辑器、游戏、友情链接、个人中心与后台均为原生页面，使用设置中的站点账号。支持简体中文、日语与英文。密码、邮箱验证码登录、注册及重设密码使用网站同一服务。Android 使用 QQ 原生 SDK，iOS、macOS 和 Windows 保留 QQ 网页授权容器；均使用原生注册、绑定邮箱及账号绑定页面接续。网站与移动 QQ 身份按应用分配，已有用户可以先登录月读空间，再绑定移动 QQ。Linux 可使用密码或邮箱登录。
 
 - 主舞台：搜索、分类、排序、文章阅读、评论、点赞和收藏；前台停留满足网站要求后记录有效阅读。
 - 会话与记忆：同步网站最近 100 条消息（与服务端保留上限一致），搜索、编辑、删除记忆，分页读取云端日记。新消息生成前检索网站记忆。

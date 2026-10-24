@@ -295,7 +295,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           s.option('mcpEndpoint') != '/api/mcp/token-plan') {
         roomMcpEndpoint(s);
       }
-      final effective = s.usesOfficialApi ? await _verifiedOfficial(s) : s;
+      // Saving voice settings must not activate a stored paid chat endpoint
+      // while the user has explicitly kept chat in demo mode.
+      final effective = !s.demo && s.usesOfficialApi
+          ? await _verifiedOfficial(s)
+          : s;
       await c.configure(effective);
       if (effective.usesOfficialApi ||
           effective.option('ttsProvider') == 'official') {
@@ -619,10 +623,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   }
 
   Future<Map<String, dynamic>> _officialDashboard() async {
-    if (c.account == null ||
-        !c.sessionVerified ||
-        c.sessionExpired ||
-        c.settings.demo) {
+    // Demo controls chat generation, independently of the authenticated account.
+    if (c.account == null || !c.sessionVerified || c.sessionExpired) {
       throw const ApiFailure('请先登录月读空间，再使用站内直供');
     }
     if (c.site is! OfficialDataService) throw const ApiFailure('站内直供接口暂不可用');
@@ -1329,6 +1331,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                 testVoice ??= AudioVoice();
                 testVoice!
                   ..siteCookie = c.site.cookie
+                  ..siteAccountId = c.account?.id
                   ..siteService = c.site;
                 await testVoice!.speak(
                   _value(),
@@ -1918,7 +1921,14 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                   accountLabel: c.sessionExpired
                                       ? '重新登录'
                                       : c.account?.displayName ?? '登录',
-                                  onAccount: () => showSiteLogin(context, c),
+                                  onAccount: () {
+                                    if (c.account != null &&
+                                        !c.sessionExpired) {
+                                      unawaited(_go('/user'));
+                                    } else {
+                                      unawaited(showSiteLogin(context, c));
+                                    }
+                                  },
                                   onSearch: () =>
                                       showRoomSearch(context, c, _go),
                                   onSettings: () {},

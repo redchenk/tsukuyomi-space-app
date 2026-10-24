@@ -8,8 +8,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/models.dart';
+import '../../core/native_qq_sdk.dart';
 import '../../core/site_client.dart';
 import '../room/room_controller.dart';
 import 'site_widgets.dart';
@@ -105,6 +107,31 @@ class QQOAuthTarget {
               : uri.host == 'qq.com' || uri.host.endsWith('.qq.com')));
 }
 
+/// QQ's mobile web login opens its client with this narrowly scoped URI.
+/// Keep the web page alive: QQ completes the web authorization by polling.
+Uri? qqClientLoginUri(QQOAuthTarget target, Uri? source, Uri? destination) {
+  if (target.provider != 'qq' ||
+      source == null ||
+      destination == null ||
+      source.scheme != 'https' ||
+      source.userInfo.isNotEmpty ||
+      !(source.host == 'qq.com' || source.host.endsWith('.qq.com')) ||
+      !{
+        'wtloginmqq',
+        'wtloginmqq2',
+        'wtloginmqq3',
+      }.contains(destination.scheme) ||
+      destination.userInfo.isNotEmpty ||
+      destination.hasPort ||
+      destination.host != 'ptlogin' ||
+      destination.path != '/qlogin' ||
+      destination.hasFragment ||
+      destination.query.isEmpty) {
+    return null;
+  }
+  return destination;
+}
+
 /// Ephemeral OAuth transport. Browser-binding cookies never enter the ordinary
 /// SiteClient cookie jar, disk caches, or logs. Only the server-issued session
 /// is passed to RoomController after /me verification at the configured site.
@@ -120,6 +147,8 @@ class QQOAuthHttp {
     'tsukuyomi_qq_oauth',
   };
   static const paths = {
+    '/api/auth/oauth/qq/native/start',
+    '/api/auth/oauth/qq/native/complete',
     '/api/auth/oauth/qq/pending',
     '/api/auth/oauth/qq/email',
     '/api/auth/oauth/qq/bind',
@@ -271,6 +300,79 @@ Future<QQAuthGrant?> showQQAuthorization(
     'GET',
     '/api/settings',
   );
+  if (provider == 'qq' && defaultTargetPlatform == TargetPlatform.android) {
+    if (mapOf(response['data'])['qqNativeAppId'] != NativeQQSdk.appId) {
+      throw const ApiFailure('当前站点尚未启用 QQ 原生登录，请稍后重试或使用密码登录');
+    }
+    final configured = endpointUri(site);
+    if (configured.scheme != 'https' &&
+        !(configured.scheme == 'http' &&
+            ['localhost', '127.0.0.1', '::1'].contains(configured.host))) {
+      throw const ApiFailure('QQ 原生登录需要安全的站点地址');
+    }
+    if (!context.mounted) return null;
+    final consent = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('使用 QQ 登录'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '继续后将启用深圳市腾讯计算机系统有限公司的 QQ 互联 SDK，'
+                '检查 QQ 安装情况并打开 QQ。腾讯会处理设备型号等必要信息；'
+                '月读空间会接收你授权的账号标识、昵称和头像，用于登录或绑定账号。'
+                '你也可以取消并使用密码或邮箱登录。',
+              ),
+              TextButton(
+                onPressed: () => launchUrl(
+                  Uri.parse('https://wiki.connect.qq.com/qq互联sdk隐私保护声明/'),
+                  mode: LaunchMode.externalApplication,
+                ),
+                child: const Text('阅读 QQ 互联 SDK 隐私保护声明'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('同意并打开 QQ'),
+          ),
+        ],
+      ),
+    );
+    if (consent != true || !context.mounted) return null;
+    final target = QQOAuthTarget(
+      configured.resolve('/api/auth/oauth/qq/native/start'),
+      configured,
+    );
+    final transport = QQOAuthHttp(configured.origin);
+    if (bindCurrentAccount) {
+      final session = RegExp(r'(?:^|;\s*)tsukuyomi_session=([A-Za-z0-9._~\-]+)')
+          .firstMatch(controller.site.cookie ?? '');
+      if (session != null) {
+        transport.importCookies([MapEntry('tsukuyomi_session', session[1]!)]);
+      }
+    }
+    return authorizeNativeQQ(
+      target,
+      transport,
+      NativeQQSdk(),
+      redirect: redirect,
+      bind: bindCurrentAccount,
+      isCurrent: () =>
+          context.mounted &&
+          account == controller.account?.id &&
+          endpointUri(controller.settings.siteUrl).origin == configured.origin,
+    );
+  }
   final target = QQOAuthTarget.fromSettings(
     site,
     mapOf(response['data']),
@@ -304,6 +406,68 @@ Future<QQAuthGrant?> showQQAuthorization(
     throw const ApiFailure('账号或站点已切换，请重新授权');
   }
   return grant;
+}
+
+/// Exchanges only in-memory SDK credentials at the configured site's origin.
+/// The server verifies the QQ token, AppID and OpenID before issuing a session.
+Future<QQAuthGrant?> authorizeNativeQQ(
+  QQOAuthTarget target,
+  QQOAuthHttp transport,
+  NativeQQSdk sdk, {
+  required bool Function() isCurrent,
+  String redirect = '/hub',
+  bool bind = false,
+}) async {
+  var retained = false;
+  void checkCurrent() {
+    if (!isCurrent()) throw const ApiFailure('账号或站点已切换，请重新授权');
+    if (transport.origin != target.configuredSite.origin ||
+        target.origin != transport.origin) {
+      throw const ApiFailure('QQ 授权站点不匹配');
+    }
+  }
+
+  try {
+    checkCurrent();
+    final start = mapOf(
+      (await transport.request('POST', '/api/auth/oauth/qq/native/start', {
+        'action': bind ? 'bind' : 'login',
+        'redirect': sanitizeAuthRedirect(redirect),
+      }))['data'],
+    );
+    if (start['appId'] != NativeQQSdk.appId ||
+        !RegExp(r'^[a-f0-9]{48}$').hasMatch('${start['state'] ?? ''}') ||
+        !transport.hasBinding) {
+      throw const ApiFailure('QQ 原生登录配置无效');
+    }
+    checkCurrent();
+    final credentials = await sdk.login();
+    if (credentials == null) return null;
+    checkCurrent();
+    final complete = mapOf(
+      (await transport.request('POST', '/api/auth/oauth/qq/native/complete', {
+        ...credentials,
+        'state': start['state'],
+      }))['data'],
+    );
+    checkCurrent();
+    final ticket = '${complete['ticket'] ?? ''}';
+    if (ticket.isEmpty
+        ? transport.sessionCookie == null
+        : !RegExp(r'^[a-f0-9]{48}$').hasMatch(ticket) ||
+              !transport.hasBinding) {
+      throw const ApiFailure('QQ 授权未返回有效会话');
+    }
+    retained = true;
+    return QQAuthGrant(
+      target: target,
+      transport: transport,
+      ticket: ticket,
+      redirect: sanitizeAuthRedirect('${complete['redirect'] ?? redirect}'),
+    );
+  } finally {
+    if (!retained) transport.dispose();
+  }
 }
 
 Future<QQAuthGrant?> showGitHubAuthorization(
@@ -364,6 +528,7 @@ class _QQBrowserState extends State<_QQBrowser> {
   WebViewEnvironment? _environment;
   Directory? _temporary;
   InAppWebViewController? _browser;
+  final _popupWindows = <int, Uri>{};
   String _error = '';
   int _progress = 0;
   bool _ready = false, _finishing = false;
@@ -429,7 +594,7 @@ class _QQBrowserState extends State<_QQBrowser> {
   Future<void> _check(WebUri? webUri) async {
     if (_finishing || webUri == null || !mounted) return;
     final uri = Uri.tryParse(webUri.toString());
-    if (uri == null) return;
+    if (uri == null || !widget.target.permits(uri)) return;
     if (uri.origin != widget.target.origin &&
         uri.origin != widget.target.configuredSite.origin) {
       return;
@@ -524,6 +689,108 @@ class _QQBrowserState extends State<_QQBrowser> {
     }
   }
 
+  Future<Uri?> _source(InAppWebViewController view, int? windowId) async {
+    final current = Uri.tryParse((await view.getUrl())?.toString() ?? '');
+    // about:blank inherits its opener's origin. Retain it for a popup that
+    // immediately invokes QQ before navigating to an HTTPS document.
+    return current == null ||
+            current.toString().isEmpty ||
+            current.toString() == 'about:blank'
+        ? _popupWindows[windowId]
+        : current;
+  }
+
+  Future<bool> _openQQ(
+    InAppWebViewController view,
+    Uri? uri,
+    int? windowId,
+  ) async {
+    if (uri == null ||
+        !{'wtloginmqq', 'wtloginmqq2', 'wtloginmqq3'}.contains(uri.scheme)) {
+      return false;
+    }
+    final current = await _source(view, windowId);
+    final target = qqClientLoginUri(widget.target, current, uri);
+    if (target == null) return false;
+    var opened = false;
+    try {
+      opened = await launchUrl(target, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      /* Preserve the web login when QQ is unavailable. */
+    }
+    if (mounted) {
+      setState(
+        () => _error = opened ? '' : '无法打开 QQ，请确认已安装 QQ 并允许应用跳转，或在授权页使用账号密码登录。',
+      );
+    }
+    return true;
+  }
+
+  Widget _webView({int? windowId}) => InAppWebView(
+    windowId: windowId,
+    webViewEnvironment: _environment,
+    initialUrlRequest: windowId == null
+        ? URLRequest(url: WebUri(widget.target.start.toString()))
+        : null,
+    initialSettings: InAppWebViewSettings(
+      useShouldOverrideUrlLoading: true,
+      javaScriptEnabled: true,
+      javaScriptCanOpenWindowsAutomatically: true,
+      supportMultipleWindows: true,
+      thirdPartyCookiesEnabled: true,
+    ),
+    onWebViewCreated: (view) {
+      if (windowId == null) _browser = view;
+    },
+    onProgressChanged: (_, progress) {
+      if (mounted) setState(() => _progress = progress);
+    },
+    onLoadStop: (_, url) => _check(url),
+    onUpdateVisitedHistory: (_, url, _) => _check(url),
+    shouldOverrideUrlLoading: (view, action) async {
+      final uri = Uri.tryParse(action.request.url?.toString() ?? '');
+      if (await _openQQ(view, uri, windowId)) {
+        return NavigationActionPolicy.CANCEL;
+      }
+      return uri != null &&
+              (widget.target.permits(uri) ||
+                  (windowId != null && uri.toString() == 'about:blank'))
+          ? NavigationActionPolicy.ALLOW
+          : NavigationActionPolicy.CANCEL;
+    },
+    onCreateWindow: (view, action) async {
+      final uri = Uri.tryParse(action.request.url?.toString() ?? '');
+      if (await _openQQ(view, uri, windowId)) return false;
+      final current = await _source(view, windowId);
+      if (!mounted ||
+          current == null ||
+          !widget.target.permits(current) ||
+          (uri != null &&
+              uri.toString().isNotEmpty &&
+              uri.toString() != 'about:blank' &&
+              !widget.target.permits(uri)) ||
+          _popupWindows.length >= 3) {
+        return false;
+      }
+      // Use the native window ID so window.opener and blank-window redirects
+      // survive. Reloading the URL in the parent loses this OAuth context.
+      setState(() => _popupWindows[action.windowId] = current);
+      return true;
+    },
+    onCloseWindow: (_) {
+      if (mounted && windowId != null) {
+        setState(() => _popupWindows.remove(windowId));
+      }
+    },
+    onReceivedError: (_, request, error) {
+      if (request.isForMainFrame == true && mounted) {
+        setState(
+          () => _error = '${widget.target.name} 授权页面加载失败：${error.description}',
+        );
+      }
+    },
+  );
+
   @override
   Widget build(BuildContext context) => Dialog(
     insetPadding: const EdgeInsets.all(12),
@@ -557,7 +824,10 @@ class _QQBrowserState extends State<_QQBrowser> {
                   Text(_error),
                   TextButton(
                     onPressed: () {
-                      setState(() => _error = '');
+                      setState(() {
+                        _error = '';
+                        _popupWindows.clear();
+                      });
                       if (_browser != null) {
                         _browser!.loadUrl(
                           urlRequest: URLRequest(
@@ -575,48 +845,20 @@ class _QQBrowserState extends State<_QQBrowser> {
             ),
           if (_ready)
             Expanded(
-              child: InAppWebView(
-                webViewEnvironment: _environment,
-                initialUrlRequest: URLRequest(
-                  url: WebUri(widget.target.start.toString()),
-                ),
-                initialSettings: InAppWebViewSettings(
-                  useShouldOverrideUrlLoading: true,
-                  javaScriptEnabled: true,
-                  javaScriptCanOpenWindowsAutomatically: true,
-                  supportMultipleWindows: true,
-                  thirdPartyCookiesEnabled: true,
-                ),
-                onWebViewCreated: (view) => _browser = view,
-                onProgressChanged: (_, progress) {
-                  if (mounted) setState(() => _progress = progress);
-                },
-                onLoadStop: (_, url) => _check(url),
-                onUpdateVisitedHistory: (_, url, _) => _check(url),
-                shouldOverrideUrlLoading: (_, action) async {
-                  final uri = Uri.tryParse(
-                    action.request.url?.toString() ?? '',
-                  );
-                  return uri != null && widget.target.permits(uri)
-                      ? NavigationActionPolicy.ALLOW
-                      : NavigationActionPolicy.CANCEL;
-                },
-                onCreateWindow: (view, action) async {
-                  final url = action.request.url,
-                      uri = Uri.tryParse(url?.toString() ?? '');
-                  if (url == null ||
-                      uri == null ||
-                      !widget.target.permits(uri)) {
-                    return false;
-                  }
-                  await view.loadUrl(urlRequest: URLRequest(url: url));
-                  return true;
-                },
-                onReceivedError: (_, request, error) {
-                  if (request.isForMainFrame == true && mounted) {
-                    setState(() => _error = 'QQ 授权页面加载失败：${error.description}');
-                  }
-                },
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Offstage(
+                    offstage: _popupWindows.isNotEmpty,
+                    child: _webView(),
+                  ),
+                  for (final id in _popupWindows.keys)
+                    Offstage(
+                      key: ValueKey(id),
+                      offstage: id != _popupWindows.keys.last,
+                      child: _webView(windowId: id),
+                    ),
+                ],
               ),
             )
           else

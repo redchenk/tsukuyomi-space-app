@@ -1,6 +1,6 @@
 # 月读空间 · Flutter 原生客户端
 
-Tsukuyomi Space 的独立 Flutter 客户端。0.6.28 官方八千代语音 / Live2D / 桌面 Agent 测试版提供原生 Room、统一认证、内容阅读与创作、社区、游戏和管理页面，直接连接原网站 API。
+Tsukuyomi Space 的独立 Flutter 客户端。0.6.29 登录状态修复与官方八千代语音 / Live2D / 桌面 Agent 测试版提供原生 Room、统一认证、内容阅读与创作、社区、游戏和管理页面，直接连接原网站 API。
 
 站内直供、原生支付中心、充值订单、用量账单及支付宝移动支付的开发同步与验收边界见 [站内直供与原生支付中心](docs/native-official-payments-2026-10-21.md)。移动应用的 App 支付采用独立服务端凭据，SDK 回调后由主站查单确认到账。
 

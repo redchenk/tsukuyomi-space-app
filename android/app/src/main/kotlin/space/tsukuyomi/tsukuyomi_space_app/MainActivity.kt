@@ -15,14 +15,23 @@ import space.tsukuyomi.live2d.Live2DGpu
 
 class MainActivity : FlutterActivity() {
     private var live2dGpu: Live2DGpu? = null
+    private var qqAuth: NativeQQAuth? = null
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         live2dGpu?.dispose()
         live2dGpu = null
+        qqAuth?.dispose()
+        qqAuth = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         live2dGpu = Live2DGpu(flutterEngine)
+        qqAuth = NativeQQAuth(this)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "space.tsukuyomi/qq_auth")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "login") qqAuth?.login(call.argument<Boolean>("consent") == true, result)
+                else result.notImplemented()
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "space.tsukuyomi/app_update")
             .setMethodCallHandler { call, result ->
                 if (call.method == "supportedAbis") {
@@ -81,4 +90,9 @@ class MainActivity : FlutterActivity() {
     @Suppress("DEPRECATION")
     private fun versionCode(info: PackageInfo): Long =
         if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        qqAuth?.onActivityResult(requestCode, resultCode, data)
+        super.onActivityResult(requestCode, resultCode, data)
+    }
 }

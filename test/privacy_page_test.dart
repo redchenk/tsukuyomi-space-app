@@ -27,6 +27,11 @@ class PrivacySite extends FakeSite implements SiteDataService {
     if (pending != null && method == 'GET') return pending!.future;
     if (fail) throw const ApiFailure('服务暂不可用');
     if (method == 'POST') {
+      // Match the currently deployed backend; newer native policy dates must
+      // not make an unchanged deletion request unusable during staged rollout.
+      if (!path.endsWith('/cancel') && body?['policyVersion'] != '2026-10-23') {
+        throw const ApiFailure('请阅读当前注销说明并确认申请。');
+      }
       writes.add(body ?? {});
       record = {
         'id': 'private-reference',
@@ -79,7 +84,7 @@ void main() {
     },
   );
   testWidgets(
-    'explicit confirmation submits, displays receipt and prevents duplicate form',
+    'explicit confirmation uses deployed deletion terms, displays receipt and prevents duplicates',
     (tester) async {
       final site = PrivacySite();
       await mount(tester, site);
@@ -98,7 +103,7 @@ void main() {
       await tester.tap(find.byKey(const Key('deletion-submit')));
       await tester.pumpAndSettle();
       expect(site.writes.single['confirmation'], 'DELETE_ACCOUNT');
-      expect(site.writes.single['policyVersion'], '2026-10-22');
+      expect(site.writes.single['policyVersion'], '2026-10-23');
       expect(find.text('等待站长核验'), findsOneWidget);
       expect(find.byKey(const Key('deletion-submit')), findsNothing);
       expect(tester.takeException(), isNull);

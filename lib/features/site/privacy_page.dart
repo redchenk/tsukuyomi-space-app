@@ -28,6 +28,12 @@ class PrivacyPage extends StatefulWidget {
 class _PrivacyPageState extends State<PrivacyPage> {
   RoomController get c => widget.controller;
   final Map<String, dynamic> _policy = privacyPolicy;
+  // The 24 October policy adds QQ SDK disclosure only. Its deletion terms
+  // are identical to 23 October, which the deployed website still accepts.
+  // A future policy version must be assessed again instead of reusing this.
+  String get _deletionPolicyVersion => _policy['version'] == '2026-10-24'
+      ? '2026-10-23'
+      : textOf(_policy, 'version');
   Map<String, dynamic> _request = {};
   String _error = '', _scope = '';
   bool _busy = false, _loading = true, _confirmed = false;
@@ -247,7 +253,7 @@ class _PrivacyPageState extends State<PrivacyPage> {
                   ? null
                   : () => _run('POST', '/api/account-deletion', {
                       'confirmation': 'DELETE_ACCOUNT',
-                      'policyVersion': _policy['version'],
+                      'policyVersion': _deletionPolicyVersion,
                     }),
               child: Text(t('提交注销申请', 'Submit deletion request')),
             ),

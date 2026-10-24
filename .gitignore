@@ -61,6 +61,7 @@ assets/live2d/textures/*
 *.keystore
 *.jks
 artifacts/
+/android/app/libs/qq-open-sdk.jar
 
 /dist/
 

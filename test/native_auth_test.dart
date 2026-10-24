@@ -55,6 +55,51 @@ Future<void> authMount(WidgetTester tester, Widget child) async {
 }
 
 void main() {
+  test('QQ mobile login handoff allows only QQ login URIs from QQ pages', () {
+    final target = QQOAuthTarget.fromSettings('https://yachiyo.hk', {
+      'qqOAuthStartUrl': 'https://yachiyo.hk/api/auth/oauth/qq/start',
+    }, '/hub');
+    final source = Uri.parse('https://xui.ptlogin2.qq.com/cgi-bin/xlogin');
+    for (final scheme in ['wtloginmqq', 'wtloginmqq2', 'wtloginmqq3']) {
+      final uri = Uri.parse('$scheme://ptlogin/qlogin?qrcode=fixture');
+      expect(qqClientLoginUri(target, source, uri), uri);
+      expect(target.permits(uri), isFalse);
+    }
+    final destination = Uri.parse('wtloginmqq://ptlogin/qlogin?p=fixture');
+    for (final untrusted in [
+      'https://qq.com.evil.test/login',
+      'https://evil.test',
+      'https://yachiyo.hk',
+      'http://xui.ptlogin2.qq.com',
+      'https://user@xui.ptlogin2.qq.com',
+    ]) {
+      expect(
+        qqClientLoginUri(target, Uri.parse(untrusted), destination),
+        isNull,
+      );
+    }
+    for (final invalid in [
+      'intent://ptlogin/qlogin?p=x',
+      'mqqapi://share/to_fri?x=y',
+      'javascript:alert(1)',
+      'wtloginmqq://other/qlogin?p=x',
+      'wtloginmqq://ptlogin/settings?p=x',
+      'wtloginmqq://user@ptlogin/qlogin?p=x',
+      'wtloginmqq://ptlogin:80/qlogin?p=x',
+      'wtloginmqq://ptlogin/qlogin',
+    ]) {
+      expect(qqClientLoginUri(target, source, Uri.parse(invalid)), isNull);
+    }
+    expect(
+      qqClientLoginUri(
+        QQOAuthTarget(target.start, target.configuredSite, provider: 'github'),
+        source,
+        destination,
+      ),
+      isNull,
+    );
+  });
+
   test('auth redirect preserves internal query/hash and rejects external or auth loops', () {
     expect(
       sanitizeAuthRedirect('/articles/42/故事?view=full#notes'),
