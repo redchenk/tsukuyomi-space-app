@@ -233,13 +233,13 @@ void main() {
   test('official image chat follows server capabilities and keeps the same site account', () async {
     const dataUrl =
         'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jE1sAAAAASUVORK5CYII=';
-    for (final vision in [false, true]) {
+    for (final vision in [null, false, 'true', true]) {
       var posts = 0;
       final data = dashboard();
       (data['models'] as List).first['capabilities'] = {'vision': vision};
       expect(
         ModelRuntime(officialRoomSettings(official, data)).unsupported('image'),
-        !vision,
+        vision != true,
       );
       final llm =
           LlmClient(
@@ -280,7 +280,7 @@ void main() {
             ..siteCookie = 'tsukuyomi_session=a'
             ..siteAccountId = 'alice'
             ..image = {'dataUrl': dataUrl, 'type': 'image/png'};
-      if (vision) {
+      if (vision == true) {
         expect(await llm.reply(official, [], '看图').join(), '看见了图片');
         expect(posts, 1);
       } else {

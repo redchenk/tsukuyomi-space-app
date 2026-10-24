@@ -40,6 +40,10 @@ Map<String, dynamic> officialDashboard(
   return data;
 }
 
+bool officialModelSupportsImages(Map model) =>
+    model['capabilities'] is Map &&
+    (model['capabilities'] as Map)['vision'] == true;
+
 RoomSettings officialRoomSettings(
   RoomSettings settings,
   Map<String, dynamic> dashboard,
@@ -54,9 +58,7 @@ RoomSettings officialRoomSettings(
   );
   if (models.isEmpty) throw const ApiFailure('该站内模型暂不可用，请刷新模型列表');
   final model = models.first;
-  final vision =
-      model['capabilities'] is Map &&
-      (model['capabilities'] as Map)['vision'] == true;
+  final vision = officialModelSupportsImages(model);
   final next = settings.copyWith(
     llmUrl: endpointUri(settings.siteUrl)
         .resolve('/official-api/v1/chat/completions')

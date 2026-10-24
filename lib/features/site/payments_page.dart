@@ -602,8 +602,10 @@ class _PaymentsPageState extends State<PaymentsPage>
                         ),
                       ),
                       Text(
-                        '${model['provider']} · 最多输出 ${model['max_output_tokens']} Token · ${model['enabled'] == true ? '服务已启用' : '暂未开放'}',
+                        '${model['provider']} · ${officialModelSupportsImages(model) ? '文字与图片' : '文字'} · 最多输出 ${model['max_output_tokens']} Token · ${model['enabled'] == true ? '服务已启用' : '暂未开放'}',
                       ),
+                      if (officialModelSupportsImages(model))
+                        const Text('Room 可直接发送图片，图片与文字按实际 Token 用量统一计费。'),
                       if (model['price'] is Map) ...[
                         for (final rate in {
                           'input_uncached': '输入 · 未命中缓存',
