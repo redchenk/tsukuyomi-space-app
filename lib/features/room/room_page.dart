@@ -822,6 +822,10 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
+              style: TextButton.styleFrom(
+                backgroundColor: p.glass,
+                foregroundColor: p.ink,
+              ),
               onPressed: () => showRoomSettings(context, c, guidedSetup: true),
               icon: const Icon(Icons.tune, size: 18),
               label: const SiteText('配置聊天模型'),
