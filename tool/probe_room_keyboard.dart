@@ -116,18 +116,22 @@ Future<void> probeAndroidRoomKeyboard(Live2DModel model) async {
         ),
       );
       await WidgetsBinding.instance.endOfFrame;
-      if (!activity.value) throw StateError('Native drag did not yield scene');
-      final beforeDrag = modelUpdates;
-      await Future<void>.delayed(const Duration(milliseconds: 250));
-      if (modelUpdates != beforeDrag) {
-        throw StateError('Native model kept updating during drag');
+      if (!activity.value) {
+        throw StateError('Native drag did not signal activity');
       }
+      final beforeDrag = modelUpdates;
+      await _wait(
+        () => activity.value && modelUpdates > beforeDrag,
+        'model advances during drag',
+      );
+      final duringDrag = modelUpdates - beforeDrag;
+      final afterDrag = modelUpdates;
       drag.cancel();
       await _wait(() => !activity.value, 'drag completes');
-      await _wait(() => modelUpdates > beforeDrag, 'model resumes after drag');
+      await _wait(() => modelUpdates > afterDrag, 'model continues after drag');
       // ignore: avoid_print
       print(
-        'TSUKUYOMI_ROOM_LAZY_OK turns=2000 sentences=600 mounted_texts=$mountedTexts drag_model_updates=0 resumed=true',
+        'TSUKUYOMI_ROOM_LAZY_OK turns=2000 sentences=600 mounted_texts=$mountedTexts drag_model_updates=$duringDrag animation_continues=true resumed=true',
       );
     } finally {
       model.removeListener(updated);
