@@ -985,6 +985,12 @@ const nativeSiteMessages = <String, Map<String, String>>{
 };
 const nativeSiteSupplementalMessages = <String, Map<String, String>>{
   "zh": {
+    "nativeUi.d15fb2cbfc5c": "稍后设置",
+    "nativeUi.ff1b071152b1": "开始记录你的月下旅程",
+    "nativeUi.90bdd33b0e5e": "验证邮箱，重新设置密码",
+    "nativeUi.aa9b47294968": "应用更新",
+    "nativeUi.8f02b11ff9db": "更多 App 功能",
+    "nativeUi.00da7158858f": "写下你的留言…",
     "sourceUi.7b784b34b4f5": "先完成聊天设置，再在下方发一句话。收到回复后，就可以继续聊了；语音可以稍后开启。",
     "sourceUi.45b215c5acdc": "第一次使用 / 发现功能",
     "sourceUi.79f18ea62c71": "当前好感度",
@@ -4147,6 +4153,12 @@ const nativeSiteSupplementalMessages = <String, Map<String, String>>{
     "nativeAssetPagination": "{total} 项 · 第 {page} / {pages} 页",
   },
   "ja": {
+    "nativeUi.d15fb2cbfc5c": "あとで設定",
+    "nativeUi.ff1b071152b1": "月夜の旅を記録しましょう",
+    "nativeUi.90bdd33b0e5e": "メールを確認してパスワードを再設定",
+    "nativeUi.aa9b47294968": "アプリの更新",
+    "nativeUi.8f02b11ff9db": "その他のアプリ機能",
+    "nativeUi.00da7158858f": "メッセージを書きましょう…",
     "sourceUi.7b784b34b4f5":
         "チャットを設定し、下の欄から話しかけてみましょう。返信が届いたら会話を続けられます。音声は後から設定できます。",
     "sourceUi.45b215c5acdc": "使い方・機能を見つける",
@@ -7330,6 +7342,12 @@ const nativeSiteSupplementalMessages = <String, Map<String, String>>{
     "nativeAssetPagination": "{total}件 · {page} / {pages}ページ",
   },
   "en": {
+    "nativeUi.d15fb2cbfc5c": "Set up later",
+    "nativeUi.ff1b071152b1": "Start your moonlit journey",
+    "nativeUi.90bdd33b0e5e": "Verify your email to reset your password",
+    "nativeUi.aa9b47294968": "App updates",
+    "nativeUi.8f02b11ff9db": "More app features",
+    "nativeUi.00da7158858f": "Write a message…",
     "sourceUi.7b784b34b4f5": "Finish chat setup, then send a message below. Once a reply arrives, keep chatting; voice can be enabled later.",
     "sourceUi.45b215c5acdc": "Getting started / Discover features",
     "sourceUi.79f18ea62c71": "Current affection",

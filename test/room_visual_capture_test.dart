@@ -88,10 +88,15 @@ void main() {
       expect(tester.takeException(), isNull);
       final form = size.width > 860 ? 'desktop' : 'mobile';
       await _capture(tester, 'native-room-$form');
+      await tester.ensureVisible(find.text('稍后设置'));
+      await tester.tap(find.text('稍后设置'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const Key('room-quick-setup')), findsNothing);
+      await _capture(tester, 'native-room-ready-$form');
       await tester.tap(
         size.width > 860
             ? find.byKey(const Key('site-navigation-group-0'))
-            : find.byIcon(Icons.menu_rounded),
+            : find.byTooltip('探索'),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));

@@ -35,16 +35,39 @@ class ContentPageShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = RoomStyle(context),
-        narrow = MediaQuery.sizeOf(context).width < 650;
+        narrow = MediaQuery.sizeOf(context).width <= 860;
     final content = SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: EdgeInsets.all(narrow ? 14 : 24),
+      clipBehavior: Clip.none,
+      padding: EdgeInsets.fromLTRB(
+        narrow ? 14 : 24,
+        narrow ? 14 : 24,
+        narrow ? 14 : 24,
+        24,
+      ),
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (narrow && loading)
+                const LinearProgressIndicator(minHeight: 2),
+              if (narrow && controller.sessionExpired)
+                MaterialBanner(
+                  content: const SiteText('登录已过期，本机草稿已保留。'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => showSiteLogin(context, controller),
+                      child: const SiteText('重新登录'),
+                    ),
+                  ],
+                ),
+              if (narrow && toolbar != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: toolbar!,
+                ),
               if (notice.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
@@ -71,64 +94,63 @@ class ContentPageShell extends StatelessWidget {
         ),
       ),
     );
+    final header = SiteHeader(
+      title: title,
+      username: controller.sessionExpired
+          ? null
+          : controller.account?.displayName,
+      role: controller.sessionExpired ? null : controller.account?.role,
+      onGo: onGo,
+      onTheme: onTheme,
+      onLogin: () {
+        if (controller.account == null || controller.sessionExpired) {
+          showSiteLogin(context, controller);
+        } else {
+          onGo('/user');
+        }
+      },
+    );
+    final scroll = onRefresh == null
+        ? content
+        : RefreshIndicator(onRefresh: onRefresh!, child: content);
     return Scaffold(
       backgroundColor: p.background,
       body: SiteBackground(
         child: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: EdgeInsets.all(narrow ? 14 : 24),
-                child: SiteHeader(
-                  title: title,
-                  username: controller.sessionExpired
-                      ? null
-                      : controller.account?.displayName,
-                  role: controller.sessionExpired
-                      ? null
-                      : controller.account?.role,
-                  onGo: onGo,
-                  onTheme: onTheme,
-                  onLogin: () {
-                    if (controller.account == null ||
-                        controller.sessionExpired) {
-                      showSiteLogin(context, controller);
-                    } else {
-                      onGo('/user');
-                    }
-                  },
-                ),
-              ),
-              if (loading) const LinearProgressIndicator(minHeight: 2),
-              if (controller.sessionExpired)
-                MaterialBanner(
-                  content: const SiteText('登录已过期，本机草稿已保留。'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => showSiteLogin(context, controller),
-                      child: const SiteText('重新登录'),
-                    ),
+          child: narrow
+              ? Stack(
+                  children: [
+                    Positioned.fill(top: 80, child: scroll),
+                    Positioned(top: 10, left: 12, right: 12, child: header),
+                  ],
+                )
+              : Column(
+                  children: [
+                    Padding(padding: const EdgeInsets.all(24), child: header),
+                    if (loading) const LinearProgressIndicator(minHeight: 2),
+                    if (controller.sessionExpired)
+                      MaterialBanner(
+                        content: const SiteText('登录已过期，本机草稿已保留。'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => showSiteLogin(context, controller),
+                            child: const SiteText('重新登录'),
+                          ),
+                        ],
+                      ),
+                    if (toolbar != null)
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: maxWidth),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: toolbar,
+                          ),
+                        ),
+                      ),
+                    Expanded(child: scroll),
                   ],
                 ),
-              if (toolbar != null)
-                Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: maxWidth),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: narrow ? 14 : 24,
-                      ),
-                      child: toolbar,
-                    ),
-                  ),
-                ),
-              Expanded(
-                child: onRefresh == null
-                    ? content
-                    : RefreshIndicator(onRefresh: onRefresh!, child: content),
-              ),
-            ],
-          ),
         ),
       ),
     );

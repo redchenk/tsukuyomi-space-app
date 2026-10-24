@@ -56,7 +56,11 @@ class SiteSeasonalSurface extends StatelessWidget {
                   stops: const [0, .40, .60, 1],
                 ).createShader(bounds),
                 child: Opacity(
-                  opacity: p.dark ? .80 : .78,
+                  opacity: menu
+                      ? .40
+                      : p.dark
+                      ? .80
+                      : .58,
                   child: LayoutBuilder(
                     builder: (context, box) {
                       final compact = MediaQuery.sizeOf(context).width <= 860;

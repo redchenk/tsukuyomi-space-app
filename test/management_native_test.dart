@@ -332,7 +332,9 @@ void main() {
             ),
           ),
         );
-        await tester.tap(find.byTooltip('探索'));
+        await tester.tap(find.byTooltip('账号菜单'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('更多 App 功能'));
         await tester.pumpAndSettle();
         final permitted = role == 'admin' || role == 'super_admin';
         expect(find.text('内容管理'), permitted ? findsOneWidget : findsNothing);

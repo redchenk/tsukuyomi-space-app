@@ -236,6 +236,8 @@ ThemeData siteTheme(bool dark, {SiteSeason season = SiteSeason.spring}) {
     dividerColor: p.line,
     disabledColor: p.muted.withValues(alpha: .48),
     fontFamilyFallback: const [
+      'MiSans',
+      'HarmonyOS Sans SC',
       'PingFang SC',
       'Microsoft YaHei',
       'Noto Sans CJK SC',

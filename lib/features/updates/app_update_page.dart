@@ -9,6 +9,7 @@ import '../../core/app_update_release.dart';
 import '../room/room_controller.dart';
 import '../room/room_style.dart';
 import '../site/native_site_shell.dart';
+import '../site/site_icon.dart';
 import 'update_copy.dart';
 
 class AppUpdateScope extends InheritedWidget {
@@ -27,7 +28,12 @@ class AppUpdateScope extends InheritedWidget {
 
 /// Only this small indicator observes download progress, not the Room tree.
 class AppUpdateButton extends StatelessWidget {
-  const AppUpdateButton({super.key, required this.onOpen});
+  const AppUpdateButton({
+    super.key,
+    required this.onOpen,
+    this.mobileLabel = false,
+  });
+  final bool mobileLabel;
   final VoidCallback onOpen;
   @override
   Widget build(BuildContext context) {
@@ -45,7 +51,19 @@ class AppUpdateButton extends StatelessWidget {
         },
         icon: Badge(
           isLabelVisible: controller.hasUpdate,
-          child: const Icon(Icons.system_update_alt, size: 21),
+          child: mobileLabel
+              ? const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SiteIcon('download', size: 19),
+                      SizedBox(height: 1),
+                      Text('App', style: TextStyle(fontSize: 9, height: 1.2)),
+                    ],
+                  ),
+                )
+              : const Icon(Icons.system_update_alt, size: 21),
         ),
       ),
     );

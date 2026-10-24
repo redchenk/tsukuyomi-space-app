@@ -2,6 +2,8 @@ import 'features/site/privacy_page.dart';
 import 'core/site_localization.dart';
 import 'core/desktop_window.dart';
 
+import 'package:flutter/foundation.dart'
+    show LicenseEntryWithLineBreaks, LicenseRegistry;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -48,6 +50,11 @@ import 'features/live2d/live2d_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks([
+      'Tsukuyomi site icons (Lucide / Feather)',
+    ], await rootBundle.loadString('assets/images/site-icons.LICENSE.txt'));
+  });
   final window = await DesktopWindowController.create();
   final preferences = await SharedPreferences.getInstance();
   final controller = RoomController(
@@ -99,6 +106,7 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
   final _navigator = GlobalKey<NavigatorState>();
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   late final ValueNotifier<String> _activePath;
+  final _modalOpen = ValueNotifier(false);
   bool get _dark => _theme.dark;
   int _updateNotification = 0;
   AppUpdateRelease? _pendingUpdate;
@@ -145,6 +153,9 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
       },
       (route) {
         _topRoute = route;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _modalOpen.value = route is PopupRoute;
+        });
         _scheduleUpdatePrompt();
       },
     );
@@ -253,6 +264,7 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
     _chrome.removeListener(_scheduleUpdatePrompt);
     _chrome.dispose();
     _activePath.dispose();
+    _modalOpen.dispose();
     super.dispose();
   }
 
@@ -342,9 +354,13 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
                                 Positioned(
                                   right: 14,
                                   bottom: 12,
-                                  child: ValueListenableBuilder<String>(
-                                    valueListenable: _activePath,
-                                    builder: (context, path, _) {
+                                  child: ListenableBuilder(
+                                    listenable: Listenable.merge([
+                                      _activePath,
+                                      _modalOpen,
+                                    ]),
+                                    builder: (context, _) {
+                                      final path = _activePath.value;
                                       final route =
                                           Uri.tryParse(path)?.path ?? '/';
                                       final hidden =
@@ -356,7 +372,8 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
                                             '/room/settings',
                                             '/game',
                                           ].contains(route) ||
-                                          route.startsWith('/room/shared/');
+                                          route.startsWith('/room/shared/') ||
+                                          _modalOpen.value;
                                       return Offstage(
                                         offstage: hidden,
                                         child: TickerMode(
@@ -364,6 +381,12 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
                                           child: SiteGuideButton(
                                             controller: widget.controller,
                                             path: path,
+                                            width:
+                                                MediaQuery.sizeOf(context)
+                                                        .width <=
+                                                    860
+                                                ? 56
+                                                : 110,
                                             reduced:
                                                 hidden || !widget.loadNative,
                                             dialogContext: () => _navigator
@@ -619,13 +642,10 @@ class _SiteRouteObserver extends NavigatorObserver {
     }
   }
 
+  // Also covers removeRoute when an open menu loses its account permissions.
   @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
-      _changed(route);
-  @override
-  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
-      _changed(previousRoute);
-  @override
-  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) =>
-      _changed(newRoute);
+  void didChangeTop(
+    Route<dynamic> topRoute,
+    Route<dynamic>? previousTopRoute,
+  ) => _changed(topRoute);
 }

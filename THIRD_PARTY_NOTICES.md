@@ -121,3 +121,11 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## Website navigation icons and QQ brand asset
+
+The native mobile navigation uses the same SVG paths as the owner's website
+`src/frontend/components/TsIcon.vue`. Lucide / Feather paths retain their ISC
+and MIT licenses, included in `assets/images/site-icons.LICENSE.txt` and
+registered in Flutter's license view. The QQ login image is copied from the
+website's `assets/icons/qq.png`; Tencent retains its brand rights.

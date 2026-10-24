@@ -414,7 +414,7 @@ void main() {
         expect(paragraph.didExceedMaxLines, false);
         expect(paragraph.text.toPlainText().contains('…'), false);
         expect(tester.takeException(), isNull);
-        expect(find.byTooltip('alice'), findsOneWidget);
+        expect(find.byKey(const Key('site-account-menu')), findsOneWidget);
         await tester.pumpWidget(const SizedBox());
       });
     }
