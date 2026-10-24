@@ -3,6 +3,7 @@ import '../../core/season_theme.dart';
 import '../../core/site_localization.dart';
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ import 'hub_pixel_preview.dart';
 import 'login_dialog.dart';
 import 'native_site_shell.dart';
 import 'site_widgets.dart';
+import 'site_icon.dart';
 import 'site_chrome.dart';
 import 'site_notice.dart';
 import 'site_seasonal_surface.dart';
@@ -274,9 +276,11 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
       final mobile = box.maxWidth <= 600, tablet = box.maxWidth < 1100;
       Widget artwork() => Image.asset(
         SeasonalArt(p.palette.season).hero,
-        cacheWidth: (box.maxWidth * MediaQuery.devicePixelRatioOf(context))
-            .ceil()
-            .clamp(1, 1672),
+        cacheWidth:
+            (math.max(box.maxWidth, mobile ? 490 : 0) *
+                    MediaQuery.devicePixelRatioOf(context))
+                .ceil()
+                .clamp(1, 1672),
         fit: BoxFit.cover,
         alignment: p.palette.season == SiteSeason.spring
             ? (mobile ? const Alignment(.3, 0) : const Alignment(0, -.24))
@@ -298,15 +302,15 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
             SiteText(
               'TSUKUYOMI · A MOONLIT COMMUNITY',
               style: TextStyle(
-                fontSize: 10,
+                fontSize: mobile ? 9 : 11,
                 color: p.muted,
-                letterSpacing: 1.2,
+                letterSpacing: mobile ? .9 : 1.2,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 20),
             SiteText(
               '与你相遇，在月光之下',
-              style: TextStyle(color: p.ink, fontSize: mobile ? 14 : 17),
+              style: TextStyle(color: p.ink, fontSize: mobile ? 12 : 17),
             ),
             const SizedBox(height: 8),
             SiteText(
@@ -314,11 +318,12 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
               style: TextStyle(
                 fontFamily: RoomStyle.serif,
                 fontSize: mobile
-                    ? 34
+                    ? (MediaQuery.sizeOf(context).width * .09).clamp(34.0, 46.0)
                     : tablet
                     ? 48
                     : 68,
                 fontWeight: FontWeight.w700,
+                letterSpacing: .5,
                 height: 1.2,
               ),
             ),
@@ -327,7 +332,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
               'Tsukuyomi Space',
               translate: false,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: mobile ? 10 : 12,
                 letterSpacing: 2.6,
                 color: p.muted,
               ),
@@ -348,13 +353,36 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
               children: [
                 FilledButton.icon(
                   onPressed: () => widget.onGo('/room'),
-                  icon: const Icon(CupertinoIcons.moon, size: 17),
+                  icon: const SiteIcon('moon', size: 17),
+                  style: mobile
+                      ? FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 15,
+                            vertical: 11,
+                          ),
+                          textStyle: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(fontSize: 12, height: 1.5),
+                        )
+                      : null,
                   label: const SiteText('进入私人居所'),
                 ),
                 OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(backgroundColor: p.surface),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: p.surface,
+                    padding: mobile
+                        ? const EdgeInsets.symmetric(
+                            horizontal: 15,
+                            vertical: 11,
+                          )
+                        : null,
+                    textStyle: mobile
+                        ? Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(fontSize: 12, height: 1.5)
+                        : null,
+                  ),
                   onPressed: () => widget.onGo('/stage'),
-                  icon: const Icon(Icons.arrow_forward, size: 17),
+                  icon: const SiteIcon('arrowRight', size: 17),
+                  iconAlignment: IconAlignment.end,
                   label: const SiteText('发现创作'),
                 ),
               ],
@@ -423,14 +451,36 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
       child: ExpansionTile(
         tilePadding: EdgeInsets.zero,
         leading: const Icon(CupertinoIcons.bell, size: 18),
-        title: const SiteText('站内公告', style: TextStyle(fontSize: 13)),
-        enabled: _settings.isNotEmpty,
-        subtitle: Text(
-          announcementContent(_settings) ==
-                  textOf(_settings, 'siteAnnouncement').trim()
-              ? noticeSummary(announcementContent(_settings))
-              : textOf(_settings, 'visitPopupTitle'),
+        title: Row(
+          children: [
+            Flexible(
+              child: SiteText(
+                '站内公告',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 11, color: RoomStyle(context).muted),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                announcementContent(_settings) ==
+                        textOf(_settings, 'siteAnnouncement').trim()
+                    ? noticeSummary(announcementContent(_settings))
+                    : textOf(_settings, 'visitPopupTitle'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
+        minTileHeight: 52,
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        enabled: _settings.isNotEmpty,
         children: [
           Align(
             alignment: Alignment.centerLeft,
@@ -456,7 +506,10 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
   Widget _latest() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const SiteText('月下新鲜事', style: TextStyle(fontSize: 25)),
+      const SiteText(
+        '月下新鲜事',
+        style: TextStyle(fontSize: 25, fontFamily: RoomStyle.serif),
+      ),
       const SizedBox(height: 7),
       SiteText(
         '读一篇文章，发现一份创作，留下今天的问候。',

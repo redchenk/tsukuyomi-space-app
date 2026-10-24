@@ -2977,5 +2977,11 @@
     "流式输出",
     "ストリーミング出力",
     "Streaming output"
-  ]
+  ],
+  ["应用更新", "アプリの更新", "App updates"],
+  ["更多 App 功能", "その他のアプリ機能", "More app features"],
+  ["写下你的留言…", "メッセージを書きましょう…", "Write a message…"],
+  ["开始记录你的月下旅程", "月夜の旅を記録しましょう", "Start your moonlit journey"],
+  ["验证邮箱，重新设置密码", "メールを確認してパスワードを再設定", "Verify your email to reset your password"],
+  ["稍后设置", "あとで設定", "Set up later"]
 ]

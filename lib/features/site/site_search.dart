@@ -177,7 +177,12 @@ class _SiteSearchState extends State<_SiteSearch> {
 
   @override
   Widget build(BuildContext context) => Dialog(
-    insetPadding: const EdgeInsets.all(16),
+    alignment: MediaQuery.sizeOf(context).width <= 860
+        ? Alignment.topCenter
+        : null,
+    insetPadding: EdgeInsets.all(
+      MediaQuery.sizeOf(context).width <= 860 ? 12 : 16,
+    ),
     child: ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 650, maxHeight: 700),
       child: Padding(

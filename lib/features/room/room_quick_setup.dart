@@ -5,9 +5,14 @@ import '../settings/settings_dialog.dart';
 import 'room_controller.dart';
 
 class RoomQuickSetup extends StatelessWidget {
-  const RoomQuickSetup({super.key, required this.controller, this.onDiscover});
+  const RoomQuickSetup({
+    super.key,
+    required this.controller,
+    this.onDiscover,
+    this.onDismiss,
+  });
   final RoomController controller;
-  final VoidCallback? onDiscover;
+  final VoidCallback? onDiscover, onDismiss;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -41,6 +46,8 @@ class RoomQuickSetup extends StatelessWidget {
           ),
           if (onDiscover != null)
             TextButton(onPressed: onDiscover, child: const SiteText('先看看能做什么')),
+          if (onDismiss != null)
+            TextButton(onPressed: onDismiss, child: const SiteText('稍后设置')),
         ],
       ),
     ),

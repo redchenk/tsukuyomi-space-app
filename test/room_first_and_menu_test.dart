@@ -10,6 +10,7 @@ import 'package:tsukuyomi_space_app/core/models.dart';
 import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
 import 'package:tsukuyomi_space_app/features/room/room_page.dart';
 import 'package:tsukuyomi_space_app/features/site/site_explore_menu.dart';
+import 'package:tsukuyomi_space_app/features/site/site_mobile_navigation.dart';
 import 'package:tsukuyomi_space_app/main.dart';
 
 import 'support/fakes.dart';
@@ -21,6 +22,35 @@ class DelayedVerification extends FakeSite {
 }
 
 void main() {
+  testWidgets(
+    'first-use setup can be deferred and reopened without configuring a model',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final c = RoomController(
+        storage: MemoryStorage()..value = const RoomSettings(),
+        site: FakeSite(),
+        chat: FakeChat(),
+        voice: SilentVoice(),
+      );
+      await c.initialize();
+      addTearDown(c.dispose);
+      await tester.pumpWidget(TsukuyomiApp(controller: c, loadNative: false));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('稍后设置'));
+      await tester.tap(find.text('稍后设置'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('room-quick-setup')), findsNothing);
+      expect(c.settings.model, isEmpty);
+      expect(c.turns, isEmpty);
+      await tester.tap(find.text('配置聊天模型'));
+      await tester.pumpAndSettle();
+      expect(find.text('本机 Ollama'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   test(
     'fresh model settings use real chat, retaining opt-in demo explicitly',
     () {
@@ -195,16 +225,18 @@ void main() {
           ),
         );
         await tester.pumpWidget(page(true));
-        await tester.tap(find.byIcon(Icons.menu_rounded));
+        await tester.tap(find.byTooltip('探索'));
         await tester.pumpAndSettle();
         expect(
-          find.byIcon(Icons.admin_panel_settings_outlined),
+          width <= 860
+              ? find.byType(SiteMobileNavigation)
+              : find.byIcon(Icons.admin_panel_settings_outlined),
           findsOneWidget,
         );
         await tester.pumpWidget(page(false));
         await tester.pumpAndSettle();
         expect(find.byIcon(Icons.admin_panel_settings_outlined), findsNothing);
-        expect(find.byIcon(Icons.menu_rounded), findsOneWidget);
+        expect(find.byTooltip('探索'), findsOneWidget);
         await tester.pumpWidget(const SizedBox.shrink());
       },
     );
@@ -251,7 +283,10 @@ void main() {
             await tester.tap(
               desktop
                   ? find.byKey(const Key('site-navigation-group-0'))
-                  : find.byIcon(Icons.menu_rounded),
+                  : find.descendant(
+                      of: find.byType(SiteExploreMenu),
+                      matching: find.byType(IconButton),
+                    ),
             );
             await tester.pumpAndSettle();
             if (desktop) {
@@ -285,7 +320,10 @@ void main() {
                       .focusNode
                 : tester
                       .widget<IconButton>(
-                        find.widgetWithIcon(IconButton, Icons.menu_rounded),
+                        find.descendant(
+                          of: find.byType(SiteExploreMenu),
+                          matching: find.byType(IconButton),
+                        ),
                       )
                       .focusNode;
             expect(focusNode!.hasFocus, true);

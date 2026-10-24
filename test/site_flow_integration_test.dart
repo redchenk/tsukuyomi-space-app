@@ -113,12 +113,15 @@ void main() {
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('auth-name')));
     await tester.enterText(find.byKey(const Key('auth-name')), 'Alice');
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('auth-password')));
     await tester.enterText(
       find.byKey(const Key('auth-password')),
       'password123',
     );
+    await tester.pumpAndSettle();
     await tester.ensureVisible(find.byKey(const Key('auth-submit')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('auth-submit')));
     await tester.pumpAndSettle();
     expect(c.account?.id, 'alice');

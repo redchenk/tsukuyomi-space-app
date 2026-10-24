@@ -70,7 +70,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
   late final bool _ownsMusic;
   String _panel = '聊天';
   String _imageScope = '';
-  bool _quiet = false;
+  bool _quiet = false, _setupDismissed = false;
   DesktopAgentController? _agent;
   Map<String, IconData> get _roomTabs => {
     ..._tabs,
@@ -445,7 +445,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                             : _mobilePanel(),
                       ),
                   ],
-                  if (!compactKeyboard)
+                  if (!compactKeyboard && !(mobile && keyboard > 0))
                     Positioned(
                       top: mobile ? 10 : 16,
                       left: mobile
@@ -783,7 +783,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     bool keyboard = false,
     bool short = false,
   }) {
-    final stamp = (mobile, keyboard, short, Theme.of(context));
+    final stamp = (mobile, keyboard, short, _setupDismissed, Theme.of(context));
     if (_conversationStamp != stamp) {
       _conversationStamp = stamp;
       _conversationWidget = RoomSelector(
@@ -814,14 +814,32 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
   }) {
     final turns = c.visibleTurns;
     final p = RoomStyle(context);
+    final needsSetup =
+        !c.loading && !c.settings.demo && c.settings.model.trim().isEmpty;
     return Column(
       children: [
+        if (needsSetup && (_setupDismissed || turns.isNotEmpty))
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(
+                backgroundColor: p.glass,
+                foregroundColor: p.ink,
+              ),
+              onPressed: () => showRoomSettings(context, c, guidedSetup: true),
+              icon: const Icon(Icons.tune, size: 18),
+              label: const SiteText('配置聊天模型'),
+            ),
+          ),
         Expanded(
-          child:
-              !c.loading && !c.settings.demo && c.settings.model.trim().isEmpty
+          child: needsSetup && !_setupDismissed && turns.isEmpty
               ? Padding(
                   padding: const EdgeInsets.all(8),
-                  child: RoomQuickSetup(controller: c, onDiscover: _help),
+                  child: RoomQuickSetup(
+                    controller: c,
+                    onDiscover: _help,
+                    onDismiss: () => setState(() => _setupDismissed = true),
+                  ),
                 )
               : c.loading && turns.isEmpty
               ? const Center(child: CircularProgressIndicator())

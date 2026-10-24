@@ -51,6 +51,8 @@ class NativeSiteShell extends StatelessWidget {
     this.scrollController,
     this.floatingActionButton,
     this.showChrome = true,
+    this.maxWidth = 1280,
+    this.footer,
   });
   final RoomController controller;
   final String title;
@@ -61,10 +63,12 @@ class NativeSiteShell extends StatelessWidget {
   final Widget child;
   final Widget? floatingActionButton;
   final bool showChrome;
+  final double maxWidth;
+  final Widget? footer;
   @override
   Widget build(BuildContext context) {
     final p = RoomStyle(context);
-    final narrow = MediaQuery.sizeOf(context).width < 650;
+    final narrow = MediaQuery.sizeOf(context).width <= 860;
     final route =
         Uri.tryParse(ModalRoute.of(context)?.settings.name ?? '')?.path ?? '';
     final showBeian =
@@ -75,13 +79,14 @@ class NativeSiteShell extends StatelessWidget {
     Widget body = SingleChildScrollView(
       controller: scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
+      clipBehavior: Clip.none,
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1280),
+          constraints: BoxConstraints(maxWidth: maxWidth),
           child: Padding(
             padding: EdgeInsets.fromLTRB(
               narrow ? 14 : 32,
-              12,
+              narrow ? 14 : 12,
               narrow ? 14 : 32,
               24,
             ),
@@ -91,7 +96,7 @@ class NativeSiteShell extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   child,
-                  if (showBeian) const SiteBeianLinks(),
+                  if (showBeian) footer ?? const SiteBeianLinks(),
                   const SizedBox(height: 36),
                 ],
               ),
@@ -103,45 +108,54 @@ class NativeSiteShell extends StatelessWidget {
     if (onRefresh != null) {
       body = RefreshIndicator(onRefresh: onRefresh!, child: body);
     }
+    final header = AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) => SiteHeader(
+        title: title,
+        onGo: onGo,
+        onTheme: onTheme,
+        username: controller.sessionExpired
+            ? null
+            : controller.account?.displayName,
+        role: controller.sessionExpired ? null : controller.account?.role,
+        onLogin: () {
+          if (controller.account != null && !controller.sessionExpired) {
+            onGo('/user');
+          } else {
+            showSiteLogin(context, controller);
+          }
+        },
+      ),
+    );
     return Scaffold(
       backgroundColor: p.background,
       floatingActionButton: floatingActionButton,
       body: SiteBackground(
         child: SafeArea(
-          child: Column(
-            children: [
-              if (showChrome)
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: narrow ? 14 : 24,
-                    vertical: narrow ? 10 : 16,
-                  ),
-                  child: AnimatedBuilder(
-                    animation: controller,
-                    builder: (context, _) => SiteHeader(
-                      title: title,
-                      onGo: onGo,
-                      onTheme: onTheme,
-                      username: controller.sessionExpired
-                          ? null
-                          : controller.account?.displayName,
-                      role: controller.sessionExpired
-                          ? null
-                          : controller.account?.role,
-                      onLogin: () {
-                        if (controller.account != null &&
-                            !controller.sessionExpired) {
-                          onGo('/user');
-                        } else {
-                          showSiteLogin(context, controller);
-                        }
-                      },
+          child: narrow
+              ? Stack(
+                  children: [
+                    Positioned.fill(
+                      top: showChrome ? 80 : 0,
+                      child: RepaintBoundary(child: body),
                     ),
-                  ),
+                    if (showChrome)
+                      Positioned(top: 10, left: 12, right: 12, child: header),
+                  ],
+                )
+              : Column(
+                  children: [
+                    if (showChrome)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 16,
+                        ),
+                        child: header,
+                      ),
+                    Expanded(child: RepaintBoundary(child: body)),
+                  ],
                 ),
-              Expanded(child: RepaintBoundary(child: body)),
-            ],
-          ),
         ),
       ),
     );

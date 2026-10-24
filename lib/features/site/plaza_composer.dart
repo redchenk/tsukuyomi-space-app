@@ -131,6 +131,7 @@ class _PlazaComposerState extends State<PlazaComposer> {
       );
     }
     return SiteCard(
+      padding: const EdgeInsets.all(16),
       child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: controller,
         builder: (context, value, _) {
@@ -172,7 +173,7 @@ class _PlazaComposerState extends State<PlazaComposer> {
                           Text(
                             plazaCopy(context, '今天有什么想分享的？'),
                             style: const TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -186,7 +187,25 @@ class _PlazaComposerState extends State<PlazaComposer> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        plazaCopy(context, '发布留言'),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${value.text.length} / 300',
+                      style: TextStyle(fontSize: 12, color: p.muted),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
                 TextField(
                   key: const Key('plaza-composer-input'),
                   controller: controller,
@@ -199,45 +218,58 @@ class _PlazaComposerState extends State<PlazaComposer> {
                       MaxLengthEnforcement.truncateAfterCompositionEnds,
                   onChanged: onChanged,
                   decoration: InputDecoration(
-                    hintText: plazaCopy(context, '今天有什么想分享的？'),
+                    hintText: plazaCopy(context, '写下你的留言…'),
+                    counterText: '',
                   ),
                 ),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final mood in const ['问候', '反馈', '灵感'])
+                const SizedBox(height: 10),
+                ChipTheme(
+                  data: ChipTheme.of(context).copyWith(
+                    backgroundColor: p.surface,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    labelStyle: Theme.of(context).textTheme.labelLarge
+                        ?.copyWith(fontSize: 11, color: p.ink),
+                  ),
+                  child: Wrap(
+                    spacing: 5,
+                    runSpacing: 8,
+                    children: [
+                      for (final mood in const ['问候', '反馈', '灵感'])
+                        ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          label: Text(plazaCopy(context, mood)),
+                          onPressed: busy
+                              ? null
+                              : () => _insert(
+                                  '【${plazaCopy(context, mood)}】 ',
+                                  prefix: true,
+                                ),
+                        ),
                       ActionChip(
-                        label: Text(plazaCopy(context, mood)),
+                        visualDensity: VisualDensity.compact,
+                        key: const Key('plaza-insert-topic'),
+                        avatar: const Icon(Icons.tag, size: 16),
+                        label: Text(plazaCopy(context, '话题')),
                         onPressed: busy
                             ? null
-                            : () => _insert(
-                                '【${plazaCopy(context, mood)}】 ',
-                                prefix: true,
-                              ),
+                            : () {
+                                final topic = plazaCopy(context, '话题');
+                                _insert(
+                                  '#$topic#',
+                                  select: topic.length,
+                                  suffix: 1,
+                                );
+                              },
                       ),
-                    ActionChip(
-                      key: const Key('plaza-insert-topic'),
-                      avatar: const Icon(Icons.tag, size: 16),
-                      label: Text(plazaCopy(context, '话题')),
-                      onPressed: busy
-                          ? null
-                          : () {
-                              final topic = plazaCopy(context, '话题');
-                              _insert(
-                                '#$topic#',
-                                select: topic.length,
-                                suffix: 1,
-                              );
-                            },
-                    ),
-                    ActionChip(
-                      key: const Key('plaza-insert-mention'),
-                      avatar: const Icon(Icons.alternate_email, size: 16),
-                      label: Text(plazaCopy(context, '提及')),
-                      onPressed: busy ? null : () => _insert('@'),
-                    ),
-                  ],
+                      ActionChip(
+                        visualDensity: VisualDensity.compact,
+                        key: const Key('plaza-insert-mention'),
+                        avatar: const Icon(Icons.alternate_email, size: 16),
+                        label: Text(plazaCopy(context, '提及')),
+                        onPressed: busy ? null : () => _insert('@'),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 14),
                 Wrap(

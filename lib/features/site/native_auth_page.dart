@@ -10,6 +10,8 @@ import '../room/room_controller.dart';
 import 'native_site_shell.dart';
 import 'qq_auth.dart';
 import 'site_widgets.dart';
+import 'site_icon.dart';
+import '../room/room_style.dart';
 
 typedef QQAuthorize = Future<QQAuthGrant?> Function(
   BuildContext context,
@@ -534,58 +536,130 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
     int? maxLength,
     List<String>? autofill,
   }) => Padding(
-    padding: const EdgeInsets.only(bottom: 18),
-    child: TextFormField(
-      key: Key('auth-$key'),
-      controller: field,
-      enabled: !_busy,
-      validator: (value) {
-        final message = validator?.call(value);
-        return message == null ? null : siteTranslate(context, message);
-      },
-      obscureText: secret && !_showPassword,
-      maxLength: maxLength,
-      autofillHints: autofill,
-      onChanged: (_) => setState(() {}),
-      keyboardType: email
-          ? TextInputType.emailAddress
-          : key == 'code'
-          ? TextInputType.number
-          : TextInputType.text,
-      decoration: InputDecoration(
-        labelText: siteTranslate(context, label),
-        suffixIcon: secret
-            ? IconButton(
-                tooltip: siteTranslate(
-                  context,
-                  _showPassword ? '隐藏密码' : '显示密码',
-                ),
-                onPressed: () => setState(() => _showPassword = !_showPassword),
-                icon: Icon(
-                  _showPassword
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                ),
-              )
-            : null,
-      ),
+    padding: const EdgeInsets.only(bottom: 20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SiteText(
+          label,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          key: Key('auth-$key'),
+          controller: field,
+          enabled: !_busy,
+          validator: (value) {
+            final message = validator?.call(value);
+            return message == null ? null : siteTranslate(context, message);
+          },
+          obscureText: secret && !_showPassword,
+          maxLength: maxLength,
+          autofillHints: autofill,
+          onChanged: (_) => setState(() {}),
+          textInputAction:
+              !qq &&
+                  ((_mode == 'password' && key == 'password') ||
+                      (_mode == 'code' && key == 'code'))
+              ? TextInputAction.done
+              : TextInputAction.next,
+          onFieldSubmitted: (_) {
+            if (!qq &&
+                ((_mode == 'password' && key == 'password') ||
+                    (_mode == 'code' && key == 'code'))) {
+              _submit();
+            }
+          },
+          keyboardType: email
+              ? TextInputType.emailAddress
+              : key == 'code'
+              ? TextInputType.number
+              : TextInputType.text,
+          style: const TextStyle(fontSize: 16),
+          decoration: InputDecoration(
+            hintText: siteTranslate(
+              context,
+              label == '用户名 / 邮箱'
+                  ? '请输入用户名或邮箱'
+                  : secret
+                  ? '请输入密码'
+                  : label,
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 12,
+            ),
+            isDense: true,
+            prefixIcon: Padding(
+              padding: const EdgeInsets.all(13),
+              child: SiteIcon(
+                secret
+                    ? 'lock'
+                    : email
+                    ? 'mail'
+                    : key == 'code'
+                    ? 'keyRound'
+                    : 'user',
+                size: 18,
+              ),
+            ),
+            suffixIcon: secret
+                ? IconButton(
+                    tooltip: siteTranslate(
+                      context,
+                      _showPassword ? '隐藏密码' : '显示密码',
+                    ),
+                    onPressed: () =>
+                        setState(() => _showPassword = !_showPassword),
+                    icon: SiteIcon(_showPassword ? 'eyeOff' : 'eye', size: 18),
+                  )
+                : null,
+          ),
+        ),
+      ],
     ),
   );
   String? _required(String? value) =>
       (value ?? '').trim().isEmpty ? '请填写此项' : null;
   Widget _methods(String value, ValueChanged<String> change) => Padding(
-    padding: const EdgeInsets.only(bottom: 24),
-    child: Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final entry in {'password': '密码登录', 'code': '验证码登录'}.entries)
-          ChoiceChip(
-            label: SiteText(entry.value),
-            selected: value == entry.key,
-            onSelected: _busy ? null : (_) => change(entry.key),
-          ),
-      ],
+    padding: const EdgeInsets.only(bottom: 20),
+    child: Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: RoomStyle(context).soft,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: RoomStyle(context).line),
+      ),
+      child: LayoutBuilder(
+        builder: (context, box) => Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: [
+            for (final entry in {'password': '密码登录', 'code': '验证码登录'}.entries)
+              SizedBox(
+                width: MediaQuery.textScalerOf(context).scale(13) > 22
+                    ? box.maxWidth
+                    : (box.maxWidth - 4) / 2,
+                child: ChoiceChip(
+                  label: Center(child: SiteText(entry.value)),
+                  selected: value == entry.key,
+                  selectedColor: RoomStyle(context).palette.primary,
+                  backgroundColor: RoomStyle(context).surface,
+                  labelStyle: TextStyle(
+                    fontSize: 13,
+                    color: value == entry.key
+                        ? Colors.white
+                        : RoomStyle(context).ink,
+                  ),
+                  showCheckmark: false,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  onSelected: _busy ? null : (_) => change(entry.key),
+                ),
+              ),
+          ],
+        ),
+      ),
     ),
   );
   List<Widget> _fields() => [
@@ -756,6 +830,196 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
     super.dispose();
   }
 
+  Widget _providerButtons() => LayoutBuilder(
+    builder: (context, box) {
+      final qqButton = OutlinedButton.icon(
+        key: const Key('auth-qq'),
+        onPressed: _busy ? null : _startQQ,
+        icon: Image.asset(
+          'assets/images/qq-login.png',
+          width: 20,
+          height: 20,
+          excludeFromSemantics: true,
+        ),
+        label: const SiteText(
+          'QQ 登录',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        ),
+      );
+      final github = OutlinedButton.icon(
+        key: const Key('auth-github'),
+        onPressed: _busy ? null : () => _startQQ('github'),
+        icon: const SiteIcon('github', size: 20),
+        label: const SiteText(
+          'GitHub 登录',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        ),
+      );
+      return MediaQuery.textScalerOf(context).scale(14) > 21
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [qqButton, const SizedBox(height: 10), github],
+            )
+          : Row(
+              children: [
+                Expanded(child: qqButton),
+                const SizedBox(width: 10),
+                Expanded(child: github),
+              ],
+            );
+    },
+  );
+
+  Widget _authCard() => SiteCard(
+    padding: const EdgeInsets.all(22),
+    child: AutofillGroup(
+      child: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const SiteIcon('moon', size: 14),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    qq ? 'OAUTH' : 'TSUKUYOMI GATE',
+                    style: const TextStyle(fontSize: 10, letterSpacing: 1.2),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SiteText(
+              title,
+              style: const TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+                height: 1.1,
+              ),
+            ),
+            const SizedBox(height: 10),
+            SiteText(
+              qq
+                  ? '$providerName 授权与账号绑定'
+                  : _mode == 'register'
+                  ? '开始记录你的月下旅程'
+                  : _mode == 'reset'
+                  ? '验证邮箱，重新设置密码'
+                  : '欢迎回来，请登录你的账号',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.6,
+                color: RoomStyle(context).muted,
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (_message.isNotEmpty)
+              nativeSiteFeedback(context, _message, error: _failure),
+            ..._fields(),
+            if (!qq && (_mode == 'password' || _mode == 'code'))
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _busy ? null : () => _changeMode('reset'),
+                  icon: const SiteIcon('keyRound', size: 14),
+                  label: const SiteText('忘记密码'),
+                ),
+              ),
+            const SizedBox(height: 16),
+            FilledButton(
+              key: const Key('auth-submit'),
+              onPressed: _busy || (qq && _qqMode.isEmpty) ? null : _submit,
+              child: SiteText(
+                _busy
+                    ? '正在处理…'
+                    : qq
+                    ? switch (_qqMode) {
+                        'email' => '绑定邮箱并进入',
+                        'bind' => '绑定并登录',
+                        _ => '一键开通并进入',
+                      }
+                    : switch (_mode) {
+                        'register' => '注册并进入',
+                        'reset' => '重设密码并登录',
+                        _ => '登录',
+                      },
+              ),
+            ),
+            if (!qq && _mode != 'reset') ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Flexible(
+                    flex: 4,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: SiteText(
+                        '其他方式登录',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: RoomStyle(context).muted,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _providerButtons(),
+            ],
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => widget.onGo('/privacy'),
+              child: const SiteText('隐私政策 / Privacy policy'),
+            ),
+            if (qq || _mode == 'reset')
+              TextButton(
+                onPressed: _busy
+                    ? null
+                    : () {
+                        if (qq) {
+                          setState(() {
+                            _clearQQ();
+                            _message = '';
+                          });
+                        } else {
+                          _changeMode('password');
+                        }
+                      },
+                child: const SiteText('返回普通登录'),
+              ),
+            if (!qq)
+              TextButton(
+                onPressed: _busy
+                    ? null
+                    : () => widget.onGo(
+                        _authPath(_mode == 'register' ? '/login' : '/register'),
+                      ),
+                child: SiteText(_mode == 'register' ? '已有账号，去登录' : '还没有账号，去注册'),
+              ),
+            TextButton(
+              onPressed: _busy ? null : () => widget.onGo('/hub'),
+              child: const SiteText('返回首页'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) => NativeSiteShell(
     showChrome: false,
@@ -763,115 +1027,52 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
     title: title,
     onGo: widget.onGo,
     onTheme: widget.onTheme,
-    child: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 900),
-        child: NativeSiteSection(
-          title: title,
-          subtitle: qq
-              ? '$providerName 授权与账号绑定'
-              : _mode == 'register'
-              ? '开始记录你的月下旅程'
-              : '探索、记录、分享 · Tsukuyomi Gate',
-          child: AutofillGroup(
-            child: Form(
-              key: _form,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (_message.isNotEmpty)
-                    nativeSiteFeedback(context, _message, error: _failure),
-                  TextButton(
-                    onPressed: () => widget.onGo('/privacy'),
-                    child: const SiteText('隐私政策 / Privacy policy'),
-                  ),
-                  ..._fields(),
-                  FilledButton(
-                    key: const Key('auth-submit'),
-                    onPressed: _busy || (qq && _qqMode.isEmpty)
-                        ? null
-                        : _submit,
-                    child: SiteText(
-                      _busy
-                          ? '正在处理…'
-                          : qq
-                          ? switch (_qqMode) {
-                              'email' => '绑定邮箱并进入',
-                              'bind' => '绑定并登录',
-                              _ => '一键开通并进入',
-                            }
-                          : switch (_mode) {
-                              'register' => '注册并进入',
-                              'reset' => '重设密码并登录',
-                              _ => '登录',
-                            },
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
+    child: LayoutBuilder(
+      builder: (context, box) => ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight:
+              MediaQuery.sizeOf(context).height -
+              MediaQuery.viewInsetsOf(context).bottom -
+              80,
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: box.maxWidth >= 980
+                ? Row(
                     children: [
-                      if (qq)
-                        TextButton(
-                          onPressed: _busy
-                              ? null
-                              : () => setState(() {
-                                  _clearQQ();
-                                  _message = '';
-                                }),
-                          child: const SiteText('返回普通登录'),
+                      SizedBox(width: 440, child: _authCard()),
+                      const SizedBox(width: 60),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'TSUKUYOMI SPACE',
+                              style: TextStyle(
+                                fontSize: 12,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            SizedBox(height: 20),
+                            SiteText(
+                              '月读空间',
+                              style: TextStyle(
+                                fontFamily: RoomStyle.serif,
+                                fontSize: 52,
+                              ),
+                            ),
+                            SizedBox(height: 12),
+                            SiteText('探索、记录、分享'),
+                          ],
                         ),
-                      if (!qq && _mode != 'reset')
-                        TextButton(
-                          onPressed: _busy ? null : () => _changeMode('reset'),
-                          child: const SiteText('忘记密码'),
-                        ),
-                      if (!qq && _mode == 'reset')
-                        TextButton(
-                          onPressed: _busy
-                              ? null
-                              : () => _changeMode('password'),
-                          child: const SiteText('返回普通登录'),
-                        ),
-                      if (!qq)
-                        TextButton(
-                          onPressed: _busy
-                              ? null
-                              : () => widget.onGo(
-                                  _authPath(
-                                    _mode == 'register'
-                                        ? '/login'
-                                        : '/register',
-                                  ),
-                                ),
-                          child: SiteText(
-                            _mode == 'register' ? '已有账号，去登录' : '还没有账号，去注册',
-                          ),
-                        ),
-                      TextButton(
-                        onPressed: _busy ? null : () => widget.onGo('/hub'),
-                        child: const SiteText('返回首页'),
                       ),
                     ],
+                  )
+                : ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: _authCard(),
                   ),
-                  const Divider(height: 40),
-                  OutlinedButton.icon(
-                    key: const Key('auth-github'),
-                    onPressed: _busy ? null : () => _startQQ('github'),
-                    icon: const Icon(Icons.code),
-                    label: const SiteText('GitHub 登录 / 授权'),
-                  ),
-                  const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    key: const Key('auth-qq'),
-                    onPressed: _busy ? null : _startQQ,
-                    icon: const Icon(Icons.account_circle_outlined),
-                    label: const SiteText('QQ 登录 / 授权'),
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
       ),

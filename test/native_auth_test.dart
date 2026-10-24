@@ -43,6 +43,7 @@ Future<void> authField(WidgetTester tester, String name, String text) async {
   final finder = find.byKey(Key('auth-$name'));
   await tester.ensureVisible(finder);
   await tester.enterText(finder, text);
+  await tester.pumpAndSettle();
 }
 
 Future<void> authMount(WidgetTester tester, Widget child) async {
@@ -218,6 +219,7 @@ void main() {
       await authField(tester, 'password', 'newpassword');
       await authField(tester, 'confirm', 'different');
       await tester.ensureVisible(find.byKey(const Key('auth-submit')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('auth-submit')));
       await tester.pumpAndSettle();
       expect(find.text('两次输入的密码不一致'), findsOneWidget);
@@ -227,6 +229,7 @@ void main() {
       );
       await authField(tester, 'confirm', 'newpassword');
       await tester.ensureVisible(find.byKey(const Key('auth-submit')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('auth-submit')));
       await tester.pumpAndSettle();
       final body = jsonDecode(
@@ -338,6 +341,7 @@ void main() {
       await authField(tester, 'password', 'reset-password');
       await authField(tester, 'confirm', 'reset-password');
       await tester.ensureVisible(find.byKey(const Key('auth-submit')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('auth-submit')));
       await tester.pumpAndSettle();
       expect(
@@ -488,6 +492,7 @@ void main() {
       await authField(tester, 'password', 'newpassword');
       await authField(tester, 'confirm', 'newpassword');
       await tester.ensureVisible(find.byKey(const Key('auth-submit')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('auth-submit')));
       await tester.pumpAndSettle();
       final complete = oauth.singleWhere((r) => r.url.path.endsWith('/email'));
@@ -595,6 +600,7 @@ void main() {
       await authField(tester, 'code', '123456');
       expect(find.byKey(const Key('auth-password')), findsNothing);
       await tester.ensureVisible(find.byKey(const Key('auth-submit')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('auth-submit')));
       await tester.pumpAndSettle();
       final complete = oauth.singleWhere((r) => r.url.path.endsWith('/email'));

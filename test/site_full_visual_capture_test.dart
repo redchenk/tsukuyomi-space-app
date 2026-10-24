@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tsukuyomi_space_app/core/app_update_controller.dart';
+import 'package:tsukuyomi_space_app/features/site/site_mobile_navigation.dart';
 import 'package:tsukuyomi_space_app/core/models.dart';
 import 'package:tsukuyomi_space_app/core/site_client.dart';
 import 'package:tsukuyomi_space_app/features/pixel/pixel_document.dart';
@@ -18,6 +21,9 @@ const _origin = 'https://native-visual.example';
 const _cookie = 'tsukuyomi_session=visual.local.session';
 const _account = Account('visual-admin', '月下旅人', role: 'admin');
 const _routes = [
+  '/hub',
+  '/stage',
+  '/plaza',
   '/login',
   '/wiki',
   '/friend-links',
@@ -46,7 +52,16 @@ Iterable<ImageProvider<Object>> _fixtureProviders(NetworkImage key) sync* {
   // capture layouts; avatar cache keys below use the fit policy instead.
   yield ResizeImage(key, width: 292);
   yield ResizeImage(key, width: 175);
-  for (final size in [22, 28, 32, 40, 44, 56, 64, 68, 76, 80, 88, 96]) {
+  // Friend-link cards: (1280 - 64 - 32) / 3 and 390 - 28.
+  for (final width in [362, 395]) {
+    yield ResizeImage(
+      key,
+      width: width,
+      height: 170,
+      policy: ResizeImagePolicy.fit,
+    );
+  }
+  for (final size in [22, 28, 32, 40, 44, 56, 64, 68, 70, 76, 80, 88, 96]) {
     yield ResizeImage(
       key,
       width: size,
@@ -124,10 +139,12 @@ class _VisualSite extends FakeSite implements SiteDataService {
       throw StateError('Visual fixture received an external origin: $site');
     }
     final uri = Uri.parse(
-      path.replaceFirst(
-        RegExp(r'^/api/user/articles/live/\d+'),
-        '/api/user/articles',
-      ),
+      path
+          .replaceFirst(RegExp(r'^/api/live/\d+'), '/api')
+          .replaceFirst(
+            RegExp(r'^/api/user/articles/live/\d+'),
+            '/api/user/articles',
+          ),
     );
     final assets = [
       _asset(7, '月读空间 · 伊吕波', '/fixtures/iroha.png'),
@@ -139,6 +156,37 @@ class _VisualSite extends FakeSite implements SiteDataService {
         'visitPopupEnabled': false,
         'sakuraEffect': false,
         'scanlineEffect': false,
+        'siteAnnouncement': '关于新增官方API直供模式的通知',
+      },
+      '/api/articles' => [
+        {
+          'id': 42,
+          'title': '在月读空间，记录与你相遇的故事',
+          'excerpt': '给日常留一点月光。',
+          'category': '其他',
+          'author': '月下旅人',
+        },
+      ],
+      '/api/messages' => [
+        {
+          'id': 9,
+          'author': '月下旅人',
+          'content': '今晚也有月光陪伴。',
+          'created_at': '2026-10-24T10:00:00Z',
+        },
+      ],
+      '/api/messages/liked' ||
+      '/api/messages/topics' => <Map<String, dynamic>>[],
+      '/api/stats' => {'messages': 1, 'articles': 1},
+      '/api/hub-preview' => {
+        'article': {
+          'id': 42,
+          'title': '在月读空间，记录与你相遇的故事',
+          'excerpt': '给日常留一点月光。',
+          'category': '其他',
+        },
+        'messages': <Map<String, dynamic>>[],
+        'stats': {'todayViews': 31, 'totalViews': 1234},
       },
       '/api/user/notifications/unread-count' => {'count': 3},
       '/api/stats/view' => {'todayViews': 31, 'totalViews': 1234},
@@ -320,6 +368,7 @@ void main() {
     'capture native site routes with system fonts at desktop and mobile sizes',
     (tester) async {
       await tester.runAsync(loadSiteCaptureFonts);
+      SharedPreferences.setMockInitialValues({'app-update.automatic': false});
       addTearDown(() async {
         for (final key in _pictureKeys) {
           for (final provider in _fixtureProviders(key)) {
@@ -335,7 +384,13 @@ void main() {
       for (final size in [const Size(1280, 900), const Size(390, 844)]) {
         tester.view.physicalSize = size;
         final form = size.width > 860 ? 'desktop' : 'mobile';
-        for (final path in _routes) {
+        for (final path in _routes.where((path) {
+          const routes = String.fromEnvironment('CAPTURE_ROUTES');
+          return routes.isEmpty || routes.split(',').contains(path);
+        })) {
+          final updates = AppUpdateController(
+            preferences: await SharedPreferences.getInstance(),
+          );
           final site = _VisualSite();
           final storage = MemoryStorage()
             ..value = const RoomSettings(siteUrl: _origin);
@@ -349,6 +404,7 @@ void main() {
             await room.initialize();
             if (path != '/login') {
               room.account = _account;
+              room.sessionVerified = true;
               site.userId = _account.id;
               site.cookie = _cookie;
             }
@@ -360,6 +416,7 @@ void main() {
                 key: const Key('site-capture'),
                 child: TsukuyomiApp(
                   controller: room,
+                  updates: updates,
                   initialPath: path,
                   loadNative: false,
                 ),
@@ -432,8 +489,12 @@ void main() {
                 final bytes = await image.toByteData(
                   format: ui.ImageByteFormat.png,
                 );
+                const outputDir = String.fromEnvironment(
+                  'CAPTURE_DIR',
+                  defaultValue: 'artifacts/native-site-parity',
+                );
                 final output = File(
-                  'artifacts/native-site-parity/${path.substring(1)}-$form.png',
+                  '$outputDir/${path.substring(1)}-$form.png',
                 );
                 await output.parent.create(recursive: true);
                 await output.writeAsBytes(
@@ -446,6 +507,30 @@ void main() {
                 image.dispose();
               }
             });
+            if (path == '/hub' && form == 'mobile') {
+              for (final menu in ['探索', '账号菜单']) {
+                await tester.tap(find.byTooltip(menu));
+                await tester.pumpAndSettle();
+                expect(find.byType(SiteMobileNavigation), findsOneWidget);
+                expect(tester.takeException(), isNull);
+                await tester.runAsync(() async {
+                  final image = await boundary.toImage(pixelRatio: 1);
+                  final bytes = await image.toByteData(
+                    format: ui.ImageByteFormat.png,
+                  );
+                  const outputDir = String.fromEnvironment(
+                    'CAPTURE_DIR',
+                    defaultValue: 'artifacts/native-site-parity',
+                  );
+                  await File(
+                    '$outputDir/${menu == '探索' ? 'explore' : 'account'}-mobile.png',
+                  ).writeAsBytes(bytes!.buffer.asUint8List());
+                  image.dispose();
+                });
+                await tester.tap(find.byTooltip('关闭导航'));
+                await tester.pumpAndSettle();
+              }
+            }
             expect(tester.takeException(), isNull, reason: '$path ($form)');
           } finally {
             await tester.pumpWidget(const SizedBox.shrink());

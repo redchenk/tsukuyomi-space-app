@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../../core/site_localization.dart';
 import 'site_widgets.dart';
+import 'site_mobile_navigation.dart';
+import 'site_icon.dart';
 
 const _groups = <String, List<(String, IconData)>>{
   '房间': [
@@ -45,11 +47,15 @@ class SiteExploreMenu extends StatefulWidget {
     super.key,
     required this.onSelected,
     this.currentPath = '',
+    this.username,
+    this.onPreference,
     this.administrator = false,
     this.actions = const {},
     this.showLabel = false,
   });
   final ValueChanged<String> onSelected;
+  final String? username;
+  final ValueChanged<String>? onPreference;
   final String currentPath;
   final bool administrator;
   final Map<String, String> actions;
@@ -74,7 +80,9 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
   @override
   void didUpdateWidget(covariant SiteExploreMenu oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_open && oldWidget.administrator != widget.administrator) {
+    if (_open &&
+        (oldWidget.administrator != widget.administrator ||
+            oldWidget.username != widget.username)) {
       _dismissMenu();
     }
   }
@@ -127,16 +135,19 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
 
     final String? selected;
     if (size.width <= 860) {
-      selected = await showModalBottomSheet<String>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        showDragHandle: true,
-        sheetAnimationStyle: MediaQuery.disableAnimationsOf(context)
-            ? AnimationStyle.noAnimation
-            : null,
-        constraints: BoxConstraints(maxHeight: size.height * .85),
-        builder: (ctx) => menu(ctx),
+      selected = await showSiteMobilePanel<String>(
+        context,
+        builder: (ctx) {
+          _menuRoute = ModalRoute.of(ctx);
+          return SiteMobileNavigation(
+            currentPath: widget.currentPath,
+            username: widget.username,
+            administrator: widget.administrator,
+            actions: widget.actions,
+            onPreference: widget.onPreference,
+            onSelected: (value) => Navigator.pop(ctx, value),
+          );
+        },
       );
     } else {
       selected = await showGeneralDialog<String>(
@@ -198,7 +209,20 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
               const Icon(Icons.expand_more, size: 16),
             ],
           )
-        : const Icon(Icons.menu_rounded),
+        : FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SiteIcon('menu', size: 19),
+                const SizedBox(height: 1),
+                SiteText(
+                  '探索',
+                  style: const TextStyle(fontSize: 9, height: 1.2),
+                ),
+              ],
+            ),
+          ),
   );
 }
 

@@ -742,6 +742,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 style: TextStyle(
                   fontSize: MediaQuery.sizeOf(context).width < 700 ? 28 : 38,
                   fontWeight: FontWeight.w600,
+                  fontFamily: RoomStyle.serif,
                 ),
               ),
             ),
@@ -774,10 +775,12 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       selected: selected,
       onSelected: (_) => tap(),
       showCheckmark: false,
-      selectedColor: RoomStyle(context).selected,
+      selectedColor: RoomStyle(context).palette.primary,
+      backgroundColor: RoomStyle(context).surface,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       labelStyle: TextStyle(
         fontSize: 12,
-        color: selected ? RoomStyle(context).accent : RoomStyle(context).ink,
+        color: selected ? Colors.white : RoomStyle(context).ink,
       ),
       shape: const StadiumBorder(side: BorderSide.none),
     ),
@@ -1140,14 +1143,15 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 ),
         ),
         const SizedBox(height: 12),
-        Text(
-          '${textOf(_payload, 'recommendationDate')} · 综合内容、有效阅读、点赞与收藏，每日轮换推荐，也让新作与较少曝光的创作被看见。',
-          style: TextStyle(
-            fontSize: 11,
-            height: 1.7,
-            color: RoomStyle(context).muted,
+        if (_sort != 'latest')
+          Text(
+            '${textOf(_payload, 'recommendationDate')} · 综合内容、有效阅读、点赞与收藏，每日轮换推荐，也让新作与较少曝光的创作被看见。',
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.7,
+              color: RoomStyle(context).muted,
+            ),
           ),
-        ),
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 18),
           child: Text(
@@ -1536,6 +1540,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       controller: _composer,
       signedIn: c.account != null && !c.sessionExpired,
       author: c.account?.displayName ?? '',
+      avatar: c.account?.avatar ?? '',
       site: c.settings.siteUrl,
       busy: _working,
       onSubmit: _submitPost,
@@ -1673,7 +1678,12 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(0, 20, 0, 32),
+          padding: EdgeInsets.fromLTRB(
+            0,
+            MediaQuery.sizeOf(context).width <= 860 ? 0 : 20,
+            0,
+            32,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1709,7 +1719,11 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
               const SizedBox(height: 12),
               Text(
                 plazaCopy(context, '留下一句问候，分享一点灵感。在这里，遇见同频的朋友。'),
-                style: TextStyle(height: 1.7, color: RoomStyle(context).muted),
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.7,
+                  color: RoomStyle(context).muted,
+                ),
               ),
             ],
           ),
@@ -1780,6 +1794,8 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
     ),
   );
 
+  String? _openPlazaSection;
+
   Widget _plazaSidebar({required bool compact}) {
     final stats = mapOf(_extra['stats']);
     final recent = rowsOf(_payload['data']).toList()
@@ -1787,149 +1803,222 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
         (a, b) =>
             _plazaTime(b['created_at']).compareTo(_plazaTime(a['created_at'])),
       );
+    final sections = <_PlazaSection>[
+      _PlazaSection(
+        title: '热门话题',
+        icon: Icons.chat_bubble_outline,
+        expanded: !compact,
+        id: 'plaza-topics',
+        children: [
+          for (final topic in rowsOf(_extra['topics']))
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              title: Text('#${topic['topic'] ?? topic['name'] ?? ''}'),
+              subtitle: Text(
+                '${topic['count'] ?? 0} ${plazaCopy(context, '条留言')}',
+              ),
+              selected:
+                  _search.text == '#${topic['topic'] ?? topic['name'] ?? ''}',
+              trailing: const Icon(Icons.chevron_right, size: 18),
+              onTap: () =>
+                  _selectPlazaTopic('${topic['topic'] ?? topic['name'] ?? ''}'),
+            ),
+          if (rowsOf(_extra['topics']).isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                plazaCopy(context, '还没有话题，试试发布 #月读茶会#'),
+                style: const TextStyle(fontSize: 12, height: 1.6),
+              ),
+            ),
+        ],
+      ),
+      _PlazaSection(
+        title: '广场周边',
+        icon: Icons.explore_outlined,
+        expanded: !compact,
+        id: 'plaza-around',
+        children: [
+          for (final item in const [
+            (
+              '月读空间官方',
+              '项目仓库与更新记录',
+              'https://github.com/redchenk/tsukuyomi-space',
+              Icons.code,
+            ),
+            ('辉夜姬博客', '文章、公告与创作手记', '/stage', Icons.book_outlined),
+            ('月光像素工坊', '画像素画并分享到公开画廊', '/pixel/', Icons.image_outlined),
+          ])
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(item.$4, size: 22),
+              title: SiteText(item.$1, style: const TextStyle(fontSize: 13)),
+              subtitle: Text(
+                plazaCopy(context, item.$2),
+                style: const TextStyle(fontSize: 11),
+              ),
+              trailing: const Icon(Icons.chevron_right, size: 16),
+              onTap: () => _go(item.$3),
+            ),
+          const Divider(height: 24),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton(
+                key: const Key('plaza-friend-links'),
+                onPressed: () => _go('/friend-links'),
+                child: Text(plazaCopy(context, '浏览友链')),
+              ),
+              OutlinedButton(
+                onPressed: () => _go('/friend-links/apply'),
+                child: Text(plazaCopy(context, '申请友链')),
+              ),
+            ],
+          ),
+        ],
+      ),
+      _PlazaSection(
+        title: '关于广场',
+        icon: Icons.info_outline,
+        expanded: false,
+        id: 'plaza-info',
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              plazaCopy(context, '最近活动'),
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          for (final item in recent.take(4))
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.chat_bubble_outline, size: 16),
+              title: Text(userDisplayName(item, prefix: 'author')),
+              subtitle: Text(dateText(item['created_at'])),
+              onTap: () {
+                _search.clear();
+                _sort = 'latest';
+                _go('#msg-${item['id']}');
+              },
+            ),
+          const Divider(height: 24),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              plazaCopy(context, '留言约定'),
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const SiteText(
+            '保持友好，避免刷屏和敏感信息。\n\n友链申请请使用上方独立入口，审核状态可随时查看。\n\n反馈问题时尽量写清页面、操作和现象。',
+            style: TextStyle(fontSize: 12, height: 1.7),
+          ),
+          const Divider(height: 24),
+          for (final item in {
+            '站内文章': stats['articles'],
+            '注册访客': stats['users'],
+            '广场留言': stats['messages'],
+            '服务运行': '${((stats['uptime'] as num? ?? 0) / 3600).floor()} h',
+          }.entries)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      plazaCopy(context, item.key),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  Text('${item.value ?? 0}'),
+                ],
+              ),
+            ),
+        ],
+      ),
+    ];
+    if (!compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final section in sections) ...[
+            _plazaDisclosure(
+              title: section.title,
+              icon: section.icon,
+              expanded: section.expanded,
+              id: section.id,
+              children: section.children,
+            ),
+            const SizedBox(height: 14),
+          ],
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _plazaDisclosure(
-          title: '热门话题',
-          icon: Icons.chat_bubble_outline,
-          expanded: !compact,
-          id: 'plaza-topics',
-          children: [
-            for (final topic in rowsOf(_extra['topics']))
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                title: Text('#${topic['topic'] ?? topic['name'] ?? ''}'),
-                subtitle: Text(
-                  '${topic['count'] ?? 0} ${plazaCopy(context, '条留言')}',
-                ),
-                selected:
-                    _search.text == '#${topic['topic'] ?? topic['name'] ?? ''}',
-                trailing: const Icon(Icons.chevron_right, size: 18),
-                onTap: () => _selectPlazaTopic(
-                  '${topic['topic'] ?? topic['name'] ?? ''}',
-                ),
-              ),
-            if (rowsOf(_extra['topics']).isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Text(
-                  plazaCopy(context, '还没有话题，试试发布 #月读茶会#'),
-                  style: const TextStyle(fontSize: 12, height: 1.6),
-                ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        _plazaDisclosure(
-          title: '广场周边',
-          icon: Icons.explore_outlined,
-          expanded: !compact,
-          id: 'plaza-around',
-          children: [
-            for (final item in const [
-              (
-                '月读空间官方',
-                '项目仓库与更新记录',
-                'https://github.com/redchenk/tsukuyomi-space',
-                Icons.code,
-              ),
-              ('辉夜姬博客', '文章、公告与创作手记', '/stage', Icons.book_outlined),
-              ('月光像素工坊', '画像素画并分享到公开画廊', '/pixel/', Icons.image_outlined),
-            ])
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(item.$4, size: 22),
-                title: SiteText(item.$1, style: const TextStyle(fontSize: 13)),
-                subtitle: Text(
-                  plazaCopy(context, item.$2),
-                  style: const TextStyle(fontSize: 11),
-                ),
-                trailing: const Icon(Icons.chevron_right, size: 16),
-                onTap: () => _go(item.$3),
-              ),
-            const Divider(height: 24),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton(
-                  key: const Key('plaza-friend-links'),
-                  onPressed: () => _go('/friend-links'),
-                  child: Text(plazaCopy(context, '浏览友链')),
-                ),
-                OutlinedButton(
-                  onPressed: () => _go('/friend-links/apply'),
-                  child: Text(plazaCopy(context, '申请友链')),
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        _plazaDisclosure(
-          title: '关于广场',
-          icon: Icons.info_outline,
-          expanded: false,
-          id: 'plaza-info',
-          children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                plazaCopy(context, '最近活动'),
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            for (final item in recent.take(4))
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.chat_bubble_outline, size: 16),
-                title: Text(userDisplayName(item, prefix: 'author')),
-                subtitle: Text(dateText(item['created_at'])),
-                onTap: () {
-                  _search.clear();
-                  _sort = 'latest';
-                  _go('#msg-${item['id']}');
-                },
-              ),
-            const Divider(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                plazaCopy(context, '留言约定'),
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            const SizedBox(height: 10),
-            const SiteText(
-              '保持友好，避免刷屏和敏感信息。\n\n友链申请请使用上方独立入口，审核状态可随时查看。\n\n反馈问题时尽量写清页面、操作和现象。',
-              style: TextStyle(fontSize: 12, height: 1.7),
-            ),
-            const Divider(height: 24),
-            for (final item in {
-              '站内文章': stats['articles'],
-              '注册访客': stats['users'],
-              '广场留言': stats['messages'],
-              '服务运行': '${((stats['uptime'] as num? ?? 0) / 3600).floor()} h',
-            }.entries)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        plazaCopy(context, item.key),
-                        style: const TextStyle(fontSize: 12),
+        LayoutBuilder(
+          builder: (context, box) => Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final section in sections)
+                SizedBox(
+                  width: MediaQuery.textScalerOf(context).scale(12) > 18
+                      ? box.maxWidth
+                      : (box.maxWidth - 16) / 3,
+                  child: OutlinedButton(
+                    key: ValueKey(section.id),
+                    onPressed: () => setState(
+                      () => _openPlazaSection = _openPlazaSection == section.id
+                          ? null
+                          : section.id,
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: RoomStyle(context).surface,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 12,
                       ),
                     ),
-                    Text('${item.value ?? 0}'),
-                  ],
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            plazaCopy(context, section.title),
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        Icon(
+                          _openPlazaSection == section.id
+                              ? Icons.expand_less
+                              : Icons.expand_more,
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        for (final section in sections)
+          if (_openPlazaSection == section.id)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: SiteCard(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: section.children,
                 ),
               ),
-          ],
-        ),
+            ),
       ],
     );
   }
@@ -3187,139 +3276,88 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        children: [
-          const Positioned.fill(
-            child: SiteBackground(child: SizedBox.shrink()),
+  Widget build(BuildContext context) => NativeSiteShell(
+    controller: c,
+    title: title,
+    onGo: _go,
+    onTheme: widget.onTheme,
+    onRefresh: _load,
+    scrollController: _scroll,
+    maxWidth: article
+        ? 940
+        : route == '/stage'
+        ? 1056
+        : route == '/plaza'
+        ? 1176
+        : 1216,
+    footer: SiteBeianFooter(path: widget.path),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (c.sessionExpired)
+          MaterialBanner(
+            content: const SiteText('登录已过期，草稿和缓存仍在。重新登录后继续同步。'),
+            actions: [
+              TextButton(onPressed: _login, child: const SiteText('重新登录')),
+            ],
           ),
-          SafeArea(
+        if (_notice.isNotEmpty)
+          Row(
+            children: [
+              Expanded(child: Text(_notice)),
+              TextButton(
+                onPressed: _loading ? null : _load,
+                child: const SiteText('重试'),
+              ),
+            ],
+          ),
+        if (_loading) const LinearProgressIndicator(minHeight: 2),
+        if (_error.isNotEmpty)
+          SiteCard(
             child: Column(
               children: [
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: MediaQuery.sizeOf(context).width < 650
-                        ? 14
-                        : 24,
-                    vertical: MediaQuery.sizeOf(context).width < 650 ? 10 : 16,
-                  ),
-                  child: SiteHeader(
-                    title: title,
-                    username: c.sessionExpired ? null : c.account?.displayName,
-                    role: c.sessionExpired ? null : c.account?.role,
-                    onGo: _go,
-                    onTheme: widget.onTheme,
-                    onLogin: () {
-                      if (c.account == null || c.sessionExpired) {
-                        _login();
-                      } else {
-                        _go('/user');
-                      }
-                    },
-                  ),
-                ),
-                if (c.sessionExpired)
-                  MaterialBanner(
-                    content: const SiteText('登录已过期，草稿和缓存仍在。重新登录后继续同步。'),
-                    actions: [
-                      TextButton(
+                Text(_error),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  children: [
+                    FilledButton(onPressed: _load, child: const SiteText('重试')),
+                    if (privatePage || c.sessionExpired)
+                      OutlinedButton(
                         onPressed: _login,
-                        child: const SiteText('重新登录'),
+                        child: const SiteText('登录'),
                       ),
-                    ],
-                  ),
-                if (_notice.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 6,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(child: Text(_notice)),
-                        TextButton(
-                          onPressed: _loading ? null : _load,
-                          child: const SiteText('重试'),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (_loading) const LinearProgressIndicator(minHeight: 2),
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _load,
-                    child: SingleChildScrollView(
-                      controller: _scroll,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.fromLTRB(
-                        MediaQuery.sizeOf(context).width < 650 ? 14 : 20,
-                        10,
-                        MediaQuery.sizeOf(context).width < 650 ? 14 : 20,
-                        40,
-                      ),
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: article
-                                ? 940
-                                : route == '/stage'
-                                ? 1056
-                                : route == '/plaza'
-                                ? 1176
-                                : 1216,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (_error.isNotEmpty)
-                                SiteCard(
-                                  child: Column(
-                                    children: [
-                                      Text(_error),
-                                      const SizedBox(height: 12),
-                                      Wrap(
-                                        spacing: 12,
-                                        children: [
-                                          FilledButton(
-                                            onPressed: _load,
-                                            child: const SiteText('重试'),
-                                          ),
-                                          if (privatePage || c.sessionExpired)
-                                            OutlinedButton(
-                                              onPressed: _login,
-                                              child: const SiteText('登录'),
-                                            ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              if (_payload.isNotEmpty)
-                                article
-                                    ? _article()
-                                    : switch (route) {
-                                        '/plaza' => _plaza(),
-                                        '/growth' => _growth(),
-                                        '/user' => _profile(),
-                                        '/conversations' => _conversations(),
-                                        '/notifications' => _notifications(),
-                                        _ => _articles(),
-                                      },
-                              const SizedBox(height: 24),
-                              SiteBeianFooter(path: widget.path),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  ],
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
+        if (_payload.isNotEmpty)
+          article
+              ? _article()
+              : switch (route) {
+                  '/plaza' => _plaza(),
+                  '/growth' => _growth(),
+                  '/user' => _profile(),
+                  '/conversations' => _conversations(),
+                  '/notifications' => _notifications(),
+                  _ => _articles(),
+                },
+      ],
+    ),
+  );
+}
+
+class _PlazaSection {
+  const _PlazaSection({
+    required this.title,
+    required this.icon,
+    required this.expanded,
+    required this.id,
+    required this.children,
+  });
+  final String title, id;
+  final IconData icon;
+  final bool expanded;
+  final List<Widget> children;
 }
