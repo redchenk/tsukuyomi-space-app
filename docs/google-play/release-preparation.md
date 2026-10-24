@@ -59,3 +59,7 @@ The Simplified Chinese title, short/full descriptions, 512 × 512 existing app i
 - 后台工作台只有超级管理员可访问；完成登记要求账号已删除、清理清单逐项完成及处理回执。运行与清理规范见网站 `docs/privacy/account-deletion-runbook.md`。
 - 政策单一编辑源为网站 `shared/privacy-policy.json`。更新后执行 `node tool/sync_privacy_policy.mjs <网站仓库路径>`，再执行 `dart format lib/core/privacy_policy.dart`。需同时发布网站与 App 的政策版本。
 - Google Play 候选构建号从 100032 起；候选包不等于上架、真机验收或完成 Data safety/UGC/封闭测试要求。Console 中的政策 URL、删除 URL 和数据安全声明需按当前实测状态保存。
+
+## 2026-10-24 封闭测试候选包
+
+下一候选构建号为 100033，版本基于 0.6.31。旧包 100032 被定位插件附带的 `FOREGROUND_SERVICE_LOCATION` 权限触发了前台服务声明要求。Room 仅在用户主动请求时调用一次 `getCurrentPosition`，没有定位流或后台定位功能；Play manifest 因此移除该权限和可选服务的前台服务类型，同时保留插件绑定服务及前台单次定位能力。CI 检查最终 AAB 中没有该权限、前台服务类型及 APK 安装权限。

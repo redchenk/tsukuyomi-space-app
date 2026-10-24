@@ -13,7 +13,7 @@ on:
     inputs:
       version_code:
         description: Monotonically increasing Google Play version code
-        default: '100032'
+        default: '100033'
         required: true
         type: string
 
@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     env:
-      PLAY_VERSION_CODE: ${{ inputs.version_code || '100032' }}
+      PLAY_VERSION_CODE: ${{ inputs.version_code || '100033' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -83,13 +83,16 @@ jobs:
               manifest = archive.read('base/manifest/AndroidManifest.xml')
               assert b'space.tsukuyomi.tsukuyomi_space_app' in manifest, 'Wrong application ID'
               assert b'android.permission.REQUEST_INSTALL_PACKAGES' not in manifest, 'Play bundle must not request APK installation'
+              assert b'android.permission.FOREGROUND_SERVICE_LOCATION' not in manifest, 'Play bundle must not request unused foreground location access'
+              assert b'foregroundServiceType' not in manifest, 'Play bundle must not declare unused foreground service types'
               for abi in ('arm64-v8a', 'x86_64'):
                   assert f'base/lib/{abi}/libapp.so' in archive.namelist(), f'Missing {abi} app'
               assert not any('/armeabi-v7a/' in name for name in archive.namelist()), 'Unsupported 32-bit ABI'
           info = dict(source_sha=subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip(),
                       version_code=int(os.environ['PLAY_VERSION_CODE']), google_play=True,
                       sha256=hashlib.sha256(target.read_bytes()).hexdigest(), bytes=target.stat().st_size,
-                      install_packages_permission=False, human_device_acceptance=False)
+                      install_packages_permission=False, foreground_location_service_permission=False,
+                      human_device_acceptance=False)
           pathlib.Path('dist/google-play/build-info.json').write_text(json.dumps(info, indent=2)+'\n')
           print(json.dumps(info, indent=2))
           PY

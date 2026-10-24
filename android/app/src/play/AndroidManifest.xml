@@ -2,4 +2,12 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"
         tools:node="remove" />
+    <!-- Room requests one position while the user is in the app. Geolocator's
+         optional foreground location mode is not used by this application. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"
+        tools:node="remove" />
+    <application>
+        <service android:name="com.baseflow.geolocator.GeolocatorLocationService"
+            tools:remove="android:foregroundServiceType" />
+    </application>
 </manifest>
