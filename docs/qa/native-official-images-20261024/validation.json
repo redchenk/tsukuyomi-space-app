@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-24",
+  "native_base": "5adb297fe53344829d13254f43428e16b7adefc7",
+  "website_reference": "aed8f60406e585fa677da6be20e4826d22f9ecff",
+  "capability_contract": "dashboard.models[].capabilities.vision === true",
+  "static_analysis": "No issues found",
+  "dart_format": {"files": 293, "changed": 0},
+  "focused_tests": {"passed": 161, "skipped": 1, "failed": 0},
+  "test_files": [
+    "test/official_images_test.dart",
+    "test/official_payments_test.dart",
+    "test/settings_auth_session_test.dart",
+    "test/payments_page_test.dart",
+    "test/room_parity_test.dart",
+    "test/room_settings_test.dart",
+    "test/model_runtime_panel_test.dart",
+    "test/recent_site_sync_test.dart"
+  ],
+  "scenarios": [
+    "compressed PNG -> authenticated image_url request -> UTF-8 SSE reply -> uploaded image and synced history",
+    "server vision capability replaces cached text-only setting",
+    "unsupported model and account mismatch send no chat request and retain image draft",
+    "missing, false and non-boolean vision declarations cannot enable image requests",
+    "model selection and manual model entry update visible capabilities and saved settings",
+    "settings and payment centre render at widths 320, 390 and 1280"
+  ],
+  "visual_capture": {
+    "test_passed": true,
+    "width": 390,
+    "fixture_model": "vision-fixture",
+    "file": "settings-390.png"
+  },
+  "protected_existing_files": {"checked": 16, "changed": 0},
+  "production_model_request_performed": false,
+  "payment_performed": false,
+  "physical_device_tested": false,
+  "release_created": false
+}

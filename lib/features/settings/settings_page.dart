@@ -415,6 +415,9 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           _modelCatalog.cancel();
           catalog = [];
         }
+        if (key == 'model' && _value().usesOfficialApi) {
+          _applyOfficialModel();
+        }
         setState(() {});
       },
       decoration: InputDecoration(
@@ -660,7 +663,13 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     final data = await _officialDashboard();
     final models = (data['models'] as List)
         .whereType<Map>()
-        .where((row) => row['enabled'] == true)
+        .where(
+          (row) =>
+              row['enabled'] == true &&
+              row['id'] is String &&
+              row['max_output_tokens'] is int &&
+              row['max_output_tokens'] >= 16,
+        )
         .toList();
     if (models.isEmpty || data['enabled'] != true) {
       throw const ApiFailure('站内直供暂未开放，请稍后再试');
@@ -679,6 +688,22 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       catalog = models.map((row) => <String, dynamic>{...row}).toList();
       notice = '使用当前登录账号，无需填写 API 密钥。保存后生效。';
     });
+  }
+
+  Map<String, dynamic>? get _selectedOfficialModel {
+    for (final row in catalog) {
+      if (row['id'] == fields['model']!.text.trim()) return row;
+    }
+    return null;
+  }
+
+  void _applyOfficialModel() {
+    if (_selectedOfficialModel == null) return;
+    final next = officialRoomSettings(_value(), {
+      'enabled': true,
+      'models': catalog,
+    });
+    options = {...next.options};
   }
 
   Widget _officialLlm() => Column(
@@ -711,20 +736,35 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       _field('model', '模型 Model'),
       if (catalog.isNotEmpty)
         DropdownButtonFormField<String>(
+          key: ValueKey('official-model-${fields['model']!.text}'),
+          initialValue: _selectedOfficialModel?['id'] as String?,
           isExpanded: true,
           decoration: const InputDecoration(labelText: '可用直供模型'),
           items: [
             for (final row in catalog)
               DropdownMenuItem(
                 value: '${row['id']}',
-                child: Text('${row['id']}'),
+                child: Text(
+                  '${row['id']} · ${officialModelSupportsImages(row) ? '文字与图片' : '文字'}',
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
           ],
           onChanged: busy
               ? null
-              : (value) => setState(() => fields['model']!.text = value ?? ''),
+              : (value) => setState(() {
+                  fields['model']!.text = value ?? '';
+                  _applyOfficialModel();
+                }),
         ),
-      _hint('按公布的最终 Token 用量结算；余额不足时可到支付中心充值。当前直供仅支持文字，图片可使用 MCP 识图。'),
+      _hint('按公布的最终 Token 用量结算；余额不足时可到支付中心充值。'),
+      _hint(
+        _selectedOfficialModel == null
+            ? '刷新直供模型后可查看图片能力。支持图片的模型可在聊天中直接发送图片。'
+            : officialModelSupportsImages(_selectedOfficialModel!)
+            ? '支持文字、图片与工具调用。图片会自动压缩，图片与文字按实际 Token 用量统一计费。'
+            : '当前模型支持文字聊天和工具调用；发送图片请切换支持图片的模型，或选择 MCP 图片理解。',
+      ),
       _selectOption('visionMode', '图片理解', {
         'auto': '自动（模型 / MCP）',
         'model': '仅模型视觉',

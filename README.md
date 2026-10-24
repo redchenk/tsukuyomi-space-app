@@ -4,6 +4,8 @@ Tsukuyomi Space 的独立 Flutter 客户端。0.6.30 移动网页体验对齐与
 
 站内直供、原生支付中心、充值订单、用量账单及支付宝移动支付的开发同步与验收边界见 [站内直供与原生支付中心](docs/native-official-payments-2026-10-21.md)。移动应用的 App 支付采用独立服务端凭据，SDK 回调后由主站查单确认到账。
 
+站内直供图片聊天按服务端公布的模型能力开放：在 Room 设置刷新直供模型，选择标有「文字与图片」的模型并保存，即可在聊天中添加图片。图片自动压缩，沿用当前登录账号和网站余额；文字模型仍可配合 MCP 识图。
+
 整站原生页面包含入口、Hub、Wiki、图库、附件库、编辑器、像素工坊、辉夜跑酷、友链、公开主页、管理后台和 Live2D 工作台，支持跨设备事件、中文／日语／英语、全站搜索及八千代导览。后台只向有效登录的 admin／super_admin 显示和开放；本地、合并与云端记忆来源跟进原站最新逻辑。实现与验收边界见 [整站迁移记录](docs/native-full-site-implementation-2026-09-30.md)。
 
 下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。发布包包括 Android APK、macOS Universal DMG、Windows 安装程序、Linux DEB，以及供用户自签的 iOS IPA 和 HarmonyOS HAP。

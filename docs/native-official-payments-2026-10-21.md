@@ -16,13 +16,13 @@
 | `/api/payments/orders`、`:id`、`:id/checkout`、`:id/refresh` | 下单、订单、支付和服务端核对 |
 | `/api/admin/payments/settings`、`orders`、`orders/:id/refresh` | 主站支付管理 |
 | `/official-api/api/dashboard` | 核实站点用户、直供账号和模型 |
-| `/official-api/v1/chat/completions` | 文字、流式回复、工具调用、日记及结构化 Agent |
+| `/official-api/v1/chat/completions` | 文字、支持视觉的模型的图片输入、流式回复、工具调用、日记及结构化 Agent |
 | `/official-api/api/usage`、`requests/:id` | 用量分页与请求详情 |
 | `/official-api/api/statements/monthly` | UTC 自然月账单 |
 | `/official-api/api/admin/settings` | 维护者服务配置 |
 | `/official-api/api/admin/reconciliation`、`reconcile` | 待核对请求及凭据结算/释放 |
 
-直供聊天只向当前站点的固定路径发送网站 Cookie。先读取最新 dashboard 核对 `site_user_id`，请求携带 `X-Official-Expected-Account`，不发送外部供应商 Key。输出 Token 受当前服务模型上限限制，DeepSeek 沿用网站关闭思考模式的行为。图片能力与网站一致：当前直供不直接接收图片，可通过用户配置的 MCP 识图。收费请求不进行兼容性自动重发；401 提示重新登录，402 指向支付中心。更换账号、站点或会话后丢弃旧余额、订单、用量及未完成响应。
+直供聊天只向当前站点的固定路径发送网站 Cookie。先读取最新 dashboard 核对 `site_user_id`，请求携带 `X-Official-Expected-Account`，不发送外部供应商 Key。输出 Token 受当前服务模型上限限制，DeepSeek 沿用网站关闭思考模式的行为。2026-10-24 同步网站图片能力：仅当服务端模型声明 `capabilities.vision === true` 时直接发送图片；其余模型可使用用户配置的 MCP 识图。设置和支付中心显示「文字与图片」能力，图片与文字按实际 Token 用量统一计费。每次发送重新读取模型能力，覆盖旧版缓存的文字限定；不支持图片或账号不匹配时不发送聊天请求，并保留图片草稿。收费请求不进行兼容性自动重发；401 提示重新登录，402 指向支付中心。更换账号、站点或会话后丢弃旧余额、订单、用量及未完成响应。
 
 ## 移动端付款
 
@@ -33,6 +33,8 @@ Android 优先使用 App 支付：服务端为新订单固定 `app` 渠道，使
 跨渠道订单不更换 AppID。网页与 App 共用主站订单、通知验签及钱包幂等入账，历史网页订单在迁移后仍属于 `web` 渠道。服务端配套修改见主站 `docs/payments.md` 的移动支付说明和迁移 `047_payment_app_channel`。
 
 ## 验证与边界
+
+2026-10-24 图片同步已通过 161 项相关回归测试、静态检查和 320/390/1280 宽度界面检查。使用离线账号和合成图片验证压缩、认证、流式回复、图片上传与历史保存；未调用生产计费模型，也未做手机实机验收。本次为源码更新，尚未包含在 0.6.30 安装包中。详见[验证记录](qa/native-official-images-20261024/validation.json)和[390px 设置截图（模拟模型）](qa/native-official-images-20261024/settings-390.png)。
 
 - `flutter analyze --no-pub`；核心传输、精确金额、账号切换、回调不直接入账、SDK 调起与 WAP 回退测试。
 - 手机 390px、桌面 1280px 的原生页面测试；直供离线时仍显示主站余额和订单。
