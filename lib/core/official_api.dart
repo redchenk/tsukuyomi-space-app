@@ -54,6 +54,9 @@ RoomSettings officialRoomSettings(
   );
   if (models.isEmpty) throw const ApiFailure('该站内模型暂不可用，请刷新模型列表');
   final model = models.first;
+  final vision =
+      model['capabilities'] is Map &&
+      (model['capabilities'] as Map)['vision'] == true;
   final next = settings.copyWith(
     llmUrl: endpointUri(settings.siteUrl)
         .resolve('/official-api/v1/chat/completions')
@@ -88,14 +91,14 @@ RoomSettings officialRoomSettings(
     },
     'capabilities': {
       'text': true,
-      'image': false,
+      'image': vision,
       'tools': true,
       'streaming': true,
     },
   };
   (config['declarations'] as Map)[runtime.modelKey] = {
     'text': true,
-    'image': false,
+    'image': vision,
     'tools': true,
     'streaming': true,
   };

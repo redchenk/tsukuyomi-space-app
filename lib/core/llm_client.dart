@@ -132,8 +132,8 @@ class LlmClient implements ChatService {
         );
         settings = officialRoomSettings(settings, dashboard);
         officialAccount = (dashboard['me'] as Map)['account_id'] as String;
-        if (image != null) {
-          throw const ApiFailure('当前站内直供仅支持文字，图片请使用 MCP 识图或切换模型');
+        if (image != null && ModelRuntime(settings).unsupported('image')) {
+          throw const ApiFailure('当前站内模型不支持图片，请使用 MCP 识图或切换模型');
         }
       }
       final system = systemOverride.isNotEmpty

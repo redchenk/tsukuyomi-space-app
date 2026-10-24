@@ -230,6 +230,68 @@ void main() {
     }
     expect(posts, 1);
   });
+  test('official image chat follows server capabilities and keeps the same site account', () async {
+    const dataUrl =
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jE1sAAAAASUVORK5CYII=';
+    for (final vision in [false, true]) {
+      var posts = 0;
+      final data = dashboard();
+      (data['models'] as List).first['capabilities'] = {'vision': vision};
+      expect(
+        ModelRuntime(officialRoomSettings(official, data)).unsupported('image'),
+        !vision,
+      );
+      final llm =
+          LlmClient(
+              clientFactory: () => MockClient((request) async {
+                if (request.method == 'GET') {
+                  return http.Response(jsonEncode(data), 200);
+                }
+                posts++;
+                expect(request.headers['Cookie'], 'tsukuyomi_session=a');
+                expect(
+                  request.headers['X-Official-Expected-Account'],
+                  'official-alice',
+                );
+                expect(request.headers['Authorization'], isNull);
+                final body = jsonDecode(request.body) as Map;
+                final parts =
+                    (body['messages'] as List).last['content'] as List;
+                expect(
+                  parts
+                      .where((p) => p['type'] == 'image_url')
+                      .single['image_url']['url'],
+                  dataUrl,
+                );
+                return http.Response(
+                  jsonEncode({
+                    'choices': [
+                      {
+                        'message': {'content': '看见了图片'},
+                        'finish_reason': 'stop',
+                      },
+                    ],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }),
+            )
+            ..siteCookie = 'tsukuyomi_session=a'
+            ..siteAccountId = 'alice'
+            ..image = {'dataUrl': dataUrl, 'type': 'image/png'};
+      if (vision) {
+        expect(await llm.reply(official, [], '看图').join(), '看见了图片');
+        expect(posts, 1);
+      } else {
+        await expectLater(
+          llm.reply(official, [], '看图').join(),
+          throwsA(isA<ApiFailure>()),
+        );
+        expect(posts, 0);
+      }
+    }
+  });
   test('native checkout encodes a signed WAP URL once and falls back only when Alipay is unavailable', () async {
     final opened = <Uri>[];
     final url = Uri.https('openapi.alipay.com', '/gateway.do', {
