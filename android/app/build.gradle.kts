@@ -70,6 +70,10 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 kotlin {
@@ -84,4 +88,6 @@ flutter {
 
 dependencies {
     implementation(files("libs/qq-open-sdk.jar"))
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.17")
 }

@@ -121,7 +121,7 @@ jobs:
           done
           RUN_SITE_FIXTURE=1 flutter test --no-pub --concurrency=1 --dart-define=RUN_CUBISM_TESTS=true --dart-define=RUN_WEBSITE_INTEGRATION=true
   build:
-    needs: [metadata, quality]
+    needs: [metadata, quality, qq-native]
     strategy:
       fail-fast: false
       matrix:
@@ -278,6 +278,11 @@ jobs:
           path: dist/*
           if-no-files-found: error
           retention-days: 14
+  qq-native:
+    needs: metadata
+    uses: ./.github/workflows/qq-native.yml
+    with:
+      ref: ${{ needs.metadata.outputs.ref }}
   native-smoke:
     needs: [metadata, quality]
     uses: ./.github/workflows/mobile-native.yml

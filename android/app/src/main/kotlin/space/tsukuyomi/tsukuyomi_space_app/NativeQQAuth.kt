@@ -1,8 +1,10 @@
 package space.tsukuyomi.tsukuyomi_space_app
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import com.tencent.connect.common.Constants
 import com.tencent.tauth.IUiListener
 import com.tencent.tauth.Tencent
 import com.tencent.tauth.UiError
@@ -10,7 +12,7 @@ import io.flutter.plugin.common.MethodChannel
 import org.json.JSONObject
 
 /** SDK initialization happens only after the per-use QQ consent dialog. */
-class NativeQQAuth(private val activity: MainActivity) {
+class NativeQQAuth(private val activity: Activity) {
     companion object { const val APP_ID = "1905926637" }
     private var sdk: Tencent? = null
     private var pending: MethodChannel.Result? = null
@@ -60,7 +62,9 @@ class NativeQQAuth(private val activity: MainActivity) {
 
     fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         val active = listener ?: return
-        if (requestCode == Tencent.REQUEST_LOGIN) Tencent.onActivityResultData(requestCode, resultCode, data, active)
+        // AuthAgent launches AssistActivity with Constants.REQUEST_LOGIN (11101).
+        // Tencent.REQUEST_LOGIN is the legacy 10001 value and drops SSO results.
+        if (requestCode == Constants.REQUEST_LOGIN) Tencent.onActivityResultData(requestCode, resultCode, data, active)
     }
     private fun clear() {
         handler.removeCallbacks(timeout)

@@ -1,0 +1,72 @@
+name: QQ native callback regression
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/qq-native.yml'
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+        default: ''
+permissions:
+  contents: read
+jobs:
+  android-unit:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+      - run: bash tool/release/setup_android.sh
+      - run: python3 tool/release/prepare_assets.py
+      - run: flutter pub get
+      - name: Prove the legacy request code loses the SDK callback
+        shell: bash
+        run: |
+          source=android/app/src/main/kotlin/space/tsukuyomi/tsukuyomi_space_app/NativeQQAuth.kt
+          cp "$source" "$RUNNER_TEMP/NativeQQAuth.fixed.kt"
+          trap 'cp "$RUNNER_TEMP/NativeQQAuth.fixed.kt" "$source"' EXIT
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/src/main/kotlin/space/tsukuyomi/tsukuyomi_space_app/NativeQQAuth.kt')
+          source = p.read_text()
+          before = 'requestCode == Constants.REQUEST_LOGIN'
+          assert source.count(before) == 1
+          p.write_text(source.replace(before, 'requestCode == Tencent.REQUEST_LOGIN'))
+          PY
+          (cd android && ./gradlew :app:testDebugUnitTest --tests '*NativeQQAuthCallbackTest.sdkSsoSuccessReachesTheActiveListener') && exit 1
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil, xml.etree.ElementTree as ET
+          p = Path('build/app/test-results/testDebugUnitTest/TEST-space.tsukuyomi.tsukuyomi_space_app.NativeQQAuthCallbackTest.xml')
+          root = ET.parse(p).getroot()
+          assert root.attrib['tests'] == '1' and root.attrib['failures'] == '1' and root.attrib['errors'] == '0'
+          assert 'expected:<1> but was:<0>' in root.find('testcase/failure').attrib['message']
+          Path('artifacts').mkdir(exist_ok=True)
+          shutil.copyfile(p, 'artifacts/qq-native-legacy-failure.xml')
+          PY
+      - name: Exercise the real QQ SDK callback dispatcher
+        working-directory: android
+        run: ./gradlew :app:testDebugUnitTest --tests '*NativeQQAuthCallbackTest' --stacktrace
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qq-native-callback-results
+          path: |
+            artifacts/qq-native-legacy-failure.xml
+            build/app/test-results/testDebugUnitTest/
+            build/app/reports/tests/testDebugUnitTest/
