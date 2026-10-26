@@ -34,6 +34,8 @@ jobs:
       - run: bash tool/release/setup_android.sh
       - run: python3 tool/release/prepare_assets.py
       - run: flutter pub get
+      - name: Generate Flutter Android build configuration and Gradle wrapper
+        run: flutter build apk --debug --config-only --target-platform android-x64
       - name: Prove the legacy request code loses the SDK callback
         shell: bash
         run: |
@@ -48,7 +50,7 @@ jobs:
           assert source.count(before) == 1
           p.write_text(source.replace(before, 'requestCode == Tencent.REQUEST_LOGIN'))
           PY
-          (cd android && ./gradlew :app:testDebugUnitTest --tests '*NativeQQAuthCallbackTest.sdkSsoSuccessReachesTheActiveListener') && exit 1
+          (cd android && ./gradlew :app:testDebugUnitTest -Ptarget-platform=android-x64 --tests '*NativeQQAuthCallbackTest.sdkSsoSuccessReachesTheActiveListener') && exit 1
           python3 - <<'PY'
           from pathlib import Path
           import shutil, xml.etree.ElementTree as ET
@@ -61,7 +63,7 @@ jobs:
           PY
       - name: Exercise the real QQ SDK callback dispatcher
         working-directory: android
-        run: ./gradlew :app:testDebugUnitTest --tests '*NativeQQAuthCallbackTest' --stacktrace
+        run: ./gradlew :app:testDebugUnitTest -Ptarget-platform=android-x64 --tests '*NativeQQAuthCallbackTest' --stacktrace
       - uses: actions/upload-artifact@v4
         if: always()
         with:
