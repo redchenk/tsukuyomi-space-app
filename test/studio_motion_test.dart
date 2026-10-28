@@ -53,6 +53,58 @@ void main() {
   );
 
   test(
+    'App handoffs reduce peak head jumps while retaining expressive range',
+    () {
+      final observed = _RecordingStudioRuntime(runtime());
+      final animation = RoomAnimation()
+        ..attachStudio(observed, seed: 919)
+        ..ready = true;
+      addTearDown(animation.dispose);
+      final raw = <double>[], settled = <double>[];
+      for (var i = 0; i < 1200; i++) {
+        if (i == 180) animation.activity = 'thinking';
+        if (i == 360) animation.activity = 'idle';
+        final act = {
+          360: 'nod',
+          500: 'sway',
+          720: 'head_tilt',
+          900: 'bounce',
+        }[i];
+        if (act != null) {
+          animation.custom({
+            'expression': 'happy',
+            'durationMs': 2400,
+            'behaviorActions': [
+              {'type': act, 'durationMs': 1800},
+            ],
+            'interruptPolicy': 'replace',
+          });
+        }
+        animation.advance(
+          1 / 60,
+          mouth: i >= 360 && i < 660 ? math.max(0, math.sin(i * .415)) * .6 : 0,
+        );
+        final p = (observed.lastFrame!['parameters'] as List).firstWhere(
+          (p) => p['id'] == 'ParamAngleX',
+        );
+        raw.add(
+          (p['value'] as num).toDouble() * (p['weight'] as num).toDouble(),
+        );
+        settled.add(
+          animation.parameters['ParamAngleX']! *
+              animation.parameterWeights['ParamAngleX']!,
+        );
+      }
+      double peak(List<double> v) =>
+          [for (var i = 1; i < v.length; i++) (v[i] - v[i - 1]).abs()]
+              .reduce(math.max);
+      double span(List<double> v) => v.reduce(math.max) - v.reduce(math.min);
+      expect(peak(settled), lessThan(peak(raw) * .6));
+      expect(span(settled), greaterThan(span(raw) * .65));
+    },
+  );
+
+  test(
     'idle is alive, speech follows real amplitude and releases smoothly',
     () {
       final engine = runtime()..invoke({'kind': 'reset', 'seed': 919});
@@ -84,6 +136,34 @@ void main() {
       expect(modes.last, anyOf('idle', 'listening'));
       // There must not be a hard reset when audio falls silent.
       expect((values[240] - values[239]).abs(), lessThan(3));
+    },
+  );
+
+  test(
+    'neutral replies vary Studio gestures while explicit emotion stays intact',
+    () {
+      final animation = RoomAnimation()..attachStudio(runtime(), seed: 919);
+      addTearDown(animation.dispose);
+      for (final gesture in ['head_tilt', 'nod', 'sway']) {
+        animation.clear();
+        animation.react('这件事我们可以接着聊。', speaking: true);
+        final intent = animation.queue.single;
+        final acts = intent['behaviorActions'] as List;
+        expect(acts.map((a) => a['type']), [
+          'look_at_chat',
+          'breathe',
+          gesture,
+        ]);
+        expect(intent['source'], 'streaming-speech');
+        expect(intent['durationMs'], greaterThanOrEqualTo(2600));
+      }
+      animation.clear();
+      const emotional = '太开心了！';
+      animation.react(emotional);
+      expect(
+        animation.queue.single['behaviorActions'],
+        Live2DSemantics.infer(emotional)['behaviorActions'],
+      );
     },
   );
 
@@ -255,4 +335,20 @@ void main() {
       ),
     );
   });
+}
+
+class _RecordingStudioRuntime implements StudioRuntime {
+  _RecordingStudioRuntime(this.delegate);
+  final StudioRuntime delegate;
+  Map<String, dynamic>? lastFrame;
+
+  @override
+  Map<String, dynamic> invoke(Map<String, dynamic> command) {
+    final result = delegate.invoke(command);
+    if (command['kind'] == 'frame') lastFrame = result;
+    return result;
+  }
+
+  @override
+  void dispose() => delegate.dispose();
 }

@@ -35,6 +35,21 @@ set/add/multiply, while bit 16 selects weighted set with a 16-bit weight.
 Legacy idle waves and expression-file overlays are disabled on Studio frames
 to avoid competing drivers. The viewport and room background stay fixed.
 
+The App settles Studio's frame-to-frame arbitration with a short critically
+damped filter. It filters the weighted contribution and weight together, so
+each model's default pose is preserved. Head settling is 65 ms, body/shoulder
+settling 80–90 ms, gaze 35 ms and eyelids 18 ms. These are spring response
+parameters, not fixed delays. Audio mouth values and discrete rig routing
+switches bypass the filter. The exact integration is independent of display
+rate, and model replacement clears its state. The upstream source and raw
+reference trajectory remain unchanged.
+
+Neutral text replies rotate small original Studio head-tilt, nod and sway
+gestures alongside the existing look/breathe intent. Explicit action matches
+and emotional choreography retain their original selection. The demo uses
+open-eyed expressions for gaze and wink examples: Studio's `happy`/`smile`
+preset owns both eyes and intentionally suppresses a wink.
+
 The native App's existing audio playback clock remains authoritative for
 mouth opening. Its amplitude also feeds Studio's speaking gestures and
 release transition; pauses remain silent. Thinking status and streaming
@@ -46,7 +61,7 @@ is made. Explicit App rig controls and queue/delay limits remain available.
 ```sh
 node tool/studio_motion/bundle.mjs --check
 node --experimental-vm-modules tool/studio_motion/reference.mjs --check
-flutter test test/studio_motion_test.dart test/live2d_scene_controller_test.dart
+flutter test test/studio_motion_test.dart test/studio_pose_filter_test.dart test/live2d_scene_controller_test.dart
 flutter run -d macos -t tool/verify_studio_motion.dart
 ```
 
@@ -57,8 +72,12 @@ Tests also cover all 24 semantic actions, queue/protection/replacement,
 speech release, weighted blending, silence, runtime disposal, fullscreen,
 background suspension and active interaction.
 
-The native render probe creates 600 Cubism frames and exports 300 PNGs for
-review. Its simulated voice is only a rendering fixture, not a TTS quality
+The native render probe advances and exports every frame at 60 Hz: 1200
+Cubism frames / PNGs over 20 seconds, using seed 919. Encode the PNG sequence
+at 60 fps without frame interpolation or dropping frames. It saves the
+parameter trajectory and render metadata beside the images. The earlier
+600-update / 300-image preview was encoded at 15 fps and should not be used
+to assess animation smoothness. Its simulated voice is only a rendering fixture, not a TTS quality
 claim. Host measurements do not establish physical Android frame rate;
 device acceptance should include K90 chat, automatic reading, keyboard,
 fullscreen, background/resume and a prolonged conversation.

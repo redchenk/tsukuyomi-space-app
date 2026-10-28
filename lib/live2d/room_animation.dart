@@ -7,6 +7,7 @@ import '../core/models.dart';
 import '../core/room_archive.dart';
 import '../core/room_reference.dart';
 import 'live2d_semantics.dart';
+import 'studio_pose_filter.dart';
 
 class RoomAnimation extends ChangeNotifier {
   final List<Map<String, dynamic>> queue = [], history = [];
@@ -17,6 +18,8 @@ class RoomAnimation extends ChangeNotifier {
   final Map<String, double> parameters = {};
   final Map<String, double> parameterWeights = {};
   StudioRuntime? _studio;
+  final _poseFilter = StudioPoseFilter();
+  int _reaction = 0;
   double _studioClock = 1000, _queuedDelay = 0;
   int _studioSeed = 1;
   String _activity = 'idle';
@@ -31,11 +34,13 @@ class RoomAnimation extends ChangeNotifier {
     });
   }
 
-  void attachStudio(StudioRuntime runtime) {
+  void attachStudio(StudioRuntime runtime, {int? seed}) {
     _studio?.dispose();
     _studio = runtime;
     _studioClock = 1000;
-    _studioSeed = math.Random().nextInt(0x7fffffff);
+    _studioSeed = seed ?? math.Random().nextInt(0x7fffffff);
+    _poseFilter.clear();
+    _reaction = 0;
     runtime.invoke({'kind': 'reset', 'seed': _studioSeed, 'now': _studioClock});
     runtime.invoke({
       'kind': 'state',
@@ -54,6 +59,7 @@ class RoomAnimation extends ChangeNotifier {
     if (runtime == null || !identical(_studio, runtime)) return;
     _studio!.dispose();
     _studio = null;
+    _poseFilter.clear();
     parameterWeights.clear();
   }
 
@@ -111,6 +117,7 @@ class RoomAnimation extends ChangeNotifier {
   }
 
   void clear() {
+    _poseFilter.clear();
     _studio?.invoke({
       'kind': 'reset',
       'seed': _studioSeed,
@@ -136,10 +143,32 @@ class RoomAnimation extends ChangeNotifier {
   }
 
   void react(String text, {bool speaking = false}) {
-    enqueue({
-      ...Live2DSemantics.infer(text),
-      if (speaking) 'source': 'streaming-speech',
-    });
+    final intent = Live2DSemantics.infer(text);
+    final actions = jsonRows(intent['behaviorActions']);
+    // Neutral replies previously always chose the same look/breathe pair.
+    // Add one of Studio's own small conversational gestures; explicit acts and
+    // emotional presets retain their intended choreography.
+    if (usesStudio &&
+        intent['expression'] == 'neutral' &&
+        actions.every((a) => ['look_at_chat', 'breathe'].contains(a['type']))) {
+      final variant = _reaction++;
+      final gesture = const ['head_tilt', 'nod', 'sway'][variant % 3];
+      intent['behaviorActions'] = [
+        ...actions,
+        {
+          'type': gesture,
+          'side': variant.isEven ? 'left' : 'right',
+          'delayMs': 520,
+          'durationMs': 1800,
+          'intensity': .62,
+        },
+      ];
+      intent['durationMs'] = math.max(
+        (intent['durationMs'] as num).toDouble(),
+        2600,
+      );
+    }
+    enqueue({...intent, if (speaking) 'source': 'streaming-speech'});
   }
 
   bool _startStudio(Map<String, dynamic> step) {
@@ -188,6 +217,7 @@ class RoomAnimation extends ChangeNotifier {
       parameters[id] = value.toDouble();
       parameterWeights[id] = weight.toDouble().clamp(0, 1);
     }
+    _poseFilter.apply(parameters, parameterWeights, delta);
     expression = '${frame['expression'] ?? 'neutral'}';
     // Studio drives the actual rig. The room/background are never translated.
     x = y = rotation = 0;
