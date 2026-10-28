@@ -215,4 +215,44 @@ void main() {
     });
     isolated.dispose();
   });
+
+  test('explicit rig targets blend from the Studio pose without resetting its edges', () {
+    Map parameter(double weight) {
+      final engine = runtime()..invoke({'kind': 'reset', 'seed': 919});
+      engine.invoke({
+        'kind': 'act',
+        'now': 1000,
+        'value': {
+          'expression': 'happy',
+          'durationMs': 1200,
+          'behaviorActions': [
+            {'type': 'nod', 'durationMs': 1000},
+          ],
+          if (weight >= 0)
+            'parameters': [
+              {
+                'id': 'ParamAngleX',
+                'value': 20,
+                'weight': weight,
+                'durationMs': 1000,
+              },
+            ],
+        },
+      });
+      final frame = engine.invoke({'kind': 'frame', 'now': 1500, 'mouth': 0});
+      return (frame['parameters'] as List).firstWhere(
+        (p) => p['id'] == 'ParamAngleX',
+      ) as Map;
+    }
+
+    final baseline = parameter(-1), zero = parameter(0), half = parameter(.5);
+    expect(zero, baseline);
+    expect(
+      (half['value'] as num) * (half['weight'] as num),
+      closeTo(
+        (baseline['value'] as num) * (baseline['weight'] as num) * .5 + 10,
+        .00001,
+      ),
+    );
+  });
 }

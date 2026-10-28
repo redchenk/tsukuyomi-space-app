@@ -26,8 +26,14 @@ function frame(mouth) {
     const smooth = x => { const t = Math.max(0, Math.min(1, x)); return t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; };
     const envelope = phase < .28 ? smooth(phase/.28) : phase > .76 ? smooth((1-phase)/.24) : 1;
     const index = parameters.findIndex(p => p.id === target.id);
+    const amount = Math.max(0, Math.min(1, Number(target.weight ?? 1))) * envelope;
+    if (amount <= 0) continue;
+    const base = index >= 0 ? parameters[index] : null;
+    // Compose weighted sets, retaining Studio's pose at both envelope edges.
+    const weight = amount + (base?.weight || 0) * (1 - amount);
+    const value = (target.value * amount + (base ? base.value * base.weight * (1 - amount) : 0)) / weight;
     if (index >= 0) parameters.splice(index, 1);
-    parameters.push({id: target.id, value: target.value, weight: Number(target.weight ?? 1) * envelope});
+    parameters.push({id: target.id, value, weight});
   }
   const plan = performanceFrame.behaviorPlan;
   return { parameters, expression: performanceFrame.expression || 'neutral',

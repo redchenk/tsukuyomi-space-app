@@ -1,0 +1,4 @@
+third_party/** linguist-vendored
+packages/tsukuyomi_studio_motion/src/vendor/** linguist-vendored
+assets/live2d/studio-motion.js linguist-generated
+test/fixtures/studio_motion_reference.json linguist-generated
