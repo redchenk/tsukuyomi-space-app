@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
+import 'package:tsukuyomi_studio_motion/tsukuyomi_studio_motion.dart';
 import 'package:tsukuyomi_space_app/core/site_client.dart';
 import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
 import 'package:tsukuyomi_space_app/features/site/site_page.dart';
@@ -62,6 +64,10 @@ Future<void> _finishTransition(WidgetTester tester) async {
 }
 
 void main() {
+  final motionSource = File('assets/live2d/studio-motion.js')
+      .readAsStringSync();
+  Future<StudioRuntime> motionLoader() async =>
+      createStudioRuntime(motionSource);
   for (final action in ['点赞', '收藏']) {
     testWidgets(
       'issue #4: late article $action response after leaving does not reload or throw',
@@ -160,6 +166,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: CharacterStage(
+              motionLoader: motionLoader,
               voice: voice,
               modelLoader: () => loading.future,
             ),
@@ -211,7 +218,11 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: CharacterStage(voice: voice, modelLoader: () async => model),
+            body: CharacterStage(
+              motionLoader: motionLoader,
+              voice: voice,
+              modelLoader: () async => model,
+            ),
           ),
         ),
       );

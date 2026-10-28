@@ -290,6 +290,7 @@ class Live2DSemantics {
     );
     return {
       'expression': face.isEmpty ? 'neutral' : face,
+      if (item['source'] == 'streaming-speech') 'source': 'streaming-speech',
       'emotion': item['emotion'] ?? item['mood'],
       'expressionMix': layers.isEmpty
           ? [

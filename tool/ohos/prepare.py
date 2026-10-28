@@ -12,7 +12,8 @@ def prepare(root):
     source = root / 'tool/ohos'
     # Standard Flutter can still analyze/test the unprepared branch. Only the
     # dedicated CPF-Flutter build lowers its minimum to that SDK's Dart 3.12.2.
-    for relative in ['pubspec.yaml', 'packages/tsukuyomi_live2d/pubspec.yaml']:
+    for relative in ['pubspec.yaml', 'packages/tsukuyomi_live2d/pubspec.yaml',
+                     'packages/tsukuyomi_studio_motion/pubspec.yaml']:
         path = root / relative
         text = path.read_text()
         text, count = re.subn(r'(?m)^  sdk: \^3\.\d+\.\d+$', '  sdk: ^3.12.2', text)

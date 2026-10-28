@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/quickjs-ng/quickjs",
+  "tag": "v0.17.0",
+  "archiveSHA256": "a0955463c74809173a253ff87365095e6972e8b171cfb6aa8a1e781adf35cfeb",
+  "files": {
+    "quickjs-amalgam.c": "7c853a67ce7b6db463018e44f1425cd019d9f004a012ca013f47e415eb43446c",
+    "quickjs.h": "747a77444ff04a910b57ca51dd998d7ee46895b1b9592d7d6051fd180317c44d"
+  }
+}

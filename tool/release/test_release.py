@@ -137,6 +137,8 @@ class ReleaseTests(unittest.TestCase):
             'customFonts': [{'system': False, 'md5ext': 'font.ttf'}]}, ensure_ascii=False), encoding='utf-8')
         (source / 'live2d/character.moc3').write_bytes(b'cubism')
         (source / 'live2d/texture.webp').write_bytes(b'texture')
+        (source / 'live2d/studio-motion.js').write_bytes(b'offline-motion-engine')
+        (source / 'live2d/studio-motion.LICENSE.txt').write_bytes(b'MIT notices')
         (source / 'live2d/character.model3.json').write_text(json.dumps({
             'Name': '透明度：角色模型',
             'FileReferences': {'Moc': 'character.moc3', 'Textures': ['texture.webp']}}, ensure_ascii=False), encoding='utf-8')
@@ -166,6 +168,12 @@ class ReleaseTests(unittest.TestCase):
         sound.write_bytes(b'sound')
         (target / 'assets/images/wiki.webp').write_bytes(b'wrong-image')
         with self.assertRaises(ValueError):
+            verify_assets(target, self.root)
+
+    def test_missing_studio_motion_bundle_blocks_packaging(self):
+        target = self._site_assets()
+        (target / 'assets/live2d/studio-motion.js').unlink()
+        with self.assertRaises(FileNotFoundError):
             verify_assets(target, self.root)
 
     def test_real_utf8_assets_and_release_metadata_with_windows_cp1252_default(self):

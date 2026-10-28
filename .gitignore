@@ -51,6 +51,8 @@ app.*.map.json
 # Local SDKs, licensed model assets and credentials.
 packages/tsukuyomi_live2d/vendor/
 assets/live2d/*
+!assets/live2d/studio-motion.js
+!assets/live2d/studio-motion.LICENSE.txt
 !assets/live2d/.gitkeep
 !assets/live2d/textures/
 assets/live2d/textures/*

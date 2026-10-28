@@ -192,6 +192,8 @@ class _NativeModel extends Live2DModel {
       lookY: lookY,
       expression: _expressions[expression] ?? const [],
       overrides: parameterOverrides,
+      weights: parameterWeights,
+      studioMotion: studioMotion,
     );
     nativeUpdate(_ptr, delta);
     if (nativeMeshes(_ptr, _nativeMeshes, _count) != 1) {

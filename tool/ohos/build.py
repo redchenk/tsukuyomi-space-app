@@ -20,19 +20,23 @@ def is_missing_signature(log):
     ))
 
 
-def validate_hap(path):
+def validate_hap(path, require_studio_motion=False):
     with zipfile.ZipFile(path) as archive:
         if archive.testzip() is not None:
             raise ValueError('Corrupt HAP')
         names = archive.namelist()
-        for suffix in [
+        required = [
             'libs/arm64-v8a/libflutter.so',
             'libs/arm64-v8a/libapp.so',
             'libs/arm64-v8a/libtsukuyomi_live2d.so',
             'flutter_assets/assets/live2d/character.moc3',
             'flutter_assets/assets/live2d/character.model3.json',
             'flutter_assets/NOTICES.Z',
-        ]:
+        ]
+        if require_studio_motion:
+            required += ['libs/arm64-v8a/libtsukuyomi_studio_motion.so',
+                         'flutter_assets/assets/live2d/studio-motion.js']
+        for suffix in required:
             if not any(name.endswith(suffix) and archive.getinfo(name).file_size > 0
                        for name in names):
                 raise ValueError(f'Missing HAP component: {suffix}')
@@ -63,7 +67,8 @@ def build(root):
         raise RuntimeError(f'HAP build failed ({proc.returncode})')
     if len(candidates) != 1:
         raise ValueError('Expected exactly one newly built unsigned HAP')
-    validate_hap(candidates[0])
+    validate_hap(candidates[0], require_studio_motion=(
+        root / 'packages/tsukuyomi_studio_motion/pubspec.yaml').is_file())
     version = re.search(r'(?m)^version: (\S+)', (root / 'pubspec.yaml').read_text())[1]
     destination = root / 'dist/ohos'
     destination.mkdir(parents=True, exist_ok=True)

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
+import 'package:tsukuyomi_studio_motion/tsukuyomi_studio_motion.dart';
 
 import '../../core/site_client.dart';
 import '../../core/site_localization.dart';
@@ -16,6 +17,7 @@ class SharedRoomPage extends StatefulWidget {
     this.onTheme,
     this.loadNative = true,
     this.modelLoader,
+    this.motionLoader,
   });
   final RoomController controller;
   final String shareKey;
@@ -23,6 +25,7 @@ class SharedRoomPage extends StatefulWidget {
   final VoidCallback? onTheme;
   final bool loadNative;
   final Future<Live2DModel> Function()? modelLoader;
+  final Future<StudioRuntime> Function()? motionLoader;
   @override
   State<SharedRoomPage> createState() => _SharedRoomPageState();
 }
@@ -129,6 +132,7 @@ class _SharedRoomPageState extends State<SharedRoomPage> {
       onToggleTheme: widget.onTheme,
       loadNative: widget.loadNative,
       modelLoader: widget.modelLoader,
+      motionLoader: widget.motionLoader,
     );
   }
 }

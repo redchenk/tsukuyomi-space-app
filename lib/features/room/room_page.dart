@@ -12,6 +12,7 @@ import '../site/site_widgets.dart' show SiteBackground;
 
 import 'package:flutter/services.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
+import 'package:tsukuyomi_studio_motion/tsukuyomi_studio_motion.dart';
 
 import '../../core/models.dart';
 import '../../core/room_files.dart';
@@ -44,6 +45,7 @@ class RoomPage extends StatefulWidget {
     this.loadNative = true,
     this.onToggleTheme,
     this.modelLoader,
+    this.motionLoader,
     this.onNavigate,
   });
   final RoomController controller;
@@ -51,6 +53,7 @@ class RoomPage extends StatefulWidget {
   final bool loadNative;
   final VoidCallback? onToggleTheme;
   final Future<Live2DModel> Function()? modelLoader;
+  final Future<StudioRuntime> Function()? motionLoader;
   @override
   State<RoomPage> createState() => _RoomPageState();
 }
@@ -269,6 +272,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
       c.workspace.currentWorld['city'],
       widget.loadNative,
       widget.modelLoader,
+      widget.motionLoader,
       mobile,
       keyboardOpen,
       _roomMusic.index,
@@ -313,6 +317,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
         ),
         loadNative: widget.loadNative,
         modelLoader: widget.modelLoader,
+        motionLoader: widget.motionLoader,
         mobile: mobile,
         keyboardOpen: keyboardOpen,
         interacting: _interaction,

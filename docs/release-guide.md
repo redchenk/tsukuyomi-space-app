@@ -1,15 +1,17 @@
-# 月读空间 0.6.32 测试版
+# 月读空间 0.6.33 测试版
 
 App 备案号：**苏ICP备2026030780号-3A**，应用入口及页脚可查看并进入工信部查询。小米安装器仍提示无法识别备案时，请在提醒内选择“填写申诉”，按[小米官方指南](https://dev.mi.com/xiaomihyperos/documentation/detail?pId=1781)填写备案对应信息；此提示由系统侧识别决定。
 
-本版修复 Android QQ 同意授权后返回 App 无响应、最终超时的问题，正确接收当前 SDK 的授权回调。QQ 移动应用已审核通过，配套服务端和隐私说明已在国内、海外站点上线。SDK 仅在用户选择 QQ 登录并单独同意后初始化；授权成功后继续登录或进入原生邮箱／已有账号绑定页面。K90 已验证能够唤起 QQ，本版完整授权回跳仍需更新后真机复验。
+本版将 Yachiyo Live2D Studio 原版动作系统接入原生 Room、角色全屏与动作导演，支持自然待机、视线与眨眼、思考、说话及动作切换，并平滑头部和肩部的衔接。普通对话增加侧头、点头和轻摆，口型仍跟随实际语音音量。20 秒预览采用逐帧原生渲染的 60 fps；K90 上的实际流畅度和长时间使用需安装后体验。
+
+保留上一版的 Android QQ 授权回跳修复，K90 已验证能够完成 QQ 授权并进入登录状态。SDK 仍仅在用户选择 QQ 登录并单独同意后初始化。
 
 ## 安装
 
 - Android：安装 `android-arm64-v8a.apk`（绝大多数手机）。x86_64 模拟器选择 x86_64。当前 Cubism SDK 已不提供 32 位 ARM 库，因此不发布 32 位 APK。允许安装来自浏览器或文件管理器的应用。所有 APK 使用同一持久发行密钥签名，可覆盖升级本测试版。
 - macOS：打开 DMG，将应用拖到 Applications。Universal 包同时支持 Apple Silicon 和 Intel。当前没有 Developer ID 签名和公证；首次启动可能需在“系统设置 → 隐私与安全性”允许打开此应用。无需关闭系统安全功能。
 - Windows 10/11 x64：运行 setup.exe。按当前用户安装，无需管理员权限；当前未使用商业代码签名，SmartScreen 可能显示未知发布者。安装程序包含经过微软签名验证的 WebView2 引导程序，缺少运行时会联网安装，以支持 QQ 登录。便携 ZIP 解压完整目录后也可运行，使用 QQ 前需运行包内的 `MicrosoftEdgeWebview2Setup.exe`。
-- Linux x64：使用 Ubuntu 22.04 构建，推荐 `sudo apt install ./tsukuyomi-space-0.6.32-linux-x64.deb` 自动安装该版本所需音视频运行库。需桌面登录会话及 Secret Service（如已解锁的 GNOME Keyring）保存密钥。其它发行版须具备相同运行库 ABI，尤其是构建时链接的 libmpv；tar.gz 为便携包，不包含系统 GTK、Secret Service、GStreamer、libmpv 和 libepoxy。DEB 的依赖根据实际安装包中全部 ELF 自动推导。
+- Linux x64：使用 Ubuntu 22.04 构建，推荐 `sudo apt install ./tsukuyomi-space-0.6.33-linux-x64.deb` 自动安装该版本所需音视频运行库。需桌面登录会话及 Secret Service（如已解锁的 GNOME Keyring）保存密钥。其它发行版须具备相同运行库 ABI，尤其是构建时链接的 libmpv；tar.gz 为便携包，不包含系统 GTK、Secret Service、GStreamer、libmpv 和 libepoxy。DEB 的依赖根据实际安装包中全部 ELF 自动推导。
 - iOS：下载 `ios-arm64-unsigned.ipa`，使用自签工具导入，并用自己的 Apple 账号或证书签名。签名器需重新签署 App 和所有内嵌 Framework，配置对应描述文件与 Keychain entitlement。IPA 是真实 iPhoneOS arm64 构建，不是模拟器包；未签名文件不能直接点击安装。签名有效期、设备数量与刷新方式取决于签名账号及工具。本版未做已签名 iPhone 真机验收。
 
 ## 配置真实模型和语音

@@ -192,7 +192,7 @@ def prepare(artifact, output, tag, source):
     require(not hap.is_symlink() and digest(hap) == info['sha256'], 'HAP checksum differs')
     require((artifact / 'SHA256SUMS').read_text(encoding='utf-8').strip() ==
             f"{info['sha256']}  {name}", 'Artifact checksum manifest differs')
-    validate_hap(hap)
+    validate_hap(hap, require_studio_motion=tuple(map(int, version.split('.'))) >= (0, 6, 33))
     with zipfile.ZipFile(hap) as archive:
         app = json.loads(archive.read('module.json'))['app']
         require(app.get('versionName') == version and app.get('versionCode') == build_number and

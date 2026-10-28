@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
+import 'package:tsukuyomi_studio_motion/tsukuyomi_studio_motion.dart';
 import 'package:tsukuyomi_space_app/core/desktop_window.dart';
 import 'package:tsukuyomi_space_app/core/models.dart';
 import 'package:tsukuyomi_space_app/live2d/character_stage.dart';
@@ -52,6 +54,10 @@ class _Model extends Live2DModel {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  final motionSource = File('assets/live2d/studio-motion.js')
+      .readAsStringSync();
+  Future<StudioRuntime> motionLoader() async =>
+      createStudioRuntime(motionSource);
   void reportFrames({
     required int rasterMicros,
     int buildMicros = 1000,
@@ -163,6 +169,7 @@ void main() {
           MaterialApp(
             home: Scaffold(
               body: CharacterStage(
+                motionLoader: motionLoader,
                 mobile: mobile,
                 voice: SilentVoice(),
                 modelLoader: () => pending.future,
@@ -192,7 +199,14 @@ void main() {
         pending.complete(_Model());
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 34));
-        expect(find.byKey(const Key('room-character-pending')), findsNothing);
+        expect(
+          find.byKey(const Key('room-character-pending')),
+          findsNothing,
+          reason: tester
+              .widgetList<Text>(find.byType(Text))
+              .map((t) => t.data)
+              .join('\n'),
+        );
         expect(
           find.byWidgetPredicate(
             (w) => w is CustomPaint && w.painter is Live2DPainter,
@@ -223,6 +237,7 @@ void main() {
           MaterialApp(
             home: Scaffold(
               body: CharacterStage(
+                motionLoader: motionLoader,
                 mobile: mobile,
                 voice: SilentVoice(),
                 modelLoader: () =>
@@ -245,7 +260,7 @@ void main() {
     );
   }
   testWidgets(
-    'idle model updates keep transforms stable; actions still move the character',
+    'Studio actions animate the rig while keeping the viewport stable',
     (tester) async {
       final model = _Model(), animation = RoomAnimation();
       addTearDown(animation.dispose);
@@ -253,6 +268,7 @@ void main() {
         MaterialApp(
           home: Scaffold(
             body: CharacterStage(
+              motionLoader: motionLoader,
               voice: SilentVoice(),
               animation: animation,
               modelLoader: () async => model,
@@ -278,16 +294,20 @@ void main() {
       for (var i = 0; i < idle.length; i++) {
         expect(identical(idle[i], afterIdle[i]), true);
       }
+      final idleParameters = Map.of(model.parameterOverrides);
       animation.enqueue({'motion': 'nod', 'durationMs': 1000});
       for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 34));
       }
-      expect(animation.y, isNot(0));
+      expect(model.studioMotion, isTrue);
+      expect(model.parameterOverrides, isNot(equals(idleParameters)));
+      expect(model.parameterWeights, isNotEmpty);
+      expect(animation.y, 0);
       expect(
         tester
             .widgetList<Transform>(transforms)
             .map((w) => w.transform.storage.toList()),
-        isNot(equals(idle.map((w) => w.transform.storage.toList()))),
+        equals(idle.map((w) => w.transform.storage.toList())),
       );
       await tester.pumpWidget(const SizedBox());
     },
@@ -425,6 +445,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: CharacterStage(
+            motionLoader: motionLoader,
             voice: SilentVoice(),
             animation: animation,
             interacting: activity,
@@ -476,6 +497,7 @@ void main() {
           MaterialApp(
             home: Scaffold(
               body: CharacterStage(
+                motionLoader: motionLoader,
                 mobile: mobile,
                 voice: SilentVoice(),
                 modelLoader: () async => model,
@@ -536,6 +558,7 @@ void main() {
           body: DesktopWindowScope(
             controller: window,
             child: CharacterStage(
+              motionLoader: motionLoader,
               voice: SilentVoice(),
               modelLoader: () async => model,
             ),

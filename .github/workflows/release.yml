@@ -96,7 +96,7 @@ jobs:
       - run: python -m unittest discover -s tool/release -p 'test_*.py'
       - run: python -m unittest discover -s tool/agent -p 'test_*.py'
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib test packages/tsukuyomi_live2d/lib packages/tsukuyomi_live2d/hook
+      - run: dart format --output=none --set-exit-if-changed lib test packages/tsukuyomi_live2d/lib packages/tsukuyomi_live2d/hook packages/tsukuyomi_studio_motion/lib packages/tsukuyomi_studio_motion/hook
       - run: flutter analyze --no-pub
       - name: Check out original site backend fixture
         uses: actions/checkout@v4
@@ -110,6 +110,10 @@ jobs:
           cache: npm
           cache-dependency-path: build/site-fixture-source/package-lock.json
       - run: npm ci --prefix build/site-fixture-source
+      - name: Verify pinned Studio sources and browser-reference frames
+        run: |
+          node tool/studio_motion/bundle.mjs --check
+          node --experimental-vm-modules tool/studio_motion/reference.mjs --check
       - name: Run all source and real backend regressions
         run: |
           node tool/testing/site_room_fixture.cjs build/site-fixture-source > /tmp/site-fixture.log 2>&1 &

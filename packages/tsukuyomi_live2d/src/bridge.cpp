@@ -123,7 +123,10 @@ TS_EXPORT void ts_parameter(void* ptr, const char* id, float value, int blend) {
   if (!ptr || !id || !std::isfinite(value)) return;
   auto* m = static_cast<Scene*>(ptr)->model;
   auto key = CubismFramework::GetIdManager()->GetId(id);
-  if (blend == 1) m->AddParameterValue(key, value);
+  // Parameter-batch ABI: bit 16 is weighted set, low 16 bits are 0..1.
+  // This keeps all existing platform transports and legacy blend modes valid.
+  if ((blend & 0xffff0000) == 0x10000) m->SetParameterValue(key, value, (blend & 0xffff) / 65535.0f);
+  else if (blend == 1) m->AddParameterValue(key, value);
   else if (blend == 2) m->MultiplyParameterValue(key, value);
   else m->SetParameterValue(key, value);
 }

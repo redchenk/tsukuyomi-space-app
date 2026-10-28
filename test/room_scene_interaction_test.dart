@@ -1,8 +1,10 @@
 import 'dart:ui' as ui;
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
+import 'package:tsukuyomi_studio_motion/tsukuyomi_studio_motion.dart';
 import 'package:tsukuyomi_space_app/core/models.dart';
 import 'package:tsukuyomi_space_app/features/room/room_chat_view.dart';
 import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
@@ -38,6 +40,10 @@ class _CountingModel extends Live2DModel {
 }
 
 void main() {
+  final motionSource = File('assets/live2d/studio-motion.js')
+      .readAsStringSync();
+  Future<StudioRuntime> motionLoader() async =>
+      createStudioRuntime(motionSource);
   for (final mobile in [true, false]) {
     testWidgets(
       'held performance gestures retain the stream on ${mobile ? 'mobile' : 'desktop'}',
@@ -67,7 +73,11 @@ void main() {
         );
         final model = _CountingModel();
         await tester.pumpWidget(
-          TsukuyomiApp(controller: room, modelLoader: () async => model),
+          TsukuyomiApp(
+            controller: room,
+            motionLoader: motionLoader,
+            modelLoader: () async => model,
+          ),
         );
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 34));
@@ -139,7 +149,11 @@ void main() {
       );
       final model = _CountingModel();
       await tester.pumpWidget(
-        TsukuyomiApp(controller: room, modelLoader: () async => model),
+        TsukuyomiApp(
+          controller: room,
+          motionLoader: motionLoader,
+          modelLoader: () async => model,
+        ),
       );
       await tester.pump();
       for (var i = 0; i < 10; i++) {

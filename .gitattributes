@@ -1,0 +1,6 @@
+third_party/** text eol=lf linguist-vendored
+packages/tsukuyomi_studio_motion/src/vendor/** text eol=lf linguist-vendored
+tool/studio_motion/** text eol=lf
+assets/live2d/studio-motion.js text eol=lf linguist-generated
+assets/live2d/studio-motion.LICENSE.txt text eol=lf
+test/fixtures/studio_motion_reference.json text eol=lf linguist-generated

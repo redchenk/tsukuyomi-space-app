@@ -208,6 +208,11 @@ class Live2DDirectorController extends ChangeNotifier {
       '${endpointUri(room.settings.siteUrl).origin}:${room.sessionExpired ? 'guest' : room.account?.id ?? 'guest'}';
   String get historyKey => 'live2d-director-history:$scope';
   void _changed() {
+    animation.activity = status == 'thinking'
+        ? 'thinking'
+        : status == 'speaking'
+        ? 'speaking'
+        : 'idle';
     if (!_disposed) notifyListeners();
   }
 
@@ -416,7 +421,7 @@ class Live2DDirectorController extends ChangeNotifier {
       caption = line.text;
       intent = line.intent;
       status = 'speaking';
-      animation.custom(line.intent);
+      animation.custom({...line.intent, 'source': 'streaming-speech'});
       _log('yachiyo', line.text);
     }
 
