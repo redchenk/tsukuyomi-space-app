@@ -1,0 +1,21 @@
+{
+  "repository": "https://github.com/redchenk/yachiyo-live2d-studio",
+  "commit": "7cfc08a328be332d3b876a4257e74f8411f08d5f",
+  "files": {
+    "LICENSE": "3125380381dd14b0113ac6e8ad93da3b9c3a2202aa5bbd8627d71b6434907b8c",
+    "licenses/uLipSync-MIT.txt": "d1897e0b1bad123c8ceefdfc3d57356141da9745577e152e01fa3434aeacbefa",
+    "src/frontend/constants/room/behaviorActionRegistry.js": "acd0843a688146b704c1a4b795c0936545ddd2c0fc4fd6b3b4bca7e6947276b0",
+    "src/frontend/constants/room/yachiyoExpressionPresetRegistry.js": "fd870125089778b30a07e2acc8c280937466ed59d49ba0fae5a854f7491c5c6d",
+    "src/frontend/constants/room/yachiyoModelParameterRegistry.js": "0b0a34883f10f4f742d1a05c60f35832f86cdc3772380306b4f61e0aaafa1d4c",
+    "src/frontend/services/room/live2dBehaviorController.js": "b42e72c56c3dd171b0b90d769b9e18b93f465a097495ecbb80ae3bccafb52c04",
+    "src/frontend/services/room/live2dBehaviorOrchestrator.js": "4fdb75acae74b978489c076e05a4a9db5b1cbcdb0dedead19258d0c8f3912d27",
+    "src/frontend/services/room/live2dBlinkTiming.js": "67c6826fcd294e1a41adc21eea93cc0e7a919505c0525d9e7dc9e2728670010a",
+    "src/frontend/services/room/live2dCharacterStateMachine.js": "6306a51fa5382602f5e91043bd36ffc442207ad9bdbb809878c26eb9dc0c8afc",
+    "src/frontend/services/room/live2dCubismBehaviorBridge.js": "258112f05394a7c5ddae221876091dbd82d69e2dfcbac1657367dfb127a83082",
+    "src/frontend/services/room/live2dDebug.js": "1efba57c1a073782ff0ca798f727d41361864bf04ee3ce9fa33b29fac9257b95",
+    "src/frontend/services/room/live2dPerformanceBrain.js": "1023434c867514b3848278b73e87b2d7f2b990e8dafa769a2e6d9786b3b8aed7",
+    "src/frontend/services/room/live2dTrackingFrameMapper.js": "1134302ee4353aa5ec9829bf602a937e497eaf1b6eb78de4f0294608d21c2729",
+    "src/shared/audio-lipsync.mjs": "eb411dc4b56f184e9998c06b8287c36edefd2d779b28da24480f870ef662c9cd",
+    "src/shared/lipsync-profile.mjs": "bb5a3723953ee3455e88efe5062fd5c1a18a6e3c8e8e57671e6d56da5be7fd31"
+  }
+}
