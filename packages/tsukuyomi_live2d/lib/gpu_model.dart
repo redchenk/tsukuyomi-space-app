@@ -261,6 +261,8 @@ class GpuLive2DModel extends Live2DModel {
       lookY: lookY,
       expression: _expressions[expression] ?? const [],
       overrides: parameterOverrides,
+      weights: parameterWeights,
+      studioMotion: studioMotion,
     );
     _parameters = {
       'ids': ids,

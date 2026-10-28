@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image;
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
+import 'package:tsukuyomi_live2d/animation_parameters.dart';
 import 'package:tsukuyomi_space_app/live2d/live2d_scene_controller.dart';
 
 class _GpuClock implements TickerProvider {
@@ -89,6 +90,36 @@ void main() {
   Future<GpuLive2DModel> load() => GpuLive2DModel.load(
     manifest: 'gpu-fixture/model3.json',
     maxTextureSize: 3072,
+  );
+
+  test(
+    'Studio weights cross the native GPU channel and silence wins last',
+    () async {
+      final model = await load();
+      addTearDown(model.dispose);
+      model.configureSurface(const Size(390, 800), 2, 'auto');
+      await model.settled;
+      calls.clear();
+      model
+        ..studioMotion = true
+        ..parameterOverrides = {'ParamAngleX': 12, 'ParamMouthOpenY': .7}
+        ..parameterWeights = {'ParamAngleX': .35, 'ParamMouthOpenY': .8}
+        ..tick(1, 1 / 60, mouth: 0, expression: 'happy');
+      await model.settled;
+      final args =
+          calls.singleWhere((c) => c.method == 'frame').arguments as Map;
+      expect(args['ids'], [
+        'ParamAngleX',
+        'ParamMouthOpenY',
+        'ParamMouthOpenY',
+      ]);
+      expect(args['values'], [12, .7, 0]);
+      expect(args['blends'], [
+        weightedParameterBlend(.35),
+        weightedParameterBlend(.8),
+        0,
+      ]);
+    },
   );
 
   test(

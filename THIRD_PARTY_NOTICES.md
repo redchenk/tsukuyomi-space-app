@@ -1,5 +1,22 @@
 # Third-party notices
 
+## Yachiyo Live2D Studio motion system
+
+The native App runs 13 unchanged motion/state/rig modules from
+[Yachiyo Live2D Studio](https://github.com/redchenk/yachiyo-live2d-studio),
+commit `7cfc08a328be332d3b876a4257e74f8411f08d5f` (MIT, Copyright 2026 redchenk).
+Source hashes and the original licenses, including uLipSync's MIT attribution,
+are preserved in `third_party/yachiyo-live2d-studio/`. The reproducible bundle and
+its licenses are included in `assets/live2d/`; the App's license view includes
+them. Cubism rendering remains native.
+
+QuickJS-NG 0.17.0 executes the offline motion bundle. Its amalgamated sources,
+archive checksum and file hashes are under
+`packages/tsukuyomi_studio_motion/src/vendor/quickjs/`; the package LICENSE
+retains all upstream MIT and Unicode notices and is included in Flutter NOTICES.
+No filesystem, network, libc, module loader or host callbacks are exposed to
+the motion realm.
+
 ## QQ native login on Android
 
 Android includes Tencent QQ Connect SDK 3.5.19, downloaded from Tencent's

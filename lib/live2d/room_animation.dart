@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:tsukuyomi_studio_motion/tsukuyomi_studio_motion.dart';
 
 import '../core/models.dart';
 import '../core/room_archive.dart';
@@ -14,6 +15,48 @@ class RoomAnimation extends ChangeNotifier {
   bool ready = false;
   String expression = 'neutral', status = 'idle';
   final Map<String, double> parameters = {};
+  final Map<String, double> parameterWeights = {};
+  StudioRuntime? _studio;
+  double _studioClock = 1000, _queuedDelay = 0;
+  int _studioSeed = 1;
+  String _activity = 'idle';
+  bool get usesStudio => _studio != null;
+  set activity(String value) {
+    if (_activity == value) return;
+    _activity = value;
+    _studio?.invoke({
+      'kind': 'state',
+      'now': _studioClock,
+      'value': {'mode': value},
+    });
+  }
+
+  void attachStudio(StudioRuntime runtime) {
+    _studio?.dispose();
+    _studio = runtime;
+    _studioClock = 1000;
+    _studioSeed = math.Random().nextInt(0x7fffffff);
+    runtime.invoke({'kind': 'reset', 'seed': _studioSeed, 'now': _studioClock});
+    runtime.invoke({
+      'kind': 'state',
+      'value': {'mode': _activity},
+    });
+    if (current != null) queue.insert(0, current!);
+    current = null;
+    _queuedDelay = 0;
+    parameters.clear();
+    parameterWeights.clear();
+    x = y = rotation = 0;
+    scale = 1;
+  }
+
+  void detachStudio(StudioRuntime? runtime) {
+    if (runtime == null || !identical(_studio, runtime)) return;
+    _studio!.dispose();
+    _studio = null;
+    parameterWeights.clear();
+  }
+
   Map<String, double> _blendFrom = {};
   bool _started = false;
   Map<String, dynamic> get debug => {
@@ -24,10 +67,22 @@ class RoomAnimation extends ChangeNotifier {
     'expression': expression,
     'parameters': parameters,
     'history': history,
+    'engine': usesStudio ? 'yachiyo-live2d-studio' : 'legacy',
   };
   void enqueue(Map<String, dynamic> intent) {
     final step = Live2DSemantics.step(intent);
     if (step == null) return;
+    if (usesStudio) {
+      final mode = jsonMap(step['interruptPolicy'])['mode'];
+      if (ready && current != null && mode != 'queue' && step['delayMs'] == 0) {
+        if (_startStudio(step)) return;
+        if (mode == 'ignore') return;
+      }
+      if (queue.length < 32) queue.add(step);
+      status = ready ? 'queued' : 'pending';
+      notifyListeners();
+      return;
+    }
     if (current != null) {
       final next = jsonMap(step['interruptPolicy']),
           previous = jsonMap(current!['interruptPolicy']);
@@ -56,6 +111,17 @@ class RoomAnimation extends ChangeNotifier {
   }
 
   void clear() {
+    _studio?.invoke({
+      'kind': 'reset',
+      'seed': _studioSeed,
+      'now': _studioClock,
+    });
+    _studio?.invoke({
+      'kind': 'state',
+      'value': {'mode': _activity},
+    });
+    _queuedDelay = 0;
+    parameterWeights.clear();
     queue.clear();
     current = null;
     elapsed = 0;
@@ -69,12 +135,78 @@ class RoomAnimation extends ChangeNotifier {
     notifyListeners();
   }
 
-  void react(String text) {
-    enqueue(Live2DSemantics.infer(text));
+  void react(String text, {bool speaking = false}) {
+    enqueue({
+      ...Live2DSemantics.infer(text),
+      if (speaking) 'source': 'streaming-speech',
+    });
   }
 
-  void advance(double delta) {
+  bool _startStudio(Map<String, dynamic> step) {
+    final response = _studio!.invoke({
+      'kind': 'act',
+      'now': _studioClock,
+      'value': step,
+    });
+    if (response['accepted'] != true) return false;
+    current = step;
+    elapsed = 0;
+    status = 'playing';
+    history.insert(0, {...step, 'startedAt': DateTime.now().toIso8601String()});
+    if (history.length > 20) history.removeLast();
+    notifyListeners();
+    return true;
+  }
+
+  void _advanceStudio(double delta, double mouth) {
+    _studioClock += delta * 1000;
+    if (current == null && queue.isNotEmpty) {
+      _queuedDelay += delta * 1000;
+      if (_queuedDelay >= (queue.first['delayMs'] as num)) {
+        final step = queue.removeAt(0);
+        _queuedDelay = 0;
+        if (!_startStudio(step)) queue.insert(0, step);
+      }
+    }
+    elapsed += delta * 1000;
+    final frame = _studio!.invoke({
+      'kind': 'frame',
+      'now': _studioClock,
+      'mouth': mouth,
+    });
+    parameters.clear();
+    parameterWeights.clear();
+    for (final parameter in jsonRows(frame['parameters']).take(212)) {
+      final id = '${parameter['id']}';
+      final value = parameter['value'], weight = parameter['weight'];
+      if (value is! num ||
+          weight is! num ||
+          !value.isFinite ||
+          !weight.isFinite) {
+        continue;
+      }
+      parameters[id] = value.toDouble();
+      parameterWeights[id] = weight.toDouble().clamp(0, 1);
+    }
+    expression = '${frame['expression'] ?? 'neutral'}';
+    // Studio drives the actual rig. The room/background are never translated.
+    x = y = rotation = 0;
+    scale = 1;
+    if (current != null &&
+        frame['planActive'] != true &&
+        elapsed >= (current!['durationMs'] as num)) {
+      current = null;
+      status = queue.isEmpty ? 'idle' : 'queued';
+      notifyListeners();
+    }
+  }
+
+  void advance(double delta, {double mouth = 0}) {
     if (!ready) return;
+    if (usesStudio) {
+      _advanceStudio(delta, mouth);
+      return;
+    }
     if (current == null && queue.isNotEmpty) {
       current = queue.removeAt(0);
       elapsed = -(current!['delayMs'] as num).toDouble();
@@ -276,5 +408,12 @@ class RoomAnimation extends ChangeNotifier {
         (id == 'ParamEyeLOpen' || id == 'ParamEyeROpen' ? 1 : 0);
     final weight = (p['weight'] as num? ?? 1).toDouble().clamp(0, 1) * envelope;
     parameters[id] = (baseline + (value - baseline) * weight).clamp(-100, 100);
+  }
+
+  @override
+  void dispose() {
+    _studio?.dispose();
+    _studio = null;
+    super.dispose();
   }
 }

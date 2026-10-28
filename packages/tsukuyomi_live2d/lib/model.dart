@@ -37,6 +37,8 @@ abstract class Live2DModel extends ChangeNotifier {
   String? rendererFallbackReason;
   ui.FragmentProgram? get tintProgram => null;
   Map<String, double> parameterOverrides = {};
+  Map<String, double> parameterWeights = {};
+  bool studioMotion = false;
   List<LiveMesh> get meshes;
   List<ui.Image> get textures;
   ui.Rect get bounds;

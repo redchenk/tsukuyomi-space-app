@@ -1168,6 +1168,13 @@ packages:
       relative: true
     source: path
     version: "0.1.0"
+  tsukuyomi_studio_motion:
+    dependency: "direct main"
+    description:
+      path: "packages/tsukuyomi_studio_motion"
+      relative: true
+    source: path
+    version: "0.1.0"
   tuple:
     dependency: transitive
     description:

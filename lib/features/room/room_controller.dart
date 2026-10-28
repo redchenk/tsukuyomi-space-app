@@ -207,6 +207,7 @@ class RoomController extends ChangeNotifier {
 
   int get pendingCount => turns.where((t) => t.pending).length;
   void _changed() {
+    animation.activity = generating ? 'thinking' : 'idle';
     if (!_disposed) notifyListeners();
   }
 
@@ -914,7 +915,7 @@ class RoomController extends ChangeNotifier {
           !_disposed &&
           generation == _generation) {
         reacted = true;
-        animation.react(text);
+        animation.react(text, speaking: true);
       }
     }
 

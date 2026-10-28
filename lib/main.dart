@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
+import 'package:tsukuyomi_studio_motion/tsukuyomi_studio_motion.dart';
 
 import 'core/llm_client.dart';
 import 'core/app_theme_controller.dart';
@@ -54,6 +55,9 @@ Future<void> main() async {
     yield LicenseEntryWithLineBreaks([
       'Tsukuyomi site icons (Lucide / Feather)',
     ], await rootBundle.loadString('assets/images/site-icons.LICENSE.txt'));
+    yield LicenseEntryWithLineBreaks([
+      'Yachiyo Live2D Studio / uLipSync',
+    ], await rootBundle.loadString('assets/live2d/studio-motion.LICENSE.txt'));
   });
   final window = await DesktopWindowController.create();
   final preferences = await SharedPreferences.getInstance();
@@ -81,6 +85,7 @@ class TsukuyomiApp extends StatefulWidget {
     required this.controller,
     this.loadNative = true,
     this.modelLoader,
+    this.motionLoader,
     this.initialPath = '/room',
     this.updates,
     this.window,
@@ -90,6 +95,7 @@ class TsukuyomiApp extends StatefulWidget {
   final DesktopWindowController? window;
   final bool loadNative;
   final Future<Live2DModel> Function()? modelLoader;
+  final Future<StudioRuntime> Function()? motionLoader;
   final String initialPath;
   @override
   State<TsukuyomiApp> createState() => _TsukuyomiAppState();
@@ -461,6 +467,7 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
             onTheme: _toggleTheme,
             loadNative: widget.loadNative,
             modelLoader: widget.modelLoader,
+            motionLoader: widget.motionLoader,
           );
         }
         if (route == '/login' || route == '/register') {
@@ -598,6 +605,7 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
             onTheme: _toggleTheme,
             loadNative: widget.loadNative,
             modelLoader: widget.modelLoader,
+            motionLoader: widget.motionLoader,
           );
         }
         if (path == null) {
@@ -620,6 +628,7 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
     onNavigate: (path) => navigateSite(context, widget.controller, path),
     loadNative: widget.loadNative,
     modelLoader: widget.modelLoader,
+    motionLoader: widget.motionLoader,
     onToggleTheme: _toggleTheme,
   );
 }

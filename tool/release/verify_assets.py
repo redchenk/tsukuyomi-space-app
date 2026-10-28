@@ -29,7 +29,8 @@ def expected_assets(root=ROOT):
             raise ValueError(f"Game references missing asset: {name}")
     manifest_path = root / "assets/live2d/character.model3.json"
     refs = json.loads(manifest_path.read_text(encoding='utf-8'))["FileReferences"]
-    models = ["character.model3.json", refs["Moc"], *refs["Textures"]]
+    models = ["character.model3.json", refs["Moc"], *refs["Textures"],
+              "studio-motion.js", "studio-motion.LICENSE.txt"]
     models += [refs[key] for key in ("Physics", "Pose") if key in refs]
     models += [item["File"] for item in refs.get("Expressions", [])]
     for name in models:

@@ -23,6 +23,8 @@ dependencies:
   media_kit_libs_video: ^1.0.7
   tsukuyomi_live2d:
     path: packages/tsukuyomi_live2d
+  tsukuyomi_studio_motion:
+    path: packages/tsukuyomi_studio_motion
   qr_flutter: 4.1.0
   cupertino_icons: ^1.0.9
   flutter_svg: ^2.3.0

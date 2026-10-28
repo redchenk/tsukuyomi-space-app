@@ -6,7 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, TargetPlatform, ValueListenable;
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:tsukuyomi_live2d/tsukuyomi_live2d.dart';
+import 'package:tsukuyomi_studio_motion/tsukuyomi_studio_motion.dart';
 
 import '../core/voice_service.dart';
 import '../core/desktop_window.dart';
@@ -36,6 +38,7 @@ class CharacterStage extends StatefulWidget {
     this.musicLoading = false,
     this.onMusicToggle,
     this.modelLoader,
+    this.motionLoader,
     this.animation,
     this.settings = const RoomSettings(),
     this.world = const {},
@@ -58,6 +61,7 @@ class CharacterStage extends StatefulWidget {
   final VoidCallback? onMusicToggle;
   final ValueChanged<bool>? onReady;
   final Future<Live2DModel> Function()? modelLoader;
+  final Future<StudioRuntime> Function()? motionLoader;
   @override
   State<CharacterStage> createState() => _CharacterStageState();
 }
@@ -88,6 +92,10 @@ class _CharacterStageState extends State<CharacterStage>
   bool _visible = true;
   DesktopWindowController? _window;
   String _expression = 'neutral';
+  final _idleAnimation = RoomAnimation();
+  RoomAnimation get _animation => widget.animation ?? _idleAnimation;
+  RoomAnimation? _boundAnimation;
+  StudioRuntime? _studioRuntime;
   int _loadRevision = 0;
   String? _gpuFailure;
   int _textureLimit(RoomSettings settings) =>
@@ -108,25 +116,28 @@ class _CharacterStageState extends State<CharacterStage>
           defaultTargetPlatform == TargetPlatform.iOS ||
           defaultTargetPlatform.name == 'ohos',
       onTick: (seconds, delta) {
-        widget.animation?.advance(delta.clamp(0, .05));
-        final animation = widget.animation;
+        _animation.advance(delta.clamp(0, .05), mouth: widget.voice.mouth);
+        final animation = _animation;
         final pose = (
-          animation?.x ?? 0.0,
-          animation?.y ?? 0.0,
-          animation?.rotation ?? 0.0,
-          animation?.scale ?? 1.0,
+          animation.x,
+          animation.y,
+          animation.rotation,
+          animation.scale,
         );
         if (pose != _pose) {
           _pose = pose;
           _poseRevision.value++;
         }
-        _model?.parameterOverrides = widget.animation?.parameters ?? const {};
+        _model
+          ?..parameterOverrides = animation.parameters
+          ..parameterWeights = animation.parameterWeights
+          ..studioMotion = animation.usesStudio;
         _model?.tick(
           seconds,
           delta.clamp(0, .05),
           mouth: widget.voice.mouth,
-          expression: widget.animation?.current != null
-              ? widget.animation!.expression
+          expression: animation.usesStudio || animation.current != null
+              ? animation.expression
               : _expression,
         );
       },
@@ -140,8 +151,10 @@ class _CharacterStageState extends State<CharacterStage>
     if (!mounted) return;
     final revision = ++_loadRevision;
     _updateScene(() => _failure = null);
+    StudioRuntime? pendingRuntime;
+    Live2DModel? pendingModel;
     try {
-      final model =
+      final model = pendingModel =
           await (widget.modelLoader?.call() ??
               loadLive2D(
                 maxTextureSize: _textureLimit(widget.settings),
@@ -153,8 +166,24 @@ class _CharacterStageState extends State<CharacterStage>
         model.dispose();
         return;
       }
+      pendingRuntime = widget.motionLoader == null
+          ? createStudioRuntime(
+              await rootBundle.loadString('assets/live2d/studio-motion.js'),
+            )
+          : await widget.motionLoader!();
+      if (!mounted || revision != _loadRevision) {
+        model.dispose();
+        pendingRuntime.dispose();
+        return;
+      }
       if (canvasFallback) model.rendererFallbackReason = _gpuFailure;
+      _boundAnimation?.detachStudio(_studioRuntime);
+      _studioRuntime = pendingRuntime;
+      _boundAnimation = _animation;
+      _animation.attachStudio(pendingRuntime);
+      pendingRuntime = null;
       _updateScene(() => _sceneController.attach(model));
+      pendingModel = null;
       if (model is GpuLive2DModel) {
         var recovering = false;
         model.addListener(() {
@@ -168,10 +197,12 @@ class _CharacterStageState extends State<CharacterStage>
           }
         });
       }
-      if (widget.animation != null) widget.animation!.ready = true;
+      _animation.ready = true;
       widget.onReady?.call(true);
       _syncTicker();
     } catch (e) {
+      pendingRuntime?.dispose();
+      pendingModel?.dispose();
       if (mounted && revision == _loadRevision) {
         _updateScene(() => _failure = e.toString());
       }
@@ -227,6 +258,9 @@ class _CharacterStageState extends State<CharacterStage>
       widget.interacting?.addListener(_syncInteraction);
       _syncInteraction();
     }
+    if (widget.loadNative && oldWidget.animation != widget.animation) {
+      unawaited(_load());
+    }
     if (widget.loadNative &&
         widget.modelLoader == null &&
         (_textureLimit(oldWidget.settings) != _textureLimit(widget.settings) ||
@@ -258,7 +292,9 @@ class _CharacterStageState extends State<CharacterStage>
     _sceneController.dispose();
     _sceneRevision.dispose();
     _poseRevision.dispose();
-    if (widget.animation != null) widget.animation!.ready = false;
+    _boundAnimation?.detachStudio(_studioRuntime);
+    _animation.ready = false;
+    _idleAnimation.dispose();
     super.dispose();
   }
 
@@ -744,14 +780,8 @@ class _CharacterStageState extends State<CharacterStage>
               initialValue: _expression,
               enabled: _model != null,
               onSelected: (v) {
-                if (widget.animation != null) {
-                  widget.animation!.enqueue({
-                    'expression': v,
-                    'durationMs': 5000,
-                  });
-                } else {
-                  _updateScene(() => _expression = v);
-                }
+                _animation.enqueue({'expression': v, 'durationMs': 5000});
+                _expression = v;
               },
               itemBuilder: (_) => [
                 for (final e in jsonRows(
@@ -782,7 +812,7 @@ class _CharacterStageState extends State<CharacterStage>
                 if (v == 'pause') {
                   _toggleMotion();
                 } else {
-                  widget.animation?.enqueue({'motion': v, 'durationMs': 2800});
+                  _animation.enqueue({'motion': v, 'durationMs': 2800});
                 }
               },
               itemBuilder: (_) => [

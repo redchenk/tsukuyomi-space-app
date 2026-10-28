@@ -26,7 +26,12 @@ jobs:
           java-version: '17'
       - run: python3 tool/release/verify_android_toolchain.py
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib test packages/tsukuyomi_live2d/lib packages/tsukuyomi_live2d/hook
+      - run: dart format --output=none --set-exit-if-changed lib test packages/tsukuyomi_live2d/lib packages/tsukuyomi_live2d/hook packages/tsukuyomi_studio_motion/lib packages/tsukuyomi_studio_motion/hook
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node tool/studio_motion/bundle.mjs --check
+      - run: node --experimental-vm-modules tool/studio_motion/reference.mjs --check
       - run: flutter analyze
       - run: flutter test --concurrency=1
       - run: flutter build web
