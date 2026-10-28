@@ -34,7 +34,8 @@ void main(List<String> args) async {
       includes: [input.packageRoot.resolve('src/vendor/quickjs').toFilePath()],
       language: Language.c,
       flags: os == OS.windows
-          ? ['/std:c11', '/utf-8']
+          // Match QuickJS-NG's own CMake configuration for MSVC's atomics.
+          ? ['/std:c11', '/experimental:c11atomics', '/utf-8']
           : [
               '-std=gnu11',
               '-O2',
