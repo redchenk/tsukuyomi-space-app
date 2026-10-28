@@ -3,6 +3,10 @@ on:
   pull_request:
     paths:
       - 'packages/tsukuyomi_live2d/**'
+      - 'packages/tsukuyomi_studio_motion/**'
+      - 'third_party/yachiyo-live2d-studio/**'
+      - 'assets/live2d/studio-motion.js'
+      - 'test/studio_motion_test.dart'
       - 'tool/probe*gpu.dart'
       - 'tool/release/native_gpu_smoke.py'
       - '.github/workflows/native-gpu-platforms.yml'
@@ -47,7 +51,7 @@ jobs:
       - run: python tool/release/prepare_assets.py
       - run: flutter pub get
       - if: matrix.target != 'ios'
-        run: flutter test --concurrency=1 test/live2d_gpu_test.dart test/live2d_shader_build_test.dart
+        run: flutter test --concurrency=1 test/studio_motion_test.dart test/live2d_gpu_test.dart test/live2d_shader_build_test.dart
       - if: matrix.target == 'linux'
         name: OpenGL native texture probe (Mesa software rendering)
         env:
