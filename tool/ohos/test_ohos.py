@@ -26,7 +26,9 @@ class PreparationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             shutil.copytree(HERE, root / 'tool/ohos')
-            for relative in ['pubspec.yaml', 'packages/tsukuyomi_live2d/pubspec.yaml']:
+            manifests = ['pubspec.yaml', 'packages/tsukuyomi_live2d/pubspec.yaml',
+                         'packages/tsukuyomi_studio_motion/pubspec.yaml']
+            for relative in manifests:
                 p = root / relative
                 p.parent.mkdir(parents=True, exist_ok=True)
                 p.write_text('version: 0.7.0+42\nenvironment:\n  sdk: ^3.13.4\ndependencies:\n')
@@ -39,7 +41,8 @@ class PreparationTests(unittest.TestCase):
                 load('prepare').prepare(root)
             self.assertEqual(json.loads(app.read_text())['app']['versionCode'], 42)
             self.assertEqual(json.loads(app.read_text())['app']['versionName'], '0.7.0')
-            self.assertIn('sdk: ^3.12.2', (root / 'pubspec.yaml').read_text())
+            for relative in manifests:
+                self.assertIn('sdk: ^3.12.2', (root / relative).read_text())
             self.assertIn('  flutter_geolocator_ohos: any', (root / 'pubspec.yaml').read_text())
             self.assertIn('MacOsOptions()', (root / 'lib/core/storage.dart').read_text())
             self.assertTrue((root / 'packages/flutter_secure_storage/lib/flutter_secure_storage.dart').is_file())
@@ -55,6 +58,28 @@ class PreparationTests(unittest.TestCase):
                 archive.writestr('module.json', '{}')
             with self.assertRaisesRegex(ValueError, 'Missing HAP component'):
                 load('build').validate_hap(path)
+
+    def test_studio_release_requires_both_native_runtime_and_motion_bundle(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'studio.hap'
+            with zipfile.ZipFile(path, 'w') as archive:
+                for library in ['flutter', 'app', 'tsukuyomi_live2d']:
+                    archive.writestr(f'libs/arm64-v8a/lib{library}.so', b'native')
+                archive.writestr('flutter_assets/assets/live2d/character.moc3', b'model')
+                archive.writestr('flutter_assets/assets/live2d/character.model3.json',
+                                 '{"FileReferences":{"Textures":[]}}')
+                archive.writestr('flutter_assets/NOTICES.Z', b'notices')
+            builder = load('build')
+            builder.validate_hap(path)  # Historical packages remain eligible.
+            with self.assertRaisesRegex(ValueError, 'libtsukuyomi_studio_motion'):
+                builder.validate_hap(path, require_studio_motion=True)
+            with zipfile.ZipFile(path, 'a') as archive:
+                archive.writestr('libs/arm64-v8a/libtsukuyomi_studio_motion.so', b'native')
+            with self.assertRaisesRegex(ValueError, 'studio-motion.js'):
+                builder.validate_hap(path, require_studio_motion=True)
+            with zipfile.ZipFile(path, 'a') as archive:
+                archive.writestr('flutter_assets/assets/live2d/studio-motion.js', b'motion')
+            builder.validate_hap(path, require_studio_motion=True)
 
     def test_accepts_only_known_missing_signature_messages(self):
         builder = load('build')
