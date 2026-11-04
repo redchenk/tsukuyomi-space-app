@@ -441,6 +441,7 @@ class KaguyaRuntime extends ChangeNotifier {
     }
     return _hats('event_whenbroadcastreceived', broadcast: name);
   }
+
   List<_Thread> _hats(
     String opcode, {
     KaguyaSprite? target,
