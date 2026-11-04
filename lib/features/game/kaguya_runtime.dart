@@ -423,8 +423,24 @@ class KaguyaRuntime extends ChangeNotifier {
   }
 
   void broadcast(String name) => _broadcast(name);
-  List<_Thread> _broadcast(String name) =>
-      _hats('event_whenbroadcastreceived', broadcast: name);
+  List<_Thread> _broadcast(String name) {
+    // The in-game game-over retry starts a new score without a green flag.
+    // Only the automatic 10,000-point cycle carries its score base forward.
+    if (name == '游戏开始' && _cyclePhase == 'idle') {
+      _cycleBase = 0;
+      _cycleActive = false;
+      setVariableByName('轮回启动完成', 0);
+      setVariableByName('轮回分数', 0);
+    }
+    if (name == '死亡重开' || name == '音游结束') {
+      // A delayed summon or spawn must not resume in the next scene.
+      for (final t in _threads) {
+        final event = _field(t.sprite.blocks[t.hat], 'BROADCAST_OPTION');
+        if (event == '月人召唤仪式' || event == '月人老母来') t.dead = true;
+      }
+    }
+    return _hats('event_whenbroadcastreceived', broadcast: name);
+  }
   List<_Thread> _hats(
     String opcode, {
     KaguyaSprite? target,
@@ -506,7 +522,14 @@ class KaguyaRuntime extends ChangeNotifier {
       if (thread.dead || thread.sprite.deleted) continue;
       _executing = thread;
       _executingBlock = thread.pc;
-      if (thread.until > time) continue;
+      if (thread.until > time) {
+        if (!thread.waitingForRhythmTrack ||
+            number(variableByName('轮回分数')) < 8000) {
+          continue;
+        }
+        thread.until = time;
+      }
+      thread.waitingForRhythmTrack = false;
       if (thread.waiting != null && thread.waiting!.any((t) => !t.dead)) {
         continue;
       }
@@ -769,6 +792,9 @@ class KaguyaRuntime extends ChangeNotifier {
         if (sound != null) {
           onSound?.call(s, sound, op == 'sound_playuntildone');
           if (op == 'sound_playuntildone') {
+            // The rhythm track normally ends the third stage. Reaching its
+            // score boundary early continues the same native transition script.
+            t.waitingForRhythmTrack = s.isStage && sound['name'] == '月人来了';
             t.until =
                 time + number(sound['sampleCount']) / number(sound['rate']);
             return true;
@@ -1402,6 +1428,7 @@ class _Thread {
   String? pc;
   final stack = <_Frame>[];
   double until = 0;
+  bool waitingForRhythmTrack = false;
   bool dead = false, yielded = false;
   int warpDepth = 0;
   List<_Thread>? waiting;
