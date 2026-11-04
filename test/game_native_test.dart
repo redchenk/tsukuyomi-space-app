@@ -440,6 +440,123 @@ void main() {
     },
   );
 
+  test(
+    'a game-over retry after 10k starts its own encounters and score cycle',
+    () {
+      final vm = shippedRuntime();
+      addTearDown(vm.dispose);
+      void play(int count, {void Function()? observe}) {
+        for (var i = 0; i < count; i++) {
+          vm.setVariableByName('心情值', 100);
+          vm.advance(1 / 30);
+          observe?.call();
+        }
+        expect(vm.failure, isNull);
+      }
+
+      bool visibleClone(String name) =>
+          vm.sprites.any((s) => s.isClone && s.name == name && s.visible);
+
+      vm.restart();
+      vm.startGame();
+      play(150);
+      vm.broadcast(
+        '顶1',
+      ); // Finish the white tutorial through its own transition.
+      play(80);
+      vm.setVariableByName('分数', 10100);
+      play(90);
+      expect(vm.score, 10100);
+      expect(vm.variableByName('轮回分数'), 0);
+
+      vm.setVariableByName('心情值', 0);
+      frames(vm, 100);
+      expect(vm.sprites.firstWhere((s) => s.name == '游戏结束').visible, isTrue);
+      vm.click(0, 0);
+      play(2);
+      vm.click(0, 0, down: false);
+      play(180);
+      expect(vm.score, 0);
+      vm.broadcast('顶1');
+      play(80);
+      vm.setVariableByName('分数', 210);
+      var sawGroundEnemy = false;
+      play(
+        200,
+        observe: () {
+          sawGroundEnemy |= visibleClone('障碍2');
+        },
+      );
+      expect(sawGroundEnemy, isTrue);
+      vm.setVariableByName('分数', 510);
+      var sawShip = false;
+      play(
+        120,
+        observe: () {
+          sawShip |= visibleClone('feichuan');
+        },
+      );
+      expect(sawShip, isTrue);
+      vm.setVariableByName('分数', 1110);
+      play(120);
+      expect(vm.sprites.firstWhere((s) => s.name == '切换场景柱子').visible, isTrue);
+      vm.setVariableByName('分数', 2400);
+      play(90, observe: () => expect(visibleClone('月人2'), isFalse));
+      vm.setVariableByName('分数', 3210);
+      play(360);
+      expect(
+        vm.executionState.any((t) => t['sprite'] == '月人2' && t['hat'] == 'Y?'),
+        isTrue,
+      );
+      vm.setVariableByName('分数', 8000);
+      play(150);
+      // The shipped fourth-stage background broadcast enables the scrolling floor.
+      expect(KaguyaRuntime.number(vm.variableByName('2')), 1);
+      vm.setVariableByName('分数', 10100);
+      play(100);
+      expect(vm.score, 10100);
+      expect(vm.variableByName('轮回分数'), 0);
+      expect(vm.variableByName('关卡轮换中'), 0);
+    },
+  );
+
+  test(
+    'delayed rhythm summons and upper-lane warnings end with their scene',
+    () {
+      for (final boundary in ['死亡重开', '音游结束']) {
+        final vm = shippedRuntime();
+        addTearDown(vm.dispose);
+        vm.restart();
+        vm.startGame();
+        frames(vm, 150);
+        vm.setVariableByName('心情值', 9000);
+        vm.broadcast('月人老母来');
+        frames(
+          vm,
+          630,
+        ); // The encounter now waits a random 10–35s before warning.
+        vm.broadcast(
+          '月人召唤仪式',
+        ); // Its own delayed hat can restart the encounter.
+        frames(vm, 2);
+        expect(
+          vm.executionState.any(
+            (t) => t['sprite'] == '月人2' && t['hat'] == 'Y?',
+          ),
+          isTrue,
+        );
+        vm.broadcast(boundary);
+        vm.setVariableByName('分数', 2400);
+        for (var i = 0; i < 56 * 30; i++) {
+          vm.setVariableByName('心情值', 100);
+          vm.advance(1 / 30);
+          expect(vm.sprites.any((s) => s.isClone && s.name == '月人2'), isFalse);
+        }
+        expect(vm.failure, isNull);
+      }
+    },
+  );
+
   test('flight, rhythm, combat and 10000-point repeat execute shipped broadcast scripts', () {
     final vm = shippedRuntime();
     addTearDown(vm.dispose);
