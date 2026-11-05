@@ -1,15 +1,15 @@
 # Google Play release preparation
 
-The Play-specific candidate is built from `codex/google-play-release` and is separate from the existing GitHub installer release. It is not evidence of Play approval or physical-device acceptance.
+Build Play candidates from the current native release source, with the Play compile-time flag. The Google Play bundle workflow can be dispatched on a reviewed branch or tag; it is separate from the GitHub installer release. Building a candidate is not evidence of Play approval or physical-device acceptance.
 
 ## Build
 
-Run the **Google Play bundle** workflow on that branch. The workflow uses the existing Android distribution signing secrets; it exports only the public certificate and never uploads the keystore as an artifact.
+Run the **Google Play bundle** workflow on the selected source, with a version code higher than every previous Play upload. The current default is `100034`, following `0.6.31 (100033)`; the native source is now `0.6.34+41`. The workflow checks that the packaged version name matches `pubspec.yaml`. It uses the existing Android distribution signing secrets; it exports only the public certificate and never uploads the keystore as an artifact.
 
 ```sh
 flutter build appbundle --release \
   --target-platform android-arm64,android-x64 \
-  --build-number=100031 \
+  --build-number=100034 \
   --dart-define=TSUKUYOMI_GOOGLE_PLAY=true
 ```
 
@@ -18,6 +18,14 @@ The compile-time flag disables initialization of the GitHub APK updater and sele
 The initial Play version code is `100031`, above the ABI-offset version codes of the existing `0.6.24+31` APKs. Every later Play upload must increase this code. Version codes alone do not establish cross-channel upgrade compatibility: the final Play app-signing certificate must also be compared with the direct-distribution certificate.
 
 Artifacts include the AAB, public upload certificate, signature-verification output, build provenance and checksums. Creating this candidate does not choose or migrate the Play app-signing key, upload a private signing key to Google, publish a store version, or modify the existing GitHub release.
+
+## DEX optimization and device acceptance
+
+`tobias 5.3.4` exports global `-dontshrink` and `-dontoptimize` consumer options, which disabled those R8 passes for the entire `100033` bundle. `android/build.gradle.kts` replaces that library's consumer rules with the checked-in `android/tobias-consumer-rules.pro`. All upstream keep rules remain; the two disable options, blanket warning suppression, and mapping-output override are removed. This does not modify the shared Pub cache or the payment SDK implementation. Re-review the replacement when upgrading tobias. App rules preserve the reflective QQ SDK and Live2D JNI names.
+
+The workflow runs payment/QQ/UI regressions and the actual Tencent SDK callback dispatcher regression. It validates `BUNDLE-METADATA/com.android.tools/r8.json` from the final AAB with `tool/release/verify_play_optimization.py`: all three passes must be enabled and optimization, shrinking and obfuscation must each reach 25%, even when DEX is below the policy's size floor. It also verifies SDK/JNI entry points in the mapping. The report is saved as `optimization-report.json`; R8 diagnostics are a separate short-lived artifact.
+
+Pinned bundletool produces `tsukuyomi-space-play-device-test.apk` directly from the signed AAB. The APK is signed with the existing distribution key and must contain exactly the same DEX bytes as the AAB. This is the device acceptance package, not a second Flutter build. Test startup, character rendering, QQ consent/login/cancel callbacks, payment client launch/cancel/return and server-side order status on a real Android device. Mock/unit checks and SDK return codes do not prove real login or payment settlement. Record those results separately from the immutable CI build provenance. Google Play can re-sign installed APKs with its app-signing certificate, so Play-distributed login/signature compatibility still needs verification through the selected Play track.
 
 ## Console state and remaining evidence
 
