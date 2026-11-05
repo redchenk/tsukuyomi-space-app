@@ -102,7 +102,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: redchenk/tsukuyomi-space
-          ref: 836e11b56610cf83550fe7d51a4f830f95f05df5
+          ref: 3008d594d74f1ed743888f6e9352a886fa665ae6
           path: build/site-fixture-source
       - uses: actions/setup-node@v4
         with:

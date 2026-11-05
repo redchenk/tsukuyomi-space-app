@@ -129,11 +129,18 @@ class RoomDialogue {
       ? 'yes'
       : previous;
   static String _act(Map<String, dynamic> s) {
+    if (s['close'] == true && s['help'] != true && s['question'] != true) {
+      return 'close';
+    }
+    if (s['repair'] == true) return 'repair';
     if (s['help'] == true || (s['question'] == true && s['topic'] == 'debug')) {
       return 'answer';
     }
     if (s['close'] == true) return 'close';
     if (s['serious'] == true || s['distress'] == true) return 'acknowledge';
+    if (s['recall'] == true) return 'recall';
+    if (s['affection'] == true) return 'affection';
+    if (s['praise'] == true) return 'receivePraise';
     if (s['opinion'] == true) return 'opinion';
     if (s['question'] == true) return 'answer';
     if (s['positive'] == true) return 'celebrate';
@@ -142,7 +149,9 @@ class RoomDialogue {
   }
 
   static String _tone(Map<String, dynamic> s, String previous) {
-    if (s['serious'] == true || s['noBanter'] == true) return 'serious';
+    if (s['serious'] == true || s['noBanter'] == true || s['repair'] == true) {
+      return 'serious';
+    }
     if (s['distress'] == true) return 'quiet';
     if (s['positive'] == true ||
         s['play'] == true ||
@@ -160,7 +169,8 @@ class RoomDialogue {
     var advice = 'unknown', tone = 'neutral', topic = '', lastAct = 'natural';
     var noQuestions = false, noBanter = false, questionStreak = 0;
     final pending = <String, Map<String, dynamic>>{};
-    final openings = <String>[], patterns = <String>[];
+    final openings = <String>[];
+    final patterns = <List<String>>[];
     for (final turn in turns) {
       final s = signals(turn['user'] as String);
       final reply = evaluateReply(turn['assistant'] as String);
@@ -189,7 +199,7 @@ class RoomDialogue {
       questionStreak = reply['question'] == true ? questionStreak + 1 : 0;
       lastAct = reply['question'] == true ? 'ask' : _act(s);
       openings.add(reply['opening'] as String);
-      patterns.addAll((reply['patterns'] as List).cast<String>());
+      patterns.add((reply['patterns'] as List).cast<String>());
     }
     var date = turns.isEmpty ? '' : turns.last['createdAt'].toString();
     if (RegExp(r'^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$').hasMatch(date)) {
@@ -221,7 +231,8 @@ class RoomDialogue {
         (s) => recent.where((v) => v == s).length > 1,
       ),
       'recentPatterns': patterns
-          .skip(patterns.length > 6 ? patterns.length - 6 : 0)
+          .skip(patterns.length > 4 ? patterns.length - 4 : 0)
+          .expand((items) => items)
           .toSet()
           .toList(),
       'pendingTopics': pendingRows
@@ -244,8 +255,18 @@ class RoomDialogue {
     final noBanter =
         s['noBanter'] == true ||
         (state['noBanter'] == true && s['allowBanter'] != true);
-    final act = opener ? 'natural' : _act(s);
-    final tone = noBanter ? 'serious' : _tone(s, state['tone'] as String);
+    var act = opener ? 'natural' : _act(s);
+    final previousTone =
+        s['close'] == true ||
+            (s['topic'] != '' &&
+                state['topic'] != '' &&
+                s['topic'] != state['topic'])
+        ? 'neutral'
+        : state['tone'] as String;
+    final tone = noBanter ? 'serious' : _tone(s, previousTone);
+    if (act == 'banter' && (noBanter || ['quiet', 'serious'].contains(tone))) {
+      act = 'natural';
+    }
     final keys = <String>[
       if (advice == 'no') 'noAdvice',
       if (noQuestions)

@@ -18,6 +18,9 @@ import '../../core/model_runtime.dart';
 import '../../core/model_catalog.dart';
 import '../../core/official_api.dart';
 import '../../core/official_tts.dart';
+import '../../core/fish_audio.dart';
+import '../../core/room_chat_settings.dart';
+import 'room_dialogue_editor.dart';
 import '../../core/site_client.dart';
 import 'model_runtime_panel.dart';
 import '../../core/room_archive.dart';
@@ -36,9 +39,9 @@ import 'official_tts_panel.dart';
 const roomSections = <String, (String, IconData, String)>{
   'llm': ('聊天模型', CupertinoIcons.chat_bubble, '基础与陪伴'),
   'tts': ('语音与朗读', CupertinoIcons.waveform, '基础与陪伴'),
+  'knowledge': ('角色与对话', CupertinoIcons.book, '基础与陪伴'),
   'memory': ('长期记忆', CupertinoIcons.bookmark, '基础与陪伴'),
-  'knowledge': ('角色知识库', CupertinoIcons.book, '基础与陪伴'),
-  'model': ('角色与布局', CupertinoIcons.layers, '房间个性化'),
+  'model': ('外观与布局', CupertinoIcons.layers, '房间个性化'),
   'diary': ('日记与存档', CupertinoIcons.doc_text, '房间个性化'),
   'mcp': ('工具与扩展', CupertinoIcons.square_grid_2x2, '进阶功能'),
   'debug': (
@@ -52,7 +55,7 @@ class RoomSettingsPage extends StatefulWidget {
   const RoomSettingsPage({
     super.key,
     required this.controller,
-    this.initialSection = 'llm',
+    this.initialSection = 'overview',
     this.guidedSetup = false,
     this.onTheme,
   });
@@ -68,6 +71,106 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   RoomController get c => widget.controller;
   final fields = <String, TextEditingController>{};
   final scroll = ScrollController();
+  final searchInput = TextEditingController();
+  final fieldAnchors = <String, GlobalKey>{};
+  final visited = <String>{};
+  final advancedController = ExpansibleController();
+  static const sectionHints = {
+    'llm': '服务、模型与连接',
+    'tts': '音源、音色与情感',
+    'knowledge': '角色卡、世界书与设定',
+    'memory': '检索、编辑与同步',
+    'model': '角色大小与房间布局',
+    'diary': '日记同步与备份',
+    'mcp': 'MCP 与外部工具',
+    'debug': '表情、动作与诊断',
+  };
+  static const searchEntries = [
+    ('llm', 'apiKey', 'API 密钥与服务', 'LLM OpenAI DeepSeek 模型 Ollama'),
+    ('llm', 'model', '聊天模型', '模型 model'),
+    ('llm', 'systemPrompt', '补充指令', '提示词 prompt'),
+    ('tts', 'ttsKey', '语音服务与 Fish Audio', 'API TTS 官方 GPT SoVITS'),
+    ('tts', 'voice', '音色与朗读语言', 'Voice ID Fish 日语 ja language'),
+    ('tts', 'fishStyle', '朗读语气', 'Fish emotion 情感 表情'),
+    ('tts', 'ttsUrl', '语音高级设置', '权重 代理 端点 GPT SoVITS'),
+    ('knowledge', 'dialogue', '角色卡与世界书', 'SillyTavern 导入 导出 场景 剧透'),
+    ('knowledge', 'knowledge', '知识条目与站内资料', 'RAG 知识库 教程 百科'),
+    ('memory', '', '记忆检索与管理', 'Mem0 记忆 来源 同步 删除 编辑'),
+    ('model', '', '角色大小与位置', '布局 缩放 外观 浮窗'),
+    ('diary', '', '日记同步与存档', '备份 导入 导出 人设 好感度'),
+    ('mcp', 'mcpEndpoint', 'MCP 工具与权限', 'MiniMax 搜索 鉴权 白名单 密钥 端点'),
+    ('debug', '', 'Live2D 表情与动作', '调试 队列 JSON 诊断'),
+  ];
+  bool _sectionDirty(String id) {
+    if (!dirty) return false;
+    final saved = jsonMap(jsonDecode(savedSnapshot));
+    final current = jsonMap(jsonDecode(_snapshot()));
+    final oldOptions = jsonMap(saved['options']);
+    final newOptions = jsonMap(current['options']);
+    final keys = switch (id) {
+      'llm' => ['llmUrl', 'model', 'apiKey', 'demo'],
+      'tts' => ['ttsUrl', 'ttsKey', 'ttsModel', 'voice', 'ttsFormat', 'speak'],
+      'mcp' => ['mcpKey'],
+      _ => <String>[],
+    };
+    if (keys.any((key) => jsonEncode(saved[key]) != jsonEncode(current[key]))) {
+      return true;
+    }
+    final prefixes = switch (id) {
+      'llm' => [
+        'llm',
+        'systemPrompt',
+        'vision',
+        'model',
+        'aliyun',
+        'anthropic',
+      ],
+      'tts' => [
+        'tts',
+        'officialTts',
+        'officialEngine',
+        'officialFish',
+        'fish',
+        'textLang',
+        'prompt',
+        'refAudio',
+        'gpt',
+        'sovits',
+      ],
+      'knowledge' => ['knowledge', 'siteKnowledge', 'roomDialogue'],
+      'memory' => ['memory'],
+      'model' => ['modelScale', 'modelX', 'modelY', 'live2d'],
+      'mcp' => ['mcp'],
+      _ => <String>[],
+    };
+    return {...oldOptions.keys, ...newOptions.keys}.any(
+      (key) =>
+          prefixes.any(key.startsWith) &&
+          jsonEncode(oldOptions[key]) != jsonEncode(newOptions[key]),
+    );
+  }
+
+  Future<void> _openResult((String, String, String, String) result) async {
+    FocusScope.of(context).unfocus();
+    searchInput.clear();
+    setState(() => search = '');
+    _select(result.$1);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    if (result.$2 == 'systemPrompt' && advancedController.isExpanded == false) {
+      advancedController.expand();
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    final target = fieldAnchors[result.$2]?.currentContext;
+    if (target != null && target.mounted) {
+      await Scrollable.ensureVisible(
+        target,
+        alignment: .2,
+        duration: const Duration(milliseconds: 180),
+      );
+    }
+  }
+
   final debugInput = TextEditingController(
     text: '{"expression":"smile","motion":"nod","durationMs":3000}',
   );
@@ -76,7 +179,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   bool demo = false,
       speak = false,
       busy = false,
-      guide = true,
+      guide = false,
       showKey = false,
       mobileMenu = false,
       allowPop = false;
@@ -96,12 +199,88 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   LlmClient? testing;
   AudioVoice? testVoice;
   Map<String, dynamic> _officialTtsStatus = {};
+  String ttsGroup = 'personal';
+  final ttsDrafts = <String, Map<String, dynamic>>{};
+  String get ttsPresetId => options['ttsProvider'] == 'official'
+      ? (options['officialEngine'] == 'fish-audio'
+            ? 'officialFish'
+            : 'official')
+      : RoomReference.map('ttsPresets').entries
+                .where(
+                  (entry) =>
+                      entry.value['provider'] ==
+                      (options['ttsProvider'] ?? 'openai-compatible'),
+                )
+                .map((entry) => entry.key)
+                .firstOrNull ??
+            'custom';
+  String _ttsGroup(Map<String, dynamic> preset) =>
+      preset['provider'] == 'official'
+      ? 'official'
+      : preset['provider'] == 'gpt-sovits'
+      ? 'local'
+      : 'personal';
+  static const _ttsFields = [
+    'ttsUrl',
+    'ttsKey',
+    'ttsModel',
+    'voice',
+    'ttsFormat',
+    'refAudioPath',
+    'promptText',
+    'gptWeightPath',
+    'sovitsWeightPath',
+  ];
+  static const _ttsOptions = [
+    'ttsProvider',
+    'ttsProxy',
+    'officialEngine',
+    'officialFishModel',
+    'fishStyle',
+    'textLang',
+    'promptLang',
+  ];
+  void _chooseTts(String id) {
+    final preset = jsonMap(RoomReference.map('ttsPresets')[id]);
+    final previousEngine = options['officialEngine'];
+    ttsDrafts[ttsPresetId] = {
+      'fields': {for (final key in _ttsFields) key: fields[key]!.text},
+      'options': {for (final key in _ttsOptions) key: options[key]},
+    };
+    if (ttsDrafts[id] case final Map<String, dynamic> draft) {
+      setState(() {
+        for (final pair in jsonMap(draft['fields']).entries) {
+          fields[pair.key]!.text = '${pair.value}';
+        }
+        options.addAll(jsonMap(draft['options']));
+        speak = true;
+      });
+    } else {
+      _preset(preset, tts: true);
+      setState(() {
+        fields['ttsKey']!.clear();
+        options['officialEngine'] = preset['officialEngine'] ?? '';
+        options['officialFishModel'] = '';
+        options['fishStyle'] = 'auto';
+        options['ttsProxy'] = preset['useProxy'] ?? false;
+      });
+    }
+    if (previousEngine != options['officialEngine']) {
+      setState(() => _officialTtsStatus = {});
+    }
+  }
+
   String _voiceOwner = '';
   @override
   void initState() {
     super.initState();
     guided = widget.guidedSetup;
-    section = guided ? 'llm' : widget.initialSection;
+    section = guided
+        ? 'llm'
+        : roomSections.containsKey(widget.initialSection)
+        ? widget.initialSection
+        : 'overview';
+    if (section != 'overview') visited.add(section);
     _restore();
     _catalogOwner = c.scope;
     c.addListener(_controllerChanged);
@@ -184,6 +363,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     }
     options['knowledge'] = roomKnowledgeEntries(s);
     options['knowledgeBuiltinVersion'] = RoomReference.data['knowledgeVersion'];
+    ttsDrafts.clear();
+    ttsGroup = _ttsGroup(jsonMap(RoomReference.map('ttsPresets')[ttsPresetId]));
     savedSnapshot = _snapshot();
   }
 
@@ -281,10 +462,13 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             'officialTtsAccount': account?.id ?? '',
             'officialTtsOrigin': endpointUri(s.siteUrl).origin,
             'textLang': '${_officialTtsStatus['language'] ?? 'ja'}',
+            'officialSupportsEmotion':
+                _officialTtsStatus['supportsEmotion'] == true,
           },
         );
       } else if (s.speak) {
         endpointUri(s.ttsUrl);
+        if (s.option('ttsProvider') == 'fish-audio') FishAudio.validate(s);
         if (s.option('ttsProvider') == 'gpt-sovits' &&
             s.option('refAudioPath').isEmpty &&
             s.voice.isEmpty) {
@@ -328,24 +512,29 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
 
   Future<bool> _confirmLeave() async {
     if (dirty) {
-      final result = await showDialog<bool>(
+      final result = await showDialog<String>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const SiteText('设置尚未保存'),
           content: const SiteText('离开会丢失尚未保存的修改。'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(ctx, 'stay'),
               child: const SiteText('继续编辑'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
+              onPressed: () => Navigator.pop(ctx, 'discard'),
               child: const SiteText('放弃并离开'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, 'save'),
+              child: const SiteText('保存并离开'),
             ),
           ],
         ),
       );
-      if (result != true) return false;
+      if (result == 'save') return _save();
+      if (result != 'discard') return false;
     }
     return true;
   }
@@ -365,6 +554,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   void _select(String id) {
     setState(() {
       section = id;
+      if (id == 'overview') {
+        guided = false;
+      } else {
+        visited.add(id);
+      }
       mobileMenu = false;
       notice = '';
     });
@@ -387,6 +581,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       f.dispose();
     }
     scroll.dispose();
+    searchInput.dispose();
+    advancedController.dispose();
     debugInput.dispose();
     super.dispose();
   }
@@ -398,6 +594,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     bool secret = false,
     String? hint,
   }) => Padding(
+    key: fieldAnchors.putIfAbsent(key, GlobalKey.new),
     padding: const EdgeInsets.only(bottom: 18),
     child: TextField(
       key: Key('setting-$key'),
@@ -421,11 +618,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         setState(() {});
       },
       decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
+        labelText: siteTranslate(context, label),
+        hintText: hint == null ? null : siteTranslate(context, hint),
         suffixIcon: secret
             ? IconButton(
-                tooltip: showKey ? '隐藏密钥' : '显示密钥',
+                tooltip: siteTranslate(context, showKey ? '隐藏密钥' : '显示密钥'),
                 onPressed: () => setState(() => showKey = !showKey),
                 icon: Icon(
                   showKey ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
@@ -1096,6 +1293,8 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             }),
           ),
         ExpansionTile(
+          controller: advancedController,
+          maintainState: true,
           tilePadding: EdgeInsets.zero,
           title: const SiteText('高级连接设置'),
           subtitle: const SiteText(
@@ -1243,6 +1442,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   Widget _tts() {
     final provider = '${options['ttsProvider'] ?? 'openai-compatible'}';
     final official = provider == 'official';
+    final fish =
+        provider == 'fish-audio' ||
+        (official &&
+            (options['officialEngine'] == 'fish-audio' ||
+                _officialTtsStatus['supportsEmotion'] == true));
     final loggedIn =
         c.account != null &&
         c.account!.scope != 'admin' &&
@@ -1267,46 +1471,86 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         ),
         OfficialTtsPanel(
           controller: c,
+          engine: '${options['officialEngine'] ?? ''}',
+          active: section == 'tts',
+          compact: true,
           onStatus: (status) {
             if (mounted) setState(() => _officialTtsStatus = status);
           },
           onPayments: () => unawaited(_go('/payments')),
         ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            ActionChip(
-              key: const ValueKey('official-tts-preset'),
-              label: const Text('官方直供 · 八千代语音'),
-              onPressed: !loggedIn || !ready || busy
-                  ? null
-                  : () => setState(() {
-                      options['ttsProvider'] = 'official';
-                      speak = true;
-                    }),
-            ),
-            for (final e in RoomReference.map('ttsPresets').entries)
-              if (e.value['provider'] != 'official')
-                ActionChip(
-                  label: Text('${e.value['label']}'),
-                  onPressed: () => _preset(jsonMap(e.value), tts: true),
-                ),
+        SegmentedButton<String>(
+          segments: const [
+            ButtonSegment(value: 'official', label: SiteText('站内直供')),
+            ButtonSegment(value: 'personal', label: SiteText('个人 API')),
+            ButtonSegment(value: 'local', label: SiteText('本机语音')),
           ],
+          showSelectedIcon: false,
+          selected: {ttsGroup},
+          onSelectionChanged: busy
+              ? null
+              : (values) => setState(() => ttsGroup = values.first),
         ),
-        const SizedBox(height: 24),
-        _selectOption('ttsProvider', '语音服务', {
-          'official': '官方直供 · 八千代语音',
-          'mimo': 'MiMo',
-          'openai': 'OpenAI',
-          'openai-compatible': 'OpenAI 兼容',
-          'minimax': 'MiniMax',
-          'elevenlabs': 'ElevenLabs',
-          'gpt-sovits': 'GPT-SoVITS',
-          'custom': '自定义',
-        }, fallback: 'openai-compatible'),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<String>(
+          key: ValueKey(
+            'tts-source:$ttsGroup:$ttsPresetId:${_officialTtsStatus['online']}',
+          ),
+          isExpanded: true,
+          initialValue:
+              _ttsGroup(
+                    jsonMap(RoomReference.map('ttsPresets')[ttsPresetId]),
+                  ) ==
+                  ttsGroup
+              ? ttsPresetId
+              : null,
+          decoration: InputDecoration(
+            labelText: siteTranslate(context, '语音服务'),
+          ),
+          hint: const SiteText('选择音源'),
+          items: [
+            for (final entry in RoomReference.map('ttsPresets').entries.where(
+              (entry) => _ttsGroup(jsonMap(entry.value)) == ttsGroup,
+            ))
+              DropdownMenuItem(
+                value: entry.key,
+                enabled: entry.value['provider'] != 'official' || loggedIn,
+                child: Text(
+                  siteTranslate(context, '${entry.value['label']}'),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+          onChanged: busy
+              ? null
+              : (value) {
+                  if (value != null) _chooseTts(value);
+                },
+        ),
+        const SizedBox(height: 18),
+        if (fish) ...[
+          Padding(
+            key: fieldAnchors.putIfAbsent('fishStyle', GlobalKey.new),
+            padding: EdgeInsets.zero,
+            child: _selectOption('fishStyle', '朗读语气', {
+              'auto': '跟随八千代表情',
+              'none': '不加情感提示',
+              ...FishAudio.styles,
+            }, fallback: 'auto'),
+          ),
+          if (official)
+            _selectOption('officialFishModel', 'Fish Audio 模型', {
+              '': '使用服务默认模型',
+              if (options['officialFishModel']?.toString().isNotEmpty == true)
+                '${options['officialFishModel']}':
+                    '${options['officialFishModel']}',
+              for (final model in (_officialTtsStatus['models'] as List? ?? []))
+                '$model': '$model',
+            }),
+        ],
         if (official) ...[
-          _hint('官方音色采用日语朗读。中文回复会先通过当前聊天模型翻译，翻译按该模型的规则计费；固定日文试听不发起翻译。'),
+          if (_officialTtsStatus['language'] == 'ja')
+            _hint('官方音色采用日语朗读。中文回复会先通过当前聊天模型翻译，翻译按该模型的规则计费；固定日文试听不发起翻译。'),
           if (!loggedIn)
             TextButton(
               onPressed: () => showSiteLogin(context, c),
@@ -1318,14 +1562,34 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             _field('ttsKey', '语音 API Key', secret: true),
           _field('voice', provider == 'gpt-sovits' ? '默认参考音频（可选）' : '音色 ID'),
           _field('ttsUrl', 'TTS API 地址'),
-          _field('ttsModel', '语音模型'),
+          if (provider == 'fish-audio')
+            DropdownButtonFormField<String>(
+              key: ValueKey('fish:${fields['ttsModel']!.text}'),
+              initialValue: FishAudio.models.contains(fields['ttsModel']!.text)
+                  ? fields['ttsModel']!.text
+                  : null,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: siteTranslate(context, 'Fish Audio 模型'),
+              ),
+              items: [
+                for (final model in FishAudio.models)
+                  DropdownMenuItem(value: model, child: Text(model)),
+              ],
+              onChanged: (value) =>
+                  setState(() => fields['ttsModel']!.text = value!),
+            )
+          else
+            _field('ttsModel', '语音模型'),
           _selectOption('textLang', '文本语言', {
             'auto': '自动',
-            'zh': '中文',
             'ja': '日语',
-            'en': '英语',
-            'yue': '粤语',
-            'ko': '韩语',
+            if (provider != 'fish-audio') ...{
+              'zh': '中文',
+              'en': '英语',
+              'yue': '粤语',
+              'ko': '韩语',
+            },
           }, fallback: 'auto'),
           if (provider == 'gpt-sovits') ...[
             const SiteText('本机 GPT-SoVITS 直接连接；公网地址通过网站代理，需要登录。'),
@@ -1508,6 +1772,28 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   Widget _knowledge() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
+      Padding(
+        key: fieldAnchors.putIfAbsent('dialogue', GlobalKey.new),
+        padding: EdgeInsets.zero,
+        child: RoomDialogueEditor(
+          key: ValueKey(
+            RoomChatSettings.scope(c.settings.siteUrl, c.account?.id),
+          ),
+          value: jsonMap(
+            jsonMap(options['roomDialogueByAccount'])[RoomChatSettings.scope(
+              c.settings.siteUrl,
+              c.account?.id,
+            )],
+          ),
+          onChanged: (value) => setState(() {
+            options['roomDialogueByAccount'] = {
+              ...jsonMap(options['roomDialogueByAccount']),
+              RoomChatSettings.scope(c.settings.siteUrl, c.account?.id): value,
+            };
+          }),
+        ),
+      ),
+
       _toggle('knowledgeEnabled', '启用角色知识库', fallback: true),
       _hint('按对话相关性注入角色资料。知识库保存在此设备，条目单独保存立即生效。'),
       Wrap(
@@ -1768,7 +2054,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       ],
     ),
   );
-  Widget _content() => switch (section) {
+  Widget _content(String id) => switch (id) {
     'llm' => guided ? _guidedLlm() : _llm(),
     'tts' => _tts(),
     'memory' => Column(
@@ -1802,15 +2088,12 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextField(
-          decoration: InputDecoration(
-            hintText: siteTranslate(context, '搜索设置'),
-            prefixIcon: Icon(CupertinoIcons.search, size: 16),
-            isDense: true,
-          ),
-          onChanged: (v) => setState(() => search = v),
+        ListTile(
+          leading: const Icon(CupertinoIcons.square_grid_2x2, size: 18),
+          title: const SiteText('全部设置'),
+          selected: section == 'overview',
+          onTap: () => _select('overview'),
         ),
-        const SizedBox(height: 14),
         for (final group in ['基础与陪伴', '房间个性化', '进阶功能']) ...[
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
@@ -1835,7 +2118,13 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             ),
         ],
         TextButton(
-          onPressed: () => setState(() => guide = true),
+          onPressed: () {
+            _select('llm');
+            setState(() {
+              guided = true;
+              setupStep = 1;
+            });
+          },
           child: const SiteText('查看配置指引'),
         ),
       ],
@@ -1918,13 +2207,97 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
       ),
     ],
   );
+  Widget _overview() => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      for (final group in ['基础与陪伴', '房间个性化', '进阶功能']) ...[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 12, 4, 7),
+          child: SiteText(
+            group,
+            style: TextStyle(fontSize: 11, color: RoomStyle(context).muted),
+          ),
+        ),
+        SiteCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              for (final item in roomSections.entries.where(
+                (item) => item.value.$3 == group,
+              ))
+                ListTile(
+                  key: Key('settings-category-${item.key}'),
+                  visualDensity: const VisualDensity(vertical: -2),
+                  minVerticalPadding: 6,
+                  leading: Icon(
+                    item.value.$2,
+                    size: 21,
+                    color: RoomStyle(context).accent,
+                  ),
+                  title: SiteText(
+                    item.value.$1,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: SiteText(
+                    sectionHints[item.key]!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: RoomStyle(context).muted,
+                    ),
+                  ),
+                  trailing: _sectionDirty(item.key)
+                      ? Icon(
+                          CupertinoIcons.circle_fill,
+                          size: 7,
+                          color: RoomStyle(context).accent,
+                        )
+                      : const Icon(CupertinoIcons.chevron_right, size: 14),
+                  onTap: () => _select(item.key),
+                ),
+            ],
+          ),
+        ),
+      ],
+      const SizedBox(height: 12),
+      TextButton.icon(
+        onPressed: () {
+          _select('llm');
+          setState(() {
+            guided = true;
+            setupStep = 1;
+          });
+        },
+        icon: const Icon(CupertinoIcons.sparkles, size: 16),
+        label: const SiteText('查看配置指引'),
+      ),
+    ],
+  );
+
   @override
   Widget build(BuildContext context) {
-    final p = RoomStyle(context), current = roomSections[section]!;
+    final p = RoomStyle(context);
+    final current = roomSections[section];
+    final results = searchEntries
+        .where(
+          (item) =>
+              '${siteTranslate(context, item.$3)} ${item.$4} ${siteTranslate(context, roomSections[item.$1]!.$1)}'
+                  .toLowerCase()
+                  .contains(search.trim().toLowerCase()),
+        )
+        .toList();
     return PopScope(
-      canPop: allowPop || !dirty,
+      canPop: allowPop || (section == 'overview' && !dirty),
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _leave();
+        if (!didPop) {
+          if (section != 'overview') {
+            _select('overview');
+          } else {
+            unawaited(_leave());
+          }
+        }
       },
       child: Scaffold(
         body: Stack(
@@ -1936,439 +2309,325 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             SafeArea(
               child: LayoutBuilder(
                 builder: (context, box) {
-                  final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
-                  final mobile = box.maxWidth <= 860 * scale;
+                  final mobile =
+                      box.maxWidth <=
+                      860 * MediaQuery.textScalerOf(context).scale(14) / 14;
                   return Column(
                     children: [
+                      SizedBox(
+                        height: 60,
+                        child: RoomNavigation(
+                          title: '房间设置',
+                          mobile: mobile,
+                          width: box.maxWidth,
+                          accountLabel: c.sessionExpired
+                              ? '重新登录'
+                              : c.account?.displayName ?? '登录',
+                          onAccount: () {
+                            if (c.account != null && !c.sessionExpired) {
+                              unawaited(_go('/user'));
+                            } else {
+                              unawaited(showSiteLogin(context, c));
+                            }
+                          },
+                          onSearch: () => showRoomSearch(context, c, _go),
+                          onSettings: () => _select('overview'),
+                          onTheme: widget.onTheme,
+                          onGo: _go,
+                        ),
+                      ),
+                      if (!guided)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 4,
+                          ),
+                          child: Row(
+                            children: [
+                              IconButton(
+                                tooltip: siteTranslate(context, '返回房间'),
+                                onPressed: busy
+                                    ? null
+                                    : () => _leave(returnToRoom: true),
+                                icon: const Icon(
+                                  CupertinoIcons.arrow_left,
+                                  size: 18,
+                                ),
+                              ),
+                              if (section != 'overview') ...[
+                                TextButton(
+                                  onPressed: () => _select('overview'),
+                                  style: TextButton.styleFrom(
+                                    minimumSize: Size.zero,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 12,
+                                    ),
+                                  ),
+                                  child: const SiteText(
+                                    '全部设置',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Expanded(
+                                child: TextField(
+                                  controller: searchInput,
+                                  onChanged: (value) =>
+                                      setState(() => search = value),
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    prefixIcon: const Icon(
+                                      CupertinoIcons.search,
+                                      size: 18,
+                                    ),
+                                    hintText: siteTranslate(
+                                      context,
+                                      '搜索设置，例如 Fish、世界书',
+                                    ),
+                                    suffixIcon: search.isEmpty
+                                        ? null
+                                        : IconButton(
+                                            tooltip: siteTranslate(
+                                              context,
+                                              '清除搜索',
+                                            ),
+                                            onPressed: () {
+                                              searchInput.clear();
+                                              setState(() => search = '');
+                                            },
+                                            icon: const Icon(
+                                              CupertinoIcons.xmark_circle_fill,
+                                              size: 16,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (busy) const LinearProgressIndicator(minHeight: 2),
                       Expanded(
                         child: SingleChildScrollView(
                           controller: scroll,
                           padding: EdgeInsets.fromLTRB(
                             mobile ? 14 : 32,
-                            mobile ? 12 : 16,
+                            8,
                             mobile ? 14 : 32,
-                            40,
+                            32,
                           ),
-                          child: Column(
+                          child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SizedBox(
-                                height: (mobile ? 60 : 68) * scale,
-                                child: RoomNavigation(
-                                  title: '房间设置',
-                                  mobile: mobile,
-                                  width: box.maxWidth,
-                                  accountLabel: c.sessionExpired
-                                      ? '重新登录'
-                                      : c.account?.displayName ?? '登录',
-                                  onAccount: () {
-                                    if (c.account != null &&
-                                        !c.sessionExpired) {
-                                      unawaited(_go('/user'));
-                                    } else {
-                                      unawaited(showSiteLogin(context, c));
-                                    }
-                                  },
-                                  onSearch: () =>
-                                      showRoomSearch(context, c, _go),
-                                  onSettings: () {},
-                                  onTheme: widget.onTheme,
-                                  onGo: _go,
-                                ),
-                              ),
-                              SizedBox(height: mobile ? 26 : 38),
-                              const SiteText(
-                                '私人居所  ›  房间设置',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              const SizedBox(height: 10),
-                              Wrap(
-                                spacing: 16,
-                                runSpacing: 12,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  const SiteText(
-                                    '房间设置',
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      height: 1.2,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  TextButton.icon(
-                                    onPressed: () => _leave(returnToRoom: true),
-                                    style: TextButton.styleFrom(
-                                      minimumSize: const Size(0, 40),
-                                      tapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 8,
+                              if (!mobile && !guided) ...[
+                                SizedBox(width: 204, child: _nav()),
+                                const SizedBox(width: 24),
+                              ],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (notice.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
+                                        child: Semantics(
+                                          liveRegion: true,
+                                          child: Text(
+                                            notice,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: p.accent,
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                      backgroundColor: p.glass,
-                                      shape: const StadiumBorder(),
-                                    ),
-                                    icon: const Icon(
-                                      CupertinoIcons.arrow_left,
-                                      size: 16,
-                                    ),
-                                    label: const SiteText('返回房间'),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              _hint('先连接聊天模型，其他功能可以稍后设置。'),
-                              RoomMemorySourcePanel(controller: c),
-                              if (guided)
-                                SiteCard(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
+                                    if (search.trim().isNotEmpty)
+                                      SiteCard(
+                                        padding: EdgeInsets.zero,
+                                        child: Column(
+                                          children: [
+                                            if (results.isEmpty)
+                                              const Padding(
+                                                padding: EdgeInsets.all(20),
+                                                child: SiteText(
+                                                  '没有匹配的设置，试试“语音”或“密钥”。',
+                                                ),
+                                              ),
+                                            for (final item in results)
+                                              ListTile(
+                                                title: SiteText(item.$3),
+                                                subtitle: SiteText(
+                                                  roomSections[item.$1]!.$1,
+                                                ),
+                                                trailing: const Icon(
+                                                  CupertinoIcons.chevron_right,
+                                                  size: 16,
+                                                ),
+                                                onTap: () => _openResult(item),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    if (section == 'overview' &&
+                                        search.trim().isEmpty)
+                                      _overview(),
+                                    if (guided) ...[
                                       const SiteText(
                                         '第一次聊天，跟着这三步就好',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        siteTranslate(
-                                              context,
-                                              '第 {step} / 3 步 · {label}',
-                                            )
-                                            .replaceAll('{step}', '$setupStep')
-                                            .replaceAll(
-                                              '{label}',
-                                              siteTranslate(
-                                                context,
-                                                [
-                                                  '选择服务',
-                                                  '填写连接信息',
-                                                  '测试并保存',
-                                                ][setupStep - 1],
-                                              ),
-                                            ),
-                                      ),
-                                      const SiteText(
-                                        '语音、记忆和外观可以稍后设置。',
-                                        style: TextStyle(height: 1.7),
-                                      ),
                                       TextButton(
-                                        onPressed: () =>
-                                            setState(() => guided = false),
+                                        onPressed: () => _select('overview'),
                                         child: const SiteText('查看全部设置'),
                                       ),
                                     ],
-                                  ),
-                                ),
-                              if (guide && !guided)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    top: 8,
-                                    bottom: 26,
-                                  ),
-                                  child: SiteCard(
-                                    padding: EdgeInsets.all(mobile ? 18 : 22),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(10),
-                                          decoration: BoxDecoration(
-                                            color: p.soft,
-                                            borderRadius: BorderRadius.circular(
-                                              14,
-                                            ),
-                                          ),
-                                          child: Icon(
-                                            CupertinoIcons.sparkles,
-                                            color: p.accent,
-                                            size: 22,
-                                          ),
+                                    if (section != 'overview' &&
+                                        current != null)
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 16,
                                         ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const SiteText(
-                                                '只需连接一个模型，就能开始聊天',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w600,
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              current.$2,
+                                              color: p.accent,
+                                              size: 22,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: SiteText(
+                                                current.$1,
+                                                style: const TextStyle(
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.w700,
                                                 ),
                                               ),
-                                              const SizedBox(height: 7),
-                                              SiteText(
-                                                '语音、记忆和外观按需调整，不必一次填完所有设置。',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  height: 1.7,
-                                                  color: p.muted,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        if (!mobile)
-                                          const Padding(
-                                            padding: EdgeInsets.all(12),
-                                            child: SiteText(
-                                              '① 选择服务    ② 填写密钥    ③ 测试连接',
-                                              style: TextStyle(fontSize: 11),
                                             ),
-                                          ),
-                                        IconButton(
-                                          constraints: const BoxConstraints(
-                                            minWidth: 24,
-                                            minHeight: 24,
-                                          ),
-                                          padding: EdgeInsets.zero,
-                                          tooltip: siteTranslate(
-                                            context,
-                                            '收起配置提示',
-                                          ),
-                                          onPressed: () =>
-                                              setState(() => guide = false),
-                                          icon: const Icon(
-                                            CupertinoIcons.xmark,
-                                            size: 16,
-                                          ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              if (mobile && !guided) ...[
-                                SiteCard(
-                                  padding: EdgeInsets.zero,
-                                  child: InkWell(
-                                    onTap: () => setState(
-                                      () => mobileMenu = !mobileMenu,
-                                    ),
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(14),
-                                      child: Wrap(
-                                        spacing: 12,
-                                        runSpacing: 8,
-                                        crossAxisAlignment:
-                                            WrapCrossAlignment.center,
-                                        children: [
-                                          Icon(current.$2, size: 20),
-                                          Text(
-                                            current.$1,
-                                            style: const TextStyle(
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                          const SiteText(
-                                            '全部设置 ﹀',
-                                            style: TextStyle(fontSize: 12),
-                                          ),
-                                        ],
                                       ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                if (mobileMenu)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 20),
-                                    child: _nav(),
-                                  ),
-                              ],
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (!mobile && !guided) ...[
-                                    SizedBox(width: 204, child: _nav()),
-                                    const SizedBox(width: 24),
-                                  ],
-                                  Expanded(
-                                    child: SiteCard(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: mobile ? 18 : 28,
-                                        vertical: mobile ? 22 : 28,
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.all(
-                                                  12,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: p.soft,
-                                                  borderRadius:
-                                                      BorderRadius.circular(14),
-                                                ),
-                                                child: Icon(
-                                                  current.$2,
-                                                  color: p.accent,
-                                                  size: 23,
-                                                ),
+                                    // Mounted categories retain their child editors while switching.
+                                    for (final id in roomSections.keys)
+                                      if (visited.contains(id))
+                                        Offstage(
+                                          offstage: section != id,
+                                          child: TickerMode(
+                                            enabled: section == id,
+                                            child: SiteCard(
+                                              key: ValueKey(
+                                                'settings-content-$id',
                                               ),
-                                              const SizedBox(width: 14),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      current.$1,
-                                                      style: const TextStyle(
-                                                        fontSize: 22,
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                      ),
+                                              padding: EdgeInsets.all(
+                                                mobile ? 18 : 28,
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  if (id == 'memory')
+                                                    RoomMemorySourcePanel(
+                                                      controller: c,
                                                     ),
-                                                    const SizedBox(height: 8),
-                                                    Text(
-                                                      section == 'llm'
-                                                          ? '连接一个模型，让八千代开始回应你。'
-                                                          : section == 'debug'
-                                                          ? '排查表情、动作与队列。'
-                                                          : '把相处的细节，调整成你喜欢的样子。',
-                                                      style: TextStyle(
-                                                        fontSize: 12,
-                                                        height: 1.7,
-                                                        color: p.muted,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const Padding(
-                                            padding: EdgeInsets.symmetric(
-                                              vertical: 24,
-                                            ),
-                                            child: Divider(height: 1),
-                                          ),
-                                          if (busy)
-                                            const LinearProgressIndicator(),
-                                          if (notice.isNotEmpty)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 18,
-                                              ),
-                                              child: SelectableText(
-                                                notice,
-                                                style: TextStyle(
-                                                  color: p.accent,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ),
-                                          _content(),
-                                          const SizedBox(height: 30),
-                                          Center(
-                                            child: SiteText(
-                                              'TSUKUYOMI SPACE · ROOM SETTINGS',
-                                              style: TextStyle(
-                                                fontSize: 9,
-                                                letterSpacing: 1.5,
-                                                color: p.muted,
+                                                  _content(id),
+                                                ],
                                               ),
                                             ),
                                           ),
-                                        ],
+                                        ),
+                                    if (!guided)
+                                      ExpansionTile(
+                                        title: const SiteText(
+                                          '当前配置与数据存储',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                        children: [_summary()],
                                       ),
-                                    ),
-                                  ),
-                                  if (!mobile &&
-                                      !guided &&
-                                      box.maxWidth > 1180 * scale) ...[
-                                    const SizedBox(width: 24),
-                                    SizedBox(width: 252, child: _summary()),
                                   ],
-                                ],
+                                ),
                               ),
                             ],
                           ),
                         ),
                       ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: p.surface,
-                          border: Border(top: BorderSide(color: p.line)),
-                        ),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: mobile ? 14 : 32,
-                          vertical: 14,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SiteText(
-                              dirty ? '有尚未保存的修改' : '所有修改已保存',
-                              style: TextStyle(fontSize: 12, color: p.muted),
-                            ),
-                            const SizedBox(height: 8),
-                            if (guided)
-                              _setupFooter()
-                            else
-                              Wrap(
-                                alignment: WrapAlignment.end,
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  TextButton(
-                                    onPressed: !dirty || busy
-                                        ? null
-                                        : () async {
-                                            if (await roomConfirm(
-                                              context,
-                                              '放弃尚未保存的修改？',
-                                              '已保存的记忆、日记与人设不会撤销。',
-                                            )) {
-                                              setState(_restore);
-                                            }
-                                          },
-                                    child: const SiteText('放弃修改'),
-                                  ),
-                                  if (dirty)
+                      if (guided || section != 'overview' || dirty)
+                        Container(
+                          decoration: BoxDecoration(
+                            color: p.surface,
+                            border: Border(top: BorderSide(color: p.line)),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          child: guided
+                              ? _setupFooter()
+                              : Row(
+                                  children: [
+                                    Expanded(
+                                      child: Semantics(
+                                        liveRegion: true,
+                                        child: SiteText(
+                                          dirty ? '未保存' : '已保存',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: p.muted,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                     TextButton(
-                                      onPressed: busy
+                                      onPressed: !dirty || busy
+                                          ? null
+                                          : () async {
+                                              if (await roomConfirm(
+                                                context,
+                                                '放弃尚未保存的修改？',
+                                                '已保存的记忆、日记与人设不会撤销。',
+                                              )) {
+                                                setState(_restore);
+                                              }
+                                            },
+                                      style: TextButton.styleFrom(
+                                        minimumSize: Size.zero,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 12,
+                                        ),
+                                      ),
+                                      child: const SiteText(
+                                        '撤销',
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    FilledButton(
+                                      onPressed: !dirty || busy
                                           ? null
                                           : () => _run(() async {
                                               await _save();
                                             }),
-                                      child: const SiteText('保存全部'),
+                                      style: FilledButton.styleFrom(
+                                        minimumSize: Size.zero,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 12,
+                                        ),
+                                      ),
+                                      child: SiteText(
+                                        busy ? '保存中…' : '保存修改',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
                                     ),
-                                  FilledButton.icon(
-                                    onPressed: busy
-                                        ? null
-                                        : () => _run(() async {
-                                            if (await _save() &&
-                                                context.mounted) {
-                                              setState(() => allowPop = true);
-                                              Navigator.popUntil(
-                                                context,
-                                                (route) => route.isFirst,
-                                              );
-                                            }
-                                          }),
-                                    icon: const Icon(
-                                      CupertinoIcons.arrow_right,
-                                      size: 17,
-                                    ),
-                                    label: SiteText(dirty ? '保存并进入房间' : '返回房间'),
-                                  ),
-                                ],
-                              ),
-                          ],
+                                  ],
+                                ),
                         ),
-                      ),
                     ],
                   );
                 },

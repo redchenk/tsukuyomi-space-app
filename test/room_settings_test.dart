@@ -58,7 +58,12 @@ void main() {
           await tester.tap(find.text('Streamable HTTP').last);
           await tester.pumpAndSettle();
           await tester.tap(
-            find.text(siteMessage(language, 'nativeUi.00141cfef200')),
+            find.text(
+              siteTranslate(
+                tester.element(find.byType(RoomSettingsPage)),
+                '保存修改',
+              ),
+            ),
           );
           await tester.pumpAndSettle();
           expect(storage.value.option('mcpTransport'), 'streamable-http');
@@ -135,8 +140,8 @@ void main() {
     await tester.ensureVisible(slider);
     await tester.tap(slider);
     await tester.pump();
-    expect(find.text('保存全部'), findsOneWidget);
-    await tester.tap(find.text('保存并进入房间'));
+    expect(find.text('保存修改'), findsOneWidget);
+    await tester.tap(find.text('保存修改'));
     await tester.pumpAndSettle();
     expect(storage.value.options['modelScale'], isA<num>());
     expect(storage.value.options['live2dRenderQuality'], 'economy');
@@ -196,7 +201,7 @@ void main() {
     expect(decoration.hintText, 'wrkspc_…');
     await tester.enterText(workspace, ' wrkspc_fixture ');
     await tester.pump();
-    await tester.tap(find.text('保存全部'));
+    await tester.tap(find.text('保存修改'));
     await tester.pumpAndSettle();
     expect(storage.value.option('anthropicWorkspaceId'), 'wrkspc_fixture');
     expect(storage.value.llmUrl, 'https://api.anthropic.com/v1/messages');

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import 'models.dart';
+import 'fish_audio.dart';
 import 'official_tts.dart';
 import 'site_client.dart';
 
@@ -51,6 +52,7 @@ class TtsClient {
                 ? 'http://localhost:9880/tts'
                 : settings.ttsUrl,
           );
+    if (provider == 'fish-audio') FishAudio.validate(settings);
     final useProxy = ttsUsesProxy(settings);
     if (provider == 'gpt-sovits' &&
         (uri.path.replaceFirst(RegExp(r'/+$'), '') != '/tts' ||
@@ -78,7 +80,10 @@ class TtsClient {
         'response_format': settings.ttsFormat,
       };
       final lang = settings.option('textLang', 'auto');
-      if (provider == 'mimo') {
+      if (provider == 'fish-audio') {
+        headers['model'] = settings.ttsModel;
+        body = FishAudio.body(settings, text);
+      } else if (provider == 'mimo') {
         headers.remove('Authorization');
         headers['api-key'] = settings.ttsKey;
         body = {
@@ -180,6 +185,7 @@ class TtsClient {
         headers.remove('Authorization');
         headers.remove('xi-api-key');
         headers.remove('api-key');
+        headers.remove('model');
         headers.addAll({
           'Origin': uri.origin,
           'X-Requested-With': 'XMLHttpRequest',
@@ -194,6 +200,7 @@ class TtsClient {
           'voice': settings.voice,
           'textLang': lang,
           'text': text,
+          if (provider == 'fish-audio') 'emotion': FishAudio.emotion(settings),
           if (provider == 'gpt-sovits') ...{
             'refAudioPath': settings.option('refAudioPath', settings.voice),
             'promptText': settings.option('promptText'),

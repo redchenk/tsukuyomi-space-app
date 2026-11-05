@@ -236,6 +236,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('settings-category-llm')));
+    await tester.pumpAndSettle();
     final model = find.byKey(const Key('setting-model'));
     await tester.ensureVisible(model);
     await tester.enterText(model, 'unsaved-update-guard');

@@ -14,10 +14,15 @@ class OfficialTtsPanel extends StatefulWidget {
     required this.controller,
     required this.onStatus,
     required this.onPayments,
+    this.engine = '',
+    this.active = true,
+    this.compact = false,
   });
   final RoomController controller;
   final ValueChanged<Map<String, dynamic>> onStatus;
   final VoidCallback onPayments;
+  final String engine;
+  final bool active, compact;
   @override
   State<OfficialTtsPanel> createState() => _OfficialTtsPanelState();
 }
@@ -25,6 +30,7 @@ class OfficialTtsPanel extends StatefulWidget {
 class _OfficialTtsPanelState extends State<OfficialTtsPanel>
     with WidgetsBindingObserver {
   Map<String, dynamic>? _status;
+  bool detailsOpen = false;
   bool _checking = false, _foreground = true;
   int _epoch = 0;
   Timer? _timer;
@@ -42,7 +48,9 @@ class _OfficialTtsPanelState extends State<OfficialTtsPanel>
     unawaited(_refresh());
     if (widget.controller.site is SiteDataService) {
       _timer = Timer.periodic(const Duration(seconds: 15), (_) {
-        if (_foreground && (ModalRoute.of(context)?.isCurrent ?? true)) {
+        if (widget.active &&
+            _foreground &&
+            (ModalRoute.of(context)?.isCurrent ?? true)) {
           unawaited(_refresh());
         }
       });
@@ -52,7 +60,9 @@ class _OfficialTtsPanelState extends State<OfficialTtsPanel>
   @override
   void didUpdateWidget(covariant OfficialTtsPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_origin != _site ||
+    if (oldWidget.engine != widget.engine ||
+        (!oldWidget.active && widget.active) ||
+        _origin != _site ||
         !identical(oldWidget.controller.site, widget.controller.site)) {
       _origin = _site;
       _epoch++;
@@ -65,7 +75,9 @@ class _OfficialTtsPanelState extends State<OfficialTtsPanel>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
-    if (_foreground && (ModalRoute.of(context)?.isCurrent ?? true)) {
+    if (widget.active &&
+        _foreground &&
+        (ModalRoute.of(context)?.isCurrent ?? true)) {
       unawaited(_refresh());
     }
   }
@@ -79,7 +91,11 @@ class _OfficialTtsPanelState extends State<OfficialTtsPanel>
       final site = widget.controller.site;
       if (site is! SiteDataService) throw const ApiFailure('状态暂不可用');
       final result = await (site as SiteDataService)
-          .request(origin, 'GET', '/api/tts/official/status')
+          .request(
+            origin,
+            'GET',
+            '/api/tts/official/status${widget.engine == 'fish-audio' ? '?engine=fish-audio' : ''}',
+          )
           .timeout(const Duration(seconds: 8));
       status = Map<String, dynamic>.from(result['data'] as Map);
     } catch (_) {
@@ -116,7 +132,7 @@ class _OfficialTtsPanelState extends State<OfficialTtsPanel>
       key: const ValueKey('official-tts-status'),
       margin: const EdgeInsets.symmetric(vertical: 16),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(widget.compact ? 10 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -125,8 +141,10 @@ class _OfficialTtsPanelState extends State<OfficialTtsPanel>
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                const Text(
-                  '官方直供 · 八千代语音',
+                Text(
+                  widget.engine == 'fish-audio'
+                      ? '官方 Fish Audio'
+                      : '官方直供 · 八千代语音',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 Text(
@@ -138,31 +156,38 @@ class _OfficialTtsPanelState extends State<OfficialTtsPanel>
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Text('¥$price / 条 · 使用网站余额，无需 API 密钥。成功合成后扣费，失败不收费；超级管理员沿用无限额度。'),
-            const SizedBox(height: 10),
-            const Text(
-              '每条最多 1,000 字。本次语音会话内有效缓存重播不重复扣费，缓存最长保留 24 小时。停止播放不会撤销已提交的合成任务。',
-            ),
-            const SizedBox(height: 10),
-            Text(
-              online
-                  ? '可选用官方直供；离线时暂停新合成，恢复后可继续使用。'
-                  : '官方算力暂不可用，也可以使用自己配置的语音服务。',
-            ),
-            Wrap(
-              spacing: 10,
-              children: [
-                TextButton(
-                  onPressed: _checking ? null : _refresh,
-                  child: Text(_checking ? '正在检测…' : '检测算力'),
-                ),
-                TextButton(
-                  onPressed: widget.onPayments,
-                  child: const Text('余额与语音账单'),
-                ),
-              ],
-            ),
+            if (widget.compact)
+              TextButton(
+                onPressed: () => setState(() => detailsOpen = !detailsOpen),
+                child: const Text('服务详情'),
+              ),
+            if (!widget.compact || detailsOpen) ...[
+              const SizedBox(height: 10),
+              Text('¥$price / 条 · 使用网站余额，无需 API 密钥。成功合成后扣费，失败不收费；超级管理员沿用无限额度。'),
+              const SizedBox(height: 10),
+              const Text(
+                '每条最多 1,000 字。本次语音会话内有效缓存重播不重复扣费，缓存最长保留 24 小时。停止播放不会撤销已提交的合成任务。',
+              ),
+              const SizedBox(height: 10),
+              Text(
+                online
+                    ? '可选用官方直供；离线时暂停新合成，恢复后可继续使用。'
+                    : '官方算力暂不可用，也可以使用自己配置的语音服务。',
+              ),
+              Wrap(
+                spacing: 10,
+                children: [
+                  TextButton(
+                    onPressed: _checking ? null : _refresh,
+                    child: Text(_checking ? '正在检测…' : '检测算力'),
+                  ),
+                  TextButton(
+                    onPressed: widget.onPayments,
+                    child: const Text('余额与语音账单'),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

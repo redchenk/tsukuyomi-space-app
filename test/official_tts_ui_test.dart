@@ -76,6 +76,22 @@ Future<void> screenshot(WidgetTester tester, String name) async {
   });
 }
 
+Future<void> chooseOfficialVoice(WidgetTester tester) async {
+  await tester.ensureVisible(find.text('站内直供').last);
+  await tester.tap(find.text('站内直供').last);
+  await tester.pumpAndSettle();
+  final selector = find.byWidgetPredicate(
+    (widget) =>
+        widget is DropdownButtonFormField<String> &&
+        '${widget.key}'.contains('tts-source:'),
+  );
+  await tester.ensureVisible(selector);
+  await tester.tap(selector);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('官方直供 · ¥0.05 / 条').last);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   for (final width in [390.0, 1280.0]) {
     testWidgets(
@@ -105,9 +121,7 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.text('算力在线'), findsOneWidget);
-        final official = find.byKey(const ValueKey('official-tts-preset'));
-        await tester.ensureVisible(official);
-        await tester.tap(official);
+        await chooseOfficialVoice(tester);
         await tester.pumpAndSettle();
         for (final field in ['ttsUrl', 'ttsKey', 'ttsModel', 'voice']) {
           expect(find.byKey(Key('setting-$field')), findsNothing);
@@ -126,7 +140,7 @@ void main() {
             'official-settings-${width.toInt()}-controls',
           );
         }
-        await tester.tap(find.text('保存全部'));
+        await tester.tap(find.text('保存修改'));
         await tester.pumpAndSettle();
         expect(storage.value.option('ttsProvider'), 'official');
         expect(storage.value.option('officialTtsAccount'), 'alice');
@@ -156,31 +170,27 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<ActionChip>(
-              find.byKey(const ValueKey('official-tts-preset')),
-            )
-            .onPressed,
-        isNull,
-      );
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('ttsProvider:openai-compatible')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('ttsProvider:openai-compatible')),
-      );
+      await tester.ensureVisible(find.text('站内直供').last);
+      await tester.tap(find.text('站内直供').last);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('官方直供 · 八千代语音').last);
-      await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<FilledButton>(
-              find.widgetWithText(FilledButton, '保存并试听 · ¥0.05'),
-            )
-            .onPressed,
-        isNull,
+      final selector = tester.widget<DropdownButton<String>>(
+        find.descendant(
+          of: find.byWidgetPredicate(
+            (widget) =>
+                widget is DropdownButtonFormField<String> &&
+                '${widget.key}'.contains('tts-source:'),
+          ),
+          matching: find.byType(DropdownButton<String>),
+        ),
       );
+      expect(
+        selector.items!
+            .where((item) => item.value!.startsWith('official'))
+            .every((item) => !item.enabled),
+        isTrue,
+      );
+      expect(find.widgetWithText(FilledButton, '保存并试听 · ¥0.05'), findsNothing);
+      expect(c.settings.option('ttsProvider'), isNot('official'));
       expect(site.calls.every((call) => call.startsWith('GET ')), true);
       await tester.pumpWidget(const SizedBox.shrink());
     },
@@ -236,12 +246,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('official-tts-preset')),
-      );
-      await tester.tap(find.byKey(const ValueKey('official-tts-preset')));
+      await chooseOfficialVoice(tester);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('保存全部'));
+      await tester.tap(find.text('保存修改'));
       await tester.pumpAndSettle();
       expect(storage.value.option('officialTtsAccount'), 'alice');
       await c.logout();

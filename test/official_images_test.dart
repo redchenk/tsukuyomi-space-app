@@ -214,7 +214,9 @@ void main() {
             home: page,
           ),
         );
-        await tester.pumpWidget(app(RoomSettingsPage(controller: c)));
+        await tester.pumpWidget(
+          app(RoomSettingsPage(controller: c, initialSection: 'llm')),
+        );
         await tester.pumpAndSettle();
         await tester.ensureVisible(find.text('刷新直供模型'));
         await tester.tap(find.text('刷新直供模型'));
@@ -239,7 +241,7 @@ void main() {
         await tester.enterText(model, 'vision-fixture');
         await tester.pumpAndSettle();
         expect(ModelRuntime(displayed()).unsupported('image'), false);
-        await tester.tap(find.text('保存全部'));
+        await tester.tap(find.text('保存修改'));
         await tester.pumpAndSettle();
         expect(c.settings.model, 'vision-fixture');
         expect(ModelRuntime(c.settings).unsupported('image'), false);

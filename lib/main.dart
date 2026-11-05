@@ -584,7 +584,7 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
             guidedSetup: Uri.parse(path).queryParameters['setup'] == '1',
             initialSection: roomSections.containsKey(section)
                 ? section!
-                : 'llm',
+                : 'overview',
             onTheme: _toggleTheme,
           );
         }

@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
 import 'models.dart';
+import 'fish_audio.dart';
 import 'site_client.dart';
 
 const officialTtsPreview = 'こんにちは。今夜も、月がきれいですね。';
@@ -110,9 +111,26 @@ class OfficialTtsClient {
       cache.records.clear();
       cache.owner = owner;
     }
+    final engine = settings.option('officialEngine') == 'fish-audio'
+        ? 'fish-audio'
+        : '';
+    final fish = engine.isNotEmpty || settings.flag('officialSupportsEmotion');
+    final emotion = fish ? FishAudio.emotion(settings) : '';
+    final model = fish ? settings.option('officialFishModel') : '';
     final records = cache.records;
     final fingerprint = sha256
-        .convert(utf8.encode('$account\n$text'))
+        .convert(
+          utf8.encode(
+            jsonEncode([
+              account,
+              text,
+              engine,
+              emotion,
+              model,
+              settings.option('textLang'),
+            ]),
+          ),
+        )
         .toString();
     var saved = records[fingerprint];
     if (saved == null ||
@@ -150,7 +168,14 @@ class OfficialTtsClient {
       if (record.jobId != null) {
         job = await json('/jobs/${record.jobId}');
       } else {
-        final status = await json('/status');
+        final status = await json(
+          '/status${engine.isEmpty ? '' : '?engine=fish-audio'}',
+        );
+        if (model.isNotEmpty &&
+            (status['models'] is! List ||
+                !(status['models'] as List).contains(model))) {
+          throw const ApiFailure('此官方 Fish Audio 模型暂不可用，请重新选择');
+        }
         if (status['online'] != true) {
           throw const ApiFailure('官方语音算力离线，未发起翻译或合成，请稍后重试');
         }
@@ -178,7 +203,14 @@ class OfficialTtsClient {
         }
         job = await json(
           '/jobs',
-          body: {'text': prepared, 'requestKey': record.key},
+          body: {
+            'text': prepared,
+            'requestKey': record.key,
+            if (engine.isNotEmpty) 'engine': engine,
+            if (model.isNotEmpty) 'fishModel': model,
+            if (emotion.isNotEmpty && status['supportsEmotion'] == true)
+              'emotion': emotion,
+          },
         );
       }
       final deadline = _now().add(pollTimeout);
