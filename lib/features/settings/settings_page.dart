@@ -660,12 +660,15 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         key: ValueKey('$key:$value'),
         initialValue: values.containsKey(value) ? value : values.keys.first,
         isExpanded: true,
-        decoration: InputDecoration(labelText: label),
+        decoration: InputDecoration(labelText: siteTranslate(context, label)),
         items: values.entries
             .map(
               (e) => DropdownMenuItem(
                 value: e.key,
-                child: Text(e.value, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  siteTranslate(context, e.value),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             )
             .toList(),
@@ -686,11 +689,11 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
   }) => primary
       ? FilledButton(
           onPressed: busy || !enabled ? null : () => _run(task),
-          child: Text(label),
+          child: SiteText(label),
         )
       : OutlinedButton(
           onPressed: busy || !enabled ? null : () => _run(task),
-          child: Text(label),
+          child: SiteText(label),
         );
   Widget _hint(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 16),
@@ -1609,12 +1612,20 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           ] else
             _toggle('ttsProxy', '通过网站代理生成语音'),
           DropdownButtonFormField<String>(
+            isExpanded: true,
             initialValue: fields['ttsFormat']!.text,
             decoration: InputDecoration(
               labelText: siteTranslate(context, 'OpenAI 兼容音频格式'),
             ),
             items: const [
-              DropdownMenuItem(value: 'wav', child: SiteText('WAV · 支持音量口型')),
+              DropdownMenuItem(
+                value: 'wav',
+                child: SiteText(
+                  'WAV · 支持音量口型',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               DropdownMenuItem(value: 'mp3', child: SiteText('MP3')),
             ],
             onChanged: (v) => setState(() => fields['ttsFormat']!.text = v!),
@@ -2097,7 +2108,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
         for (final group in ['基础与陪伴', '房间个性化', '进阶功能']) ...[
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-            child: Text(group, style: const TextStyle(fontSize: 11)),
+            child: SiteText(group, style: const TextStyle(fontSize: 11)),
           ),
           for (final e in roomSections.entries.where(
             (e) =>
@@ -2113,7 +2124,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
               shape: const StadiumBorder(),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               leading: Icon(e.value.$2, size: 18),
-              title: Text(e.value.$1, style: const TextStyle(fontSize: 12)),
+              title: SiteText(e.value.$1, style: const TextStyle(fontSize: 12)),
               onTap: () => _select(e.key),
             ),
         ],
@@ -2571,6 +2582,7 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                               : Row(
                                   children: [
                                     Expanded(
+                                      flex: 2,
                                       child: Semantics(
                                         liveRegion: true,
                                         child: SiteText(
@@ -2582,47 +2594,53 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
                                         ),
                                       ),
                                     ),
-                                    TextButton(
-                                      onPressed: !dirty || busy
-                                          ? null
-                                          : () async {
-                                              if (await roomConfirm(
-                                                context,
-                                                '放弃尚未保存的修改？',
-                                                '已保存的记忆、日记与人设不会撤销。',
-                                              )) {
-                                                setState(_restore);
-                                              }
-                                            },
-                                      style: TextButton.styleFrom(
-                                        minimumSize: Size.zero,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 12,
+                                    Flexible(
+                                      flex: 2,
+                                      child: TextButton(
+                                        onPressed: !dirty || busy
+                                            ? null
+                                            : () async {
+                                                if (await roomConfirm(
+                                                  context,
+                                                  '放弃尚未保存的修改？',
+                                                  '已保存的记忆、日记与人设不会撤销。',
+                                                )) {
+                                                  setState(_restore);
+                                                }
+                                              },
+                                        style: TextButton.styleFrom(
+                                          minimumSize: Size.zero,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 12,
+                                          ),
                                         ),
-                                      ),
-                                      child: const SiteText(
-                                        '撤销',
-                                        style: TextStyle(fontSize: 12),
+                                        child: const SiteText(
+                                          '撤销',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    FilledButton(
-                                      onPressed: !dirty || busy
-                                          ? null
-                                          : () => _run(() async {
-                                              await _save();
-                                            }),
-                                      style: FilledButton.styleFrom(
-                                        minimumSize: Size.zero,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 14,
-                                          vertical: 12,
+                                    Flexible(
+                                      flex: 4,
+                                      child: FilledButton(
+                                        onPressed: !dirty || busy
+                                            ? null
+                                            : () => _run(() async {
+                                                await _save();
+                                              }),
+                                        style: FilledButton.styleFrom(
+                                          minimumSize: Size.zero,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 12,
+                                          ),
                                         ),
-                                      ),
-                                      child: SiteText(
-                                        busy ? '保存中…' : '保存修改',
-                                        style: const TextStyle(fontSize: 12),
+                                        child: SiteText(
+                                          busy ? '保存中…' : '保存修改',
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
                                       ),
                                     ),
                                   ],
