@@ -1611,25 +1611,26 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
             _field('sovitsWeightPath', 'SoVITS 权重路径'),
           ] else
             _toggle('ttsProxy', '通过网站代理生成语音'),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            initialValue: fields['ttsFormat']!.text,
-            decoration: InputDecoration(
-              labelText: siteTranslate(context, 'OpenAI 兼容音频格式'),
-            ),
-            items: const [
-              DropdownMenuItem(
-                value: 'wav',
-                child: SiteText(
-                  'WAV · 支持音量口型',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+          if (provider != 'fish-audio')
+            DropdownButtonFormField<String>(
+              isExpanded: true,
+              initialValue: fields['ttsFormat']!.text,
+              decoration: InputDecoration(
+                labelText: siteTranslate(context, 'OpenAI 兼容音频格式'),
               ),
-              DropdownMenuItem(value: 'mp3', child: SiteText('MP3')),
-            ],
-            onChanged: (v) => setState(() => fields['ttsFormat']!.text = v!),
-          ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'wav',
+                  child: SiteText(
+                    'WAV · 支持音量口型',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                DropdownMenuItem(value: 'mp3', child: SiteText('MP3')),
+              ],
+              onChanged: (v) => setState(() => fields['ttsFormat']!.text = v!),
+            ),
         ],
         const SizedBox(height: 18),
         Wrap(
