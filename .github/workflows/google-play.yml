@@ -73,9 +73,11 @@ jobs:
           [[ "$PLAY_VERSION_CODE" =~ ^[1-9][0-9]*$ ]]
           test -n "$ANDROID_KEYSTORE_BASE64" && test -n "$ANDROID_KEYSTORE_PASSWORD"
           export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/tsukuyomi-release.jks"
+          SIGNING_PASSWORD_FILE="$RUNNER_TEMP/tsukuyomi-signing-password.txt"
+          umask 077
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$ANDROID_KEYSTORE_PATH"
-          chmod 600 "$ANDROID_KEYSTORE_PATH"
-          trap 'rm -f "$ANDROID_KEYSTORE_PATH"' EXIT
+          printf '%s' "$ANDROID_KEYSTORE_PASSWORD" > "$SIGNING_PASSWORD_FILE"
+          trap 'rm -f "$ANDROID_KEYSTORE_PATH" "$SIGNING_PASSWORD_FILE"' EXIT
           flutter build appbundle --release --target-platform android-arm64,android-x64 --build-number="$PLAY_VERSION_CODE" --dart-define=TSUKUYOMI_GOOGLE_PLAY=true
           mkdir -p dist/google-play
           cp build/app/outputs/bundle/release/app-release.aab dist/google-play/tsukuyomi-space-play.aab
@@ -83,7 +85,7 @@ jobs:
           grep -F 'jar verified.' dist/google-play/signature-verification.txt
           keytool -exportcert -rfc -alias tsukuyomi -keystore "$ANDROID_KEYSTORE_PATH" -storepass:env ANDROID_KEYSTORE_PASSWORD -file dist/google-play/upload-certificate.pem
           java -jar "$RUNNER_TEMP/bundletool.jar" validate --bundle=dist/google-play/tsukuyomi-space-play.aab
-          java -jar "$RUNNER_TEMP/bundletool.jar" build-apks --bundle=dist/google-play/tsukuyomi-space-play.aab --output="$RUNNER_TEMP/play.apks" --mode=universal --ks="$ANDROID_KEYSTORE_PATH" --ks-key-alias=tsukuyomi --ks-pass=env:ANDROID_KEYSTORE_PASSWORD --key-pass=env:ANDROID_KEYSTORE_PASSWORD
+          java -jar "$RUNNER_TEMP/bundletool.jar" build-apks --bundle=dist/google-play/tsukuyomi-space-play.aab --output="$RUNNER_TEMP/play.apks" --mode=universal --ks="$ANDROID_KEYSTORE_PATH" --ks-key-alias=tsukuyomi --ks-pass="file:$SIGNING_PASSWORD_FILE" --key-pass="file:$SIGNING_PASSWORD_FILE"
           unzip -p "$RUNNER_TEMP/play.apks" universal.apk > dist/google-play/tsukuyomi-space-play-device-test.apk
           java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle=dist/google-play/tsukuyomi-space-play.aab > dist/google-play/AndroidManifest.xml
       - name: Validate final bundle and exact packaged assets
