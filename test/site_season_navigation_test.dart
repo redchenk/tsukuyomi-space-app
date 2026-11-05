@@ -93,14 +93,14 @@ void main() {
       await tester.tap(find.text('发现'));
       await tester.pumpAndSettle();
       expect(find.text('百科'), findsWidgets);
-      expect(find.text('辉夜快跑'), findsOneWidget);
+      expect(find.text('游戏中心'), findsOneWidget);
       expect(find.text('主舞台'), findsNothing);
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
       await tester.tap(find.text('创作'));
       await tester.pumpAndSettle();
       expect(find.text('主舞台'), findsOneWidget);
-      expect(find.text('辉夜快跑'), findsNothing);
+      expect(find.text('游戏中心'), findsNothing);
       expect(tester.takeException(), isNull);
       debugDisableShadows = shadows;
     },
@@ -118,11 +118,11 @@ void main() {
       await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
       await tester.pumpAndSettle();
-      expect(find.text('辉夜快跑'), findsOneWidget);
+      expect(find.text('游戏中心'), findsOneWidget);
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
       expect(button.focusNode!.hasFocus, true);
-      expect(find.text('辉夜快跑'), findsNothing);
+      expect(find.text('游戏中心'), findsNothing);
       await tester.tap(find.text('空间'));
       await tester.pumpAndSettle();
       expect(find.text('RSS 订阅'), findsOneWidget);

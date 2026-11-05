@@ -10,6 +10,7 @@ import 'room_conversation.dart';
 import 'room_protocol.dart';
 import 'room_reference.dart';
 import 'room_dialogue.dart';
+import 'room_chat_settings.dart';
 import 'official_api.dart';
 
 const characterPrompt =
@@ -140,6 +141,13 @@ class LlmClient implements ChatService {
           ? systemOverride
           : [
               RoomReference.data['chatPersona'] as String? ?? characterPrompt,
+              if (!jsonObject)
+                RoomChatSettings.prompt(settings, siteAccountId, message, [
+                  for (final turn in history) ...[
+                    {'role': 'user', 'content': turn.user},
+                    {'role': 'assistant', 'content': turn.assistant},
+                  ],
+                ]),
               settings.option('systemPrompt'),
               RoomReference.data['chatProtocol'] as String? ?? '',
               if (memoryContext.isNotEmpty)

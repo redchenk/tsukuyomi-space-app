@@ -87,6 +87,7 @@ def main():
         known.write_text(os.environ['APP_DISTRIBUTION_KNOWN_HOSTS'].strip() + '\n', encoding='utf-8'); known.chmod(0o600)
         process = subprocess.Popen(['ssh', '-i', str(key), '-o', 'IdentitiesOnly=yes', '-o', 'BatchMode=yes',
             '-o', 'StrictHostKeyChecking=yes', '-o', f'UserKnownHostsFile={known}', '-o', 'ConnectTimeout=15',
+            '-o', 'ProxyCommand=python3 tool/release/ssh_transport.py',
             '-o', 'ServerAliveInterval=15', '-o', 'ServerAliveCountMax=3', '-T', f'tsukuyomi-download@{HOST}'], stdin=subprocess.PIPE)
         try:
             with tarfile.open(fileobj=process.stdin, mode='w|') as archive:

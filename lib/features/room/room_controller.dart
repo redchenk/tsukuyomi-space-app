@@ -16,6 +16,7 @@ import '../../core/room_archive.dart';
 import '../../core/room_events.dart';
 import 'room_workspace.dart';
 import '../../live2d/room_animation.dart';
+import '../../live2d/live2d_semantics.dart';
 
 class RoomController extends ChangeNotifier {
   RoomController({
@@ -927,7 +928,15 @@ class RoomController extends ChangeNotifier {
           ..siteAccountId = account?.id
           ..siteService = site;
       }
-      await voice.speak(settings, speechRoomText(text));
+      await voice.speak(
+        settings.copyWith(
+          options: {
+            ...settings.options,
+            'replyEmotion': Live2DSemantics.infer(text)['expression'],
+          },
+        ),
+        speechRoomText(text),
+      );
       onPlayback();
     } catch (e) {
       if (!_disposed && generation == _generation) {

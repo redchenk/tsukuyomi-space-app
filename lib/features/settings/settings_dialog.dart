@@ -6,7 +6,7 @@ import 'settings_page.dart';
 Future<void> showRoomSettings(
   BuildContext context,
   RoomController controller, {
-  String section = 'llm',
+  String section = 'overview',
   bool guidedSetup = false,
   VoidCallback? onTheme,
 }) => Navigator.of(context).push<void>(

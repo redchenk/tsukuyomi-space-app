@@ -294,6 +294,10 @@ void main() {
     Navigator.of(tester.element(find.byType(RoomPage)))
         .pushNamed('/room/settings');
     await tester.pumpAndSettle();
+    if (find.byKey(const Key('settings-category-llm')).evaluate().isNotEmpty) {
+      await tester.tap(find.byKey(const Key('settings-category-llm')));
+      await tester.pumpAndSettle();
+    }
     final model = find.widgetWithText(TextField, '模型 Model');
     await tester.ensureVisible(model);
     await tester.enterText(model, 'unsaved-model');
@@ -364,13 +368,29 @@ void main() {
             .pushNamed('/room/settings');
         await tester.pumpAndSettle();
         if (save) {
+          if (find
+              .byKey(const Key('settings-category-llm'))
+              .evaluate()
+              .isNotEmpty) {
+            await tester.tap(find.byKey(const Key('settings-category-llm')));
+            await tester.pumpAndSettle();
+          }
+          if (find
+              .byKey(const Key('settings-category-llm'))
+              .evaluate()
+              .isNotEmpty) {
+            await tester.tap(find.byKey(const Key('settings-category-llm')));
+            await tester.pumpAndSettle();
+          }
           final model = find.widgetWithText(TextField, '模型 Model');
           await tester.ensureVisible(model);
           await tester.enterText(model, 'saved-model');
           await tester.pump();
-          await tester.tap(find.text('保存并进入房间'));
+          await tester.tap(find.byTooltip('返回房间'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('保存并离开'));
         } else {
-          await tester.tap(find.text('返回房间').first);
+          await tester.tap(find.byTooltip('返回房间'));
         }
         await tester.pumpAndSettle();
         expect(find.byType(RoomPage), findsOneWidget);

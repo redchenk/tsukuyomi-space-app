@@ -77,7 +77,7 @@ def main():
     text = json.dumps(result, indent=2) + '\n'
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(text)
+        args.output.write_text(text, encoding='utf-8')
     print(text, end='')
 
 

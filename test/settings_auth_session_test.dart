@@ -88,6 +88,22 @@ Future<RoomController> signedIn({
   return c;
 }
 
+Future<void> chooseOfficialVoice(WidgetTester tester) async {
+  await tester.ensureVisible(find.text('站内直供').last);
+  await tester.tap(find.text('站内直供').last);
+  await tester.pumpAndSettle();
+  final selector = find.byWidgetPredicate(
+    (widget) =>
+        widget is DropdownButtonFormField<String> &&
+        '${widget.key}'.contains('tts-source:'),
+  );
+  await tester.ensureVisible(selector);
+  await tester.tap(selector);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('官方直供 · ¥0.05 / 条').last);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   for (final demo in [false, true]) {
     testWidgets('password login can save official voice with demo=$demo', (
@@ -106,11 +122,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      final preset = find.byKey(const ValueKey('official-tts-preset'));
-      await tester.ensureVisible(preset);
-      await tester.tap(preset);
+      await chooseOfficialVoice(tester);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('保存全部'));
+      await tester.tap(find.text('保存修改'));
       await tester.pumpAndSettle();
       expect(c.settings.option('ttsProvider'), 'official');
       expect(c.settings.option('officialTtsAccount'), 'alice');
@@ -140,7 +154,7 @@ void main() {
     await tester.tap(find.text('刷新直供模型'));
     await tester.pumpAndSettle();
     expect(find.text('请先登录月读空间，再使用站内直供'), findsNothing);
-    await tester.tap(find.text('保存全部'));
+    await tester.tap(find.text('保存修改'));
     await tester.pumpAndSettle();
     expect(c.settings.demo, isFalse);
     expect(c.settings.usesOfficialApi, isTrue);

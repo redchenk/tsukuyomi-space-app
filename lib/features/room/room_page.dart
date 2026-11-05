@@ -419,11 +419,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                       Positioned(
                         top: headerHeight + 22,
                         right: 16,
-                        child: _roundButton(
-                          '房间设置',
-                          CupertinoIcons.gear_alt,
-                          _settings,
-                        ),
+                        child: _settingsButton(),
                       ),
                     if (!_quiet)
                       Positioned(
@@ -502,20 +498,21 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
     return _navigationWidget!;
   }
 
-  Widget _roundButton(String label, IconData icon, VoidCallback action) {
+  Widget _settingsButton() {
     final p = RoomStyle(context);
-    return Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        color: p.glass,
-        shape: BoxShape.circle,
-        border: Border.all(color: p.line),
-      ),
-      child: IconButton(
-        tooltip: label,
-        onPressed: action,
-        icon: Icon(icon, size: 23, color: p.ink),
+    return Tooltip(
+      message: siteTranslate(context, '房间设置'),
+      child: TextButton.icon(
+        onPressed: _settings,
+        style: TextButton.styleFrom(
+          backgroundColor: p.glass,
+          foregroundColor: p.ink,
+          minimumSize: const Size(78, 46),
+          side: BorderSide(color: p.line),
+          shape: const StadiumBorder(),
+        ),
+        icon: const Icon(CupertinoIcons.gear_alt, size: 19),
+        label: const SiteText('设置', style: TextStyle(fontSize: 12)),
       ),
     );
   }
@@ -717,15 +714,7 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                   ),
                   icon: const Icon(CupertinoIcons.question_circle, size: 18),
                 ),
-                IconButton(
-                  tooltip: siteTranslate(context, '房间设置'),
-                  onPressed: _settings,
-                  style: IconButton.styleFrom(
-                    minimumSize: const Size(30, 30),
-                    padding: const EdgeInsets.all(4),
-                  ),
-                  icon: const Icon(CupertinoIcons.gear_alt, size: 18),
-                ),
+                _settingsButton(),
               ],
             ),
           ),
