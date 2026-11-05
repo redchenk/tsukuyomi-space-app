@@ -88,6 +88,9 @@ flutter {
 
 dependencies {
     implementation(files("libs/qq-open-sdk.jar"))
+    // QQ 3.5.19 calls okhttp3.internal.Version.userAgent() and requires an
+    // okhttp/3 user agent. A plain JAR does not bring its network dependency.
+    implementation("com.squareup.okhttp3:okhttp:3.14.9")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.17")
 }

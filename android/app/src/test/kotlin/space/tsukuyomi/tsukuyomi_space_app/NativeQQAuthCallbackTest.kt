@@ -46,6 +46,17 @@ class NativeQQAuthCallbackTest {
         .putExtra(Constants.KEY_RESPONSE, """{"ret":0,"access_token":"fixture_token_0123456789","openid":"0123456789ABCDEF0123456789ABCDEF"}""")
 
     @Test
+    fun sdkHttpTransportInitializesWithoutMissingDependencies() {
+        // Exercise the shipped SDK's real OkHttp adapter without making a
+        // request. The SDK explicitly rejects non-3.x OkHttp, and missing
+        // dependencies were previously hidden by tobias's -ignorewarnings.
+        val constructor = Class.forName("com.tencent.open.a.e")
+            .getDeclaredConstructor(String::class.java)
+        constructor.isAccessible = true
+        assertNotNull(constructor.newInstance("Tsukuyomi-SDK-Regression"))
+    }
+
+    @Test
     fun sdkSsoSuccessReachesTheActiveListener() {
         auth.onActivityResult(Constants.REQUEST_LOGIN, Activity.RESULT_OK, response())
         assertEquals(1, completions.size)
