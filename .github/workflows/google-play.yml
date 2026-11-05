@@ -13,7 +13,7 @@ on:
     inputs:
       version_code:
         description: Monotonically increasing Google Play version code
-        default: '100033'
+        default: '100034'
         required: true
         type: string
 
@@ -25,11 +25,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  qq-native:
+    uses: ./.github/workflows/qq-native.yml
+
   bundle:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     env:
-      PLAY_VERSION_CODE: ${{ inputs.version_code || '100033' }}
+      PLAY_VERSION_CODE: ${{ inputs.version_code || '100034' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -53,8 +56,14 @@ jobs:
           sudo apt-get install -y libepoxy-dev libgl-dev
       - run: flutter pub get
       - run: flutter analyze --no-pub
-      - name: Check updater and application UI regressions
-        run: flutter test --no-pub test/app_update_test.dart test/app_update_transport_test.dart test/app_update_ui_test.dart test/privacy_page_test.dart test/site_routes_test.dart test/native_auth_test.dart test/user_center_account_test.dart
+      - name: Check Play optimization gate
+        run: python -m unittest discover -s tool/release -p test_play_optimization.py -v
+      - name: Check payment, QQ, updater and application UI regressions
+        run: flutter test --no-pub --concurrency=1 test/official_payments_test.dart test/payments_page_test.dart test/qq_native_auth_test.dart test/qq_browser_handoff_test.dart test/app_update_test.dart test/app_update_transport_test.dart test/app_update_ui_test.dart test/privacy_page_test.dart test/site_routes_test.dart test/native_auth_test.dart test/user_center_account_test.dart
+      - name: Prepare pinned bundletool for testing the actual AAB
+        run: |
+          curl --fail --location --retry 3 https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar -o "$RUNNER_TEMP/bundletool.jar"
+          printf '%s  %s\n' a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29 "$RUNNER_TEMP/bundletool.jar" | sha256sum --check
       - name: Build with existing distribution signing key
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -73,12 +82,23 @@ jobs:
           LC_ALL=C jarsigner -verify dist/google-play/tsukuyomi-space-play.aab | tee dist/google-play/signature-verification.txt
           grep -F 'jar verified.' dist/google-play/signature-verification.txt
           keytool -exportcert -rfc -alias tsukuyomi -keystore "$ANDROID_KEYSTORE_PATH" -storepass:env ANDROID_KEYSTORE_PASSWORD -file dist/google-play/upload-certificate.pem
+          java -jar "$RUNNER_TEMP/bundletool.jar" validate --bundle=dist/google-play/tsukuyomi-space-play.aab
+          java -jar "$RUNNER_TEMP/bundletool.jar" build-apks --bundle=dist/google-play/tsukuyomi-space-play.aab --output="$RUNNER_TEMP/play.apks" --mode=universal --ks="$ANDROID_KEYSTORE_PATH" --ks-key-alias=tsukuyomi --ks-pass=env:ANDROID_KEYSTORE_PASSWORD --key-pass=env:ANDROID_KEYSTORE_PASSWORD
+          unzip -p "$RUNNER_TEMP/play.apks" universal.apk > dist/google-play/tsukuyomi-space-play-device-test.apk
+          java -jar "$RUNNER_TEMP/bundletool.jar" dump manifest --bundle=dist/google-play/tsukuyomi-space-play.aab > dist/google-play/AndroidManifest.xml
       - name: Validate final bundle and exact packaged assets
         run: |
           python tool/release/verify_assets.py dist/google-play/tsukuyomi-space-play.aab
+          python tool/release/verify_play_optimization.py dist/google-play/tsukuyomi-space-play.aab --apk dist/google-play/tsukuyomi-space-play-device-test.apk --output dist/google-play/optimization-report.json
           python - <<'PY'
-          import hashlib, json, os, pathlib, subprocess, zipfile
+          import hashlib, json, os, pathlib, re, subprocess, zipfile
+          import xml.etree.ElementTree as ET
           target = pathlib.Path('dist/google-play/tsukuyomi-space-play.aab')
+          manifest_root = ET.parse('dist/google-play/AndroidManifest.xml').getroot()
+          android_ns = '{http://schemas.android.com/apk/res/android}'
+          expected_name = re.search(r'^version: ([^+]+)\+', pathlib.Path('pubspec.yaml').read_text(), re.M)[1]
+          assert manifest_root.get(android_ns+'versionName') == expected_name, 'Play version must match native source'
+          assert manifest_root.get(android_ns+'versionCode') == os.environ['PLAY_VERSION_CODE'], 'Wrong Play version code'
           with zipfile.ZipFile(target) as archive:
               manifest = archive.read('base/manifest/AndroidManifest.xml')
               assert b'space.tsukuyomi.tsukuyomi_space_app' in manifest, 'Wrong application ID'
@@ -89,6 +109,7 @@ jobs:
                   assert f'base/lib/{abi}/libapp.so' in archive.namelist(), f'Missing {abi} app'
               assert not any('/armeabi-v7a/' in name for name in archive.namelist()), 'Unsupported 32-bit ABI'
           info = dict(source_sha=subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip(),
+                      version_name=expected_name,
                       version_code=int(os.environ['PLAY_VERSION_CODE']), google_play=True,
                       sha256=hashlib.sha256(target.read_bytes()).hexdigest(), bytes=target.stat().st_size,
                       install_packages_permission=False, foreground_location_service_permission=False,
@@ -97,10 +118,17 @@ jobs:
           print(json.dumps(info, indent=2))
           PY
           cd dist/google-play
-          sha256sum tsukuyomi-space-play.aab upload-certificate.pem > SHA256SUMS.txt
+          sha256sum tsukuyomi-space-play.aab tsukuyomi-space-play-device-test.apk upload-certificate.pem > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
           name: google-play-bundle-${{ github.run_id }}
           path: dist/google-play/
           if-no-files-found: error
           retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: google-play-r8-diagnostics-${{ github.run_id }}
+          path: build/app/outputs/mapping/release/
+          if-no-files-found: ignore
+          retention-days: 14
