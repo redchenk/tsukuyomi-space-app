@@ -4,8 +4,8 @@
 
 - 网站来源：`937cee71`，`codex/vendor-browser-compat-20261116`，包含最新浏览器兼容修复、像素画工作室、水镜入口、季节主题、DeepSeek 应用接口、星海来信及管理功能。
 - App 基线：`686da4d`（0.6.35+42）；新版本：0.6.36+43。
-- App 实现：`/Users/yxy/Desktop/codex/tsukuyomi-space-app-sync`，分支 `codex/native-site-sync-20261116`。
-- Google 配套服务端：`/Users/yxy/Desktop/codex/tsukuyomi-space-native-sync`，分支 `codex/native-auth-handoff-20261116`，提交 `e6efb01a`。
+- App 实现：`redchenk/tsukuyomi-space-app`，分支 `codex/native-site-sync-20261116`。
+- Google 配套服务端：`redchenk/tsukuyomi-space`，分支 `codex/native-auth-handoff-20261116`，提交 `e6efb01a`。
 - 原始 App 和网站工作区的未提交修改保留在原位置。本次在独立 worktree 完成，未覆盖用户工作。
 
 ## 同步范围
@@ -35,7 +35,7 @@
 
 配套接口需要先进入目标网站部署。当前仅完成本地实现及测试，未部署或修改线上账号。测试覆盖请求/密钥校验、浏览器确认、一次性消费、跨账号、跨站请求、取消、过期和禁用账号。登录、绑定与注册仍使用网站原有邮箱核验规则。
 
-## 验证记录
+## 发布前本地验证记录
 
 - macOS：原生 Release 已构建，主程序包含 arm64 与 x86_64；安装包已包含两种架构的固定 Agent 运行时；最终包验证 430 个网站/游戏/角色资源和两个编译后着色器。
 - 自动化：完整 Flutter 回归 1121 项通过，40 项条件测试跳过；新功能专测 13 项通过；Dart 静态分析无问题。

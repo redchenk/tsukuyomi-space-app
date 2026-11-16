@@ -10,7 +10,9 @@ class DeepseekTariff extends StatelessWidget {
     final raw = model['tools_price']?['rates']?[name];
     final numerator = BigInt.tryParse('${raw?['numerator']}'),
         denominator = BigInt.tryParse('${raw?['denominator']}');
-    if (numerator == null || denominator == null || denominator <= BigInt.zero) {
+    if (numerator == null ||
+        denominator == null ||
+        denominator <= BigInt.zero) {
       return '—';
     }
     return moneyAtoms(

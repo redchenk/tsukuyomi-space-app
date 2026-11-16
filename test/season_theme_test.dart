@@ -82,7 +82,8 @@ void main() {
     'automatic theme refreshes after midnight/resume without periodic polling',
     () {
       var now = DateTime(2026, 8, 31, 23, 59);
-      final season = SeasonThemeController(MemoryStorage(), now: () => now)..select('auto');
+      final season = SeasonThemeController(MemoryStorage(), now: () => now)
+        ..select('auto');
       addTearDown(season.dispose);
       expect(season.season, SiteSeason.summer);
       now = DateTime(2026, 9, 1);
