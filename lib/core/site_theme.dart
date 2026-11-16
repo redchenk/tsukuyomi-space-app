@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'season_theme.dart';
 
-/// Website editorial.css / material-components.css at 4b0ade7 (2026-10-06).
+/// Website editorial.css / material-components.css at 4b0ade7 (2026-11-16).
 /// Keep these semantic roles shared by Room, content pages and Material controls.
 class SitePalette {
   const SitePalette(this.dark, {this.season = SiteSeason.spring})
@@ -21,8 +21,8 @@ class SitePalette {
   final bool dark;
   static const brand = Color(0xffac4d6d);
   static const brandHover = Color(0xff923d5b);
-  static const cardRadius = 24.0;
-  static const fieldRadius = 16.0;
+  static const cardRadius = 20.0;
+  static const fieldRadius = 12.0;
   static const dialogRadius = 28.0;
   Color get background =>
       seasonal(dark ? const Color(0xff151923) : const Color(0xfff7f9fc), 0);
@@ -66,7 +66,7 @@ const _colors = <SiteSeason, List<List<int>>>{
       0xffe0edf4,
       0xff377781,
       0xff28647d,
-      0xff1e5269,
+      0xff1b4b61,
     ],
     [
       0xff111c25,
@@ -76,7 +76,7 @@ const _colors = <SiteSeason, List<List<int>>>{
       0xffe5f1f7,
       0xffabc1ce,
       0xff3a5263,
-      0xffa0cde2,
+      0xff8bc0d5,
       0xff263f50,
       0xff9ad4d9,
       0xff316b86,
@@ -90,13 +90,13 @@ const _colors = <SiteSeason, List<List<int>>>{
       0xfffaf6ef,
       0xfff3eade,
       0xff43332a,
-      0xff776555,
+      0xff706051,
       0xffe8dccc,
       0xff97562b,
       0xfff5e7d8,
       0xff627258,
       0xff97562b,
-      0xff804720,
+      0xff78421e,
     ],
     [
       0xff211b17,
@@ -106,7 +106,7 @@ const _colors = <SiteSeason, List<List<int>>>{
       0xfff6ebdc,
       0xffcfbca5,
       0xff594839,
-      0xffe5b481,
+      0xffd89c72,
       0xff493425,
       0xffb7c8a8,
       0xff9d602f,

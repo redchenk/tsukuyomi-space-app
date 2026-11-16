@@ -7,6 +7,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../../core/llm_client.dart';
+import '../../core/deepseek.dart';
+import '../../core/room_voice_input.dart';
 import '../../core/agent/agent_types.dart';
 import '../../core/models.dart';
 import '../../core/site_client.dart';
@@ -31,6 +33,8 @@ class RoomController extends ChangeNotifier {
     voice.addListener(_voiceChanged);
     if (site is SiteClient) {
       (site as SiteClient).onUnauthorized = expireSession;
+      (site as SiteClient).contentTranslation = () =>
+          settings.flag('contentTranslation', true);
       (site as SiteClient).onReaderCookie = (origin, value) {
         unawaited(_writeCredential('reader.$origin', value).catchError((_) {}));
       };
@@ -75,6 +79,186 @@ class RoomController extends ChangeNotifier {
   late final RoomWorkspace workspace;
   final animation = RoomAnimation();
   Map<String, dynamic>? attachment;
+  final deepseekInput = DeepseekClient();
+  final voiceInput = RoomVoiceInput();
+  List<Map<String, dynamic>> files = [];
+  bool inputBusy = false, recordingInput = false;
+  int _inputEpoch = 0;
+  bool get deepseekSupported => Deepseek.supported(settings);
+  DeepseekReply? get deepseekReply =>
+      chat is LlmClient ? (chat as LlmClient).deepseekReply : null;
+
+  void resetInput() {
+    _inputEpoch++;
+    deepseekInput.cancel();
+    unawaited(voiceInput.cancel());
+    files = [];
+    inputBusy = false;
+    recordingInput = false;
+  }
+
+  void removeFile(String id) {
+    if (!canSend) return;
+    files = files.where((f) => f['id'] != id).toList();
+    _changed();
+  }
+
+  Future<void> toggleDeepseek(String option) async {
+    if (!canSend) return;
+    await configure(
+      settings.copyWith(
+        options: {
+          ...settings.options,
+          option: !settings.flag(option, option == 'deepseekReadUrl'),
+        },
+      ),
+    );
+  }
+
+  Future<void> attachDocument(
+    List<int> bytes,
+    String name,
+    String mime, {
+    bool ocr = false,
+    bool asr = false,
+  }) async {
+    if (!canSend || !deepseekSupported) return;
+    if (!ocr && !asr && files.length >= 5) {
+      error = '每次最多附加 5 个文件';
+      _changed();
+      return;
+    }
+    final epoch = _inputEpoch,
+        owner = scope,
+        connection = settings.toJson().toString();
+    final config = settings, cookie = site.cookie;
+    inputBusy = true;
+    error = '';
+    _changed();
+    bool current() =>
+        !_disposed &&
+        epoch == _inputEpoch &&
+        owner == scope &&
+        connection == settings.toJson().toString() &&
+        cookie == site.cookie;
+    final purpose =
+        RegExp(r'\.(pdf|docx?|pptx?)$', caseSensitive: false).hasMatch(name)
+        ? 'text_recognition'
+        : 'user_data';
+    try {
+      final result = await deepseekInput.upload(
+        config,
+        asr
+            ? '/v1/tools/asr'
+            : ocr
+            ? '/v1/tools/ocr'
+            : '/files',
+        bytes,
+        name,
+        mime,
+        purpose: asr
+            ? null
+            : ocr
+            ? 'text_recognition'
+            : purpose,
+        cookie: cookie,
+        accountId: account?.id,
+      );
+      if (!current()) return;
+      if (ocr || asr) {
+        final text = asr
+            ? result['text']
+            : result['pages'] is List
+            ? (result['pages'] as List)
+                  .whereType<Map>()
+                  .map((p) => p['text'] ?? '')
+                  .join('\n\n')
+            : null;
+        if (text is! String || text.isEmpty) {
+          throw const ApiFailure('接口没有返回可读取的文字');
+        }
+        await saveComposerDraft(
+          [draft, text].where((s) => s.isNotEmpty).join('\n\n'),
+        );
+        if (ocr &&
+            (result['pages'] as List).whereType<Map>().any(
+              (p) => p['finish_reason'] == 'length',
+            )) {
+          error = '部分页面文字被截断，请分段识别';
+        }
+      } else {
+        if (!RegExp(r'^[A-Za-z0-9_-]{1,200}$')
+            .hasMatch('${result['id'] ?? ''}')) {
+          throw const ApiFailure('文件上传未完成');
+        }
+        files = [
+          ...files,
+          {
+            'id': result['id'],
+            'name': name,
+            'size': bytes.length,
+            'purpose': purpose,
+            'endpoint': Deepseek.endpoint(config).toString(),
+          },
+        ];
+      }
+    } catch (e) {
+      if (current()) error = e is ApiFailure ? e.message : '处理失败，请重试';
+    } finally {
+      if (epoch == _inputEpoch && !_disposed) {
+        inputBusy = false;
+        _changed();
+      }
+    }
+  }
+
+  Future<void> toggleVoiceInput() async {
+    if (recordingInput) {
+      recordingInput = false;
+      inputBusy = true;
+      _changed();
+      final epoch = _inputEpoch;
+      try {
+        final bytes = await voiceInput.stop();
+        if (epoch != _inputEpoch || _disposed) return;
+        inputBusy = false;
+        await attachDocument(bytes, 'recording.wav', 'audio/wav', asr: true);
+      } catch (e) {
+        if (epoch == _inputEpoch && !_disposed) {
+          error = e is ApiFailure ? e.message : '录音失败，请重试';
+        }
+      } finally {
+        if (epoch == _inputEpoch && !_disposed) {
+          inputBusy = false;
+          _changed();
+        }
+      }
+      return;
+    }
+    if (!canSend || !deepseekSupported) return;
+    final epoch = _inputEpoch;
+    inputBusy = true;
+    error = '';
+    _changed();
+    try {
+      await voice.stop();
+      await voiceInput.start(() {
+        if (recordingInput) unawaited(toggleVoiceInput());
+      });
+      if (epoch != _inputEpoch || _disposed) return;
+      recordingInput = true;
+    } catch (e) {
+      if (epoch == _inputEpoch && !_disposed) {
+        error = e is ApiFailure ? e.message : '无法使用麦克风，请检查设备权限';
+      }
+    } finally {
+      if (epoch == _inputEpoch && !_disposed) {
+        inputBusy = false;
+        _changed();
+      }
+    }
+  }
+
   List<ChatTurn> recording = [];
   String diaryText = '', diaryStatus = '';
   Map<String, dynamic>? pendingDiary;
@@ -194,7 +378,13 @@ class RoomController extends ChangeNotifier {
       ? 'demo'
       : '${endpointUri(settings.siteUrl).origin}:${account?.id ?? 'guest'}';
   String get _sessionKey => 'session.${endpointUri(settings.siteUrl).origin}';
-  bool get canSend => !generating && !busy && !loading && !_committing;
+  bool get canSend =>
+      !generating &&
+      !busy &&
+      !loading &&
+      !inputBusy &&
+      !recordingInput &&
+      !_committing;
   final streamRevision = ValueNotifier<int>(0);
   Timer? _streamRefresh;
   bool sessionVerified = false;
@@ -350,6 +540,7 @@ class RoomController extends ChangeNotifier {
     leaveSharedConversation();
     _conversationStart = null;
     _previousConversationIds = {};
+    resetInput();
     turns = await storage.history(scope);
     draft = await storage.draft(scope);
     final imageDraft = await storage.draft('$scope.image-draft');
@@ -376,6 +567,7 @@ class RoomController extends ChangeNotifier {
     busy = true;
     _changed();
     try {
+      resetInput();
       leaveSharedConversation();
       if (clearHistory && account != null && !settings.demo) {
         if (sessionExpired) throw const ApiFailure('请重新登录后新建云端会话');
@@ -438,6 +630,12 @@ class RoomController extends ChangeNotifier {
           endpointUri(value.siteUrl).origin !=
           endpointUri(settings.siteUrl).origin;
       final changedScope = changedAccount || value.demo != settings.demo;
+      if (value.llmUrl != settings.llmUrl ||
+          value.model != settings.model ||
+          value.apiKey != settings.apiKey ||
+          changedScope) {
+        resetInput();
+      }
       settings = value;
       if (changedAccount) {
         account = null;
@@ -708,11 +906,16 @@ class RoomController extends ChangeNotifier {
     ChatTurn? replacement,
   }) async {
     text = text.trim();
-    if ((text.isEmpty && attachment == null && !opener) || !canSend) return;
+    if ((text.isEmpty && attachment == null && files.isEmpty && !opener) ||
+        !canSend) {
+      return;
+    }
     if (replacement != null &&
         (turns.isEmpty ||
             turns.last.id != replacement.id ||
-            replacement.image != null)) {
+            replacement.image != null ||
+            (replacement.deepseek?['user']?['files'] as List? ?? [])
+                .isNotEmpty)) {
       error = '只能修改或重新生成最后一轮无图片的对话';
       _changed();
       return;
@@ -726,9 +929,14 @@ class RoomController extends ChangeNotifier {
     final requestText = opener
         ? '现在由你先开口。结合当前时间，主动说一句自然、简短、符合你身份的话来开启对话。不要复述这条指令。'
         : text.isEmpty
-        ? '请看这张图片。'
+        ? files.isNotEmpty
+              ? '请阅读这些文件。'
+              : '请看这张图片。'
         : text;
     final image = replacement == null ? attachment : null;
+    final inputFiles = replacement == null
+        ? List<Map<String, dynamic>>.of(files)
+        : <Map<String, dynamic>>[];
     final turnId = replacement?.id ?? _draftTurnId ?? newTurnId();
     if (replacement == null) _draftTurnId = turnId;
     if (text.length > 12000) {
@@ -753,6 +961,8 @@ class RoomController extends ChangeNotifier {
       if (generation != _generation || _disposed) return;
       if (chat is LlmClient) {
         final llm = chat as LlmClient;
+        llm.files = inputFiles;
+        llm.onDeepseekUpdate = _streamChanged;
         llm.memoryContext = '';
         llm.systemOverride = '';
         llm.referenceContext = '';
@@ -837,6 +1047,8 @@ class RoomController extends ChangeNotifier {
             'expectedAssistantMessage': replacement.assistant,
             'userMessage': opener ? '' : requestText,
             'assistantMessage': cleaned,
+            if (chat is LlmClient && (chat as LlmClient).lastDeepseek != null)
+              'deepseek': {'assistant': (chat as LlmClient).lastDeepseek},
             'memoryEnabled':
                 !workspace.usesLocalMemory &&
                 settings.flag('memoryEnabled', true),
@@ -849,6 +1061,16 @@ class RoomController extends ChangeNotifier {
         user: opener ? '' : requestText,
         assistant: cleaned,
         image: savedImage,
+        deepseek: chat is LlmClient && (chat as LlmClient).lastDeepseek != null
+            ? {
+                'user': Deepseek.metadata({
+                  'provider': 'deepseek',
+                  'endpoint': Deepseek.endpoint(settings).toString(),
+                  'files': inputFiles,
+                }),
+                'assistant': (chat as LlmClient).lastDeepseek,
+              }
+            : null,
         memoryEnabled: settings.flag('memoryEnabled', true),
         memorySource: workspace.usesLocalMemory ? 'local' : 'cloud',
         localMemoryKey: workspace.usesLocalMemory
@@ -878,6 +1100,7 @@ class RoomController extends ChangeNotifier {
         return;
       }
       attachment = null;
+      files = [];
       _draftTurnId = null;
       await storage.saveDraft('$targetScope.pending-id', '');
       await storage.saveDraft('$targetScope.image-draft', '');
@@ -1128,6 +1351,7 @@ class RoomController extends ChangeNotifier {
       pendingDiary = null;
       draft = '';
       attachment = null;
+      files = [];
       _draftTurnId = null;
       await storage.saveHistory(scope, []);
       await _saveRecording();
@@ -1148,6 +1372,7 @@ class RoomController extends ChangeNotifier {
   }
 
   void pause() {
+    resetInput();
     _paused = true;
     _closeEvents();
     _retry?.cancel();
@@ -1164,6 +1389,7 @@ class RoomController extends ChangeNotifier {
 
   @override
   void dispose() {
+    resetInput();
     _disposed = true;
     _streamRefresh?.cancel();
     streamRevision.dispose();

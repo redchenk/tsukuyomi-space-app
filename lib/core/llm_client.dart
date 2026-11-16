@@ -12,6 +12,7 @@ import 'room_reference.dart';
 import 'room_dialogue.dart';
 import 'room_chat_settings.dart';
 import 'official_api.dart';
+import 'deepseek.dart';
 
 const characterPrompt =
     '你是月读空间里的月见八千代。用温柔、自然的中文陪伴用户，回答简短，尊重用户自主性。'
@@ -37,6 +38,10 @@ class LlmClient implements ChatService {
   String? siteAccountId;
   Map<String, dynamic>? image;
   bool jsonObject = false;
+  List<Map<String, dynamic>> files = [];
+  Map<String, dynamic>? lastDeepseek;
+  DeepseekReply? deepseekReply;
+  void Function()? onDeepseekUpdate;
   int maxReplyChars = 200000;
   final _plainJsonEndpoints = <String>{};
   int _generation = 0;
@@ -70,6 +75,9 @@ class LlmClient implements ChatService {
       }
       return;
     }
+    lastDeepseek = null;
+    deepseekReply = null;
+    final apps = !jsonObject && Deepseek.supported(settings);
     final direct = roomChatEndpoint(settings.llmUrl);
     final official = settings.usesOfficialApi;
     if (!official &&
@@ -82,8 +90,15 @@ class LlmClient implements ChatService {
         settings.flag('llmProxy') &&
         roomProtocol(direct) != 'ollama';
     final uri = proxy
-        ? endpointUri(settings.siteUrl).resolve('/api/chat/stream')
+        ? endpointUri(settings.siteUrl).resolve(
+            apps ? '/api/chat/deepseek/chat/completions' : '/api/chat/stream',
+          )
+        : apps
+        ? Deepseek.endpoint(settings)
         : direct;
+    if (apps && proxy && direct.host != 'api.deepseek.com') {
+      throw const ApiFailure('自定义网关请关闭代理并使用直连');
+    }
     if (settings.model.trim().isEmpty) throw const ApiFailure('请先在设置中填写模型名称');
     final client = _clientFactory();
     _active = client;
@@ -193,7 +208,15 @@ class LlmClient implements ChatService {
       // provider request messages accept role/content without app metadata.
       final conversation = <Map<String, dynamic>>[
         for (final item in selected)
-          {'role': item['role'], 'content': item['content']},
+          {
+            'role': item['role'],
+            'content': item['content'],
+            if (apps)
+              'deepseek': history
+                  .where((t) => t.id == item['turnId'])
+                  .firstOrNull
+                  ?.deepseek?[item['role']],
+          },
       ];
       final jsonKey = '$direct:${settings.model}';
       final useJson = jsonObject && !_plainJsonEndpoints.contains(jsonKey);
@@ -202,7 +225,16 @@ class LlmClient implements ChatService {
       final workspace = claudeApi(direct)
           ? claudeWorkspaceId(settings.option('anthropicWorkspaceId'))
           : '';
-      final baseBody = proxy
+      final baseBody = apps
+          ? Deepseek.body(
+              settings,
+              system,
+              conversation,
+              message,
+              files: files,
+              image: image,
+            )
+          : proxy
           ? {
               'message': message,
               'conversation': conversation,
@@ -243,6 +275,8 @@ class LlmClient implements ChatService {
                       'X-Requested-With': 'XMLHttpRequest',
                       'Cookie': ?siteCookie,
                       'X-Official-Expected-Account': ?officialAccount,
+                      if (apps && official) 'Idempotency-Key': newTurnId(),
+                      if (apps && proxy) 'X-Deepseek-Key': settings.apiKey,
                     }
                   : roomChatHeaders(settings, direct),
             )
@@ -285,7 +319,7 @@ class LlmClient implements ChatService {
         };
         // Calls to tools that were never enabled still need some definition.
         final kept = enabled.where((t) => used.contains(t['name'])).toList();
-        final body = proxy
+        final body = proxy && !apps
             ? {
                 ...baseBody,
                 if (definitions.isNotEmpty) 'tools': definitions,
@@ -297,10 +331,16 @@ class LlmClient implements ChatService {
                 closing ? (kept.isEmpty ? enabled : kept) : definitions,
                 turns,
               );
+        if (apps) {
+          final serverTools = Deepseek.serverTools(settings);
+          if (serverTools.isNotEmpty) {
+            body['tools'] = [...?body['tools'] as List?, ...serverTools];
+          }
+        }
         if (closing) body['tool_choice'] = {'type': 'none'};
         if (runtime.unsupported('streaming')) body['stream'] = false;
         if (official) {
-          if (settings.option('officialProvider') == 'deepseek') {
+          if (!apps && settings.option('officialProvider') == 'deepseek') {
             body['thinking'] = {'type': 'disabled'};
           }
           if (body['stream'] == true) {
@@ -312,7 +352,8 @@ class LlmClient implements ChatService {
             .timeout(const Duration(seconds: 30));
         for (
           var retry = 0;
-          !proxy &&
+          !apps &&
+              !proxy &&
               !official &&
               retry < 2 &&
               [400, 422].contains(response.statusCode);
@@ -380,7 +421,19 @@ class LlmClient implements ChatService {
           wireBytes: jsonObject ? 64 * 1024 * 1024 : 16 * 1024 * 1024,
         );
         ModelCompletion? result;
-        if ((response.headers['content-type'] ?? '').contains(
+        if (apps) {
+          final reader = DeepseekReply(Deepseek.endpoint(settings).toString());
+          deepseekReply = reader;
+          await for (final event in reader.read(
+            response,
+            () => onDeepseekUpdate?.call(),
+          )) {
+            if (generation != _generation) return;
+            if (event.type == 'text') yield visible(event.text);
+            if (event.type == 'complete') result = event.completion;
+          }
+          lastDeepseek = reader.metadata;
+        } else if ((response.headers['content-type'] ?? '').contains(
           'application/json',
         )) {
           final bytes = <int>[];

@@ -17,6 +17,7 @@ const _groups = <String, List<(String, IconData)>>{
   '发现': [
     ('/wiki', Icons.menu_book),
     ('/plaza', Icons.forum_outlined),
+    ('/drift', Icons.mail_outline),
     ('/gallery', Icons.photo_library_outlined),
     ('/game', Icons.sports_esports_outlined),
   ],
@@ -119,6 +120,7 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
           ),
         if (widget.administrator) ...[
           ('/admin', Icons.admin_panel_settings_outlined),
+          ('/admin/drift', Icons.mark_email_unread_outlined),
           ('/terminal', Icons.terminal),
         ],
       ],

@@ -146,3 +146,5 @@ The native mobile navigation uses the same SVG paths as the owner's website
 and MIT licenses, included in `assets/images/site-icons.LICENSE.txt` and
 registered in Flutter's license view. The QQ login image is copied from the
 website's `assets/icons/qq-login.png`; Tencent retains its brand rights.
+
+Audio recording uses [record](https://github.com/llfbandit/record) (BSD-3-Clause); the HarmonyOS build pins the [CPF-Flutter port](https://gitcode.com/CPF-Flutter/fluttertpc_record) at 7dfa5d9e8dd59da1dcc9f2ec9f7fe8e4a9e3daf9. Recording is started explicitly by the user and held in memory for transcription.

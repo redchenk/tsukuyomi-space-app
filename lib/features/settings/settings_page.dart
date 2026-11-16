@@ -26,6 +26,7 @@ import 'model_runtime_panel.dart';
 import '../../core/room_archive.dart';
 import '../../core/voice_service.dart';
 import '../room/room_controller.dart';
+import '../room/deepseek_tariff.dart';
 import '../room/room_style.dart';
 import '../room/room_navigation.dart';
 import '../room/room_search.dart';
@@ -1260,6 +1261,10 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
           ],
         ),
         _field('model', '模型 Model'),
+        for (final model in catalog.where(
+          (m) => m['id'] == fields['model']!.text,
+        ))
+          DeepseekTariff(model: model),
         if (catalog.isNotEmpty)
           DropdownButtonFormField<String>(
             isExpanded: true,
@@ -1316,6 +1321,23 @@ class _RoomSettingsPageState extends State<RoomSettingsPage> {
               '通过网站代理请求',
               detail: '开启后，服务地址与 Key 会发送到当前站点，由网站转发。',
             ),
+            _toggle(
+              'deepseekApps',
+              '支持 DeepSeek 应用接口',
+              detail: '第三方网关需同时支持文件、OCR、ASR 和搜索接口；请使用直连。',
+            ),
+            if (const {
+              'tsukuyomi-space.com',
+              'www.tsukuyomi-space.com',
+            }.contains(
+              Uri.tryParse(fields['siteUrl']?.text ?? c.settings.siteUrl)?.host,
+            ))
+              _toggle(
+                'contentTranslation',
+                'Translate community content',
+                fallback: true,
+                detail: 'English translation / Original content',
+              ),
             _field('systemPrompt', '补充聊天指令', lines: 5),
             _hint('聊天固定使用八千代的基础身份；日记人设只用于日记生成。'),
             if (catalogProvider(fields['llmUrl']!.text.trim()) == 'anthropic')

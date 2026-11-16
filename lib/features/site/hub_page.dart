@@ -46,7 +46,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
   bool _loading = true, _submitting = false, _feedbackError = false;
   int _request = 0, _draftRequest = 0;
   RoomController get c => widget.controller;
-  String get _draftKey => 'hub-greeting:${_repo.scope}';
+  String get _draftKey => 'hub-greeting:${_repo.identityScope}';
 
   @override
   void initState() {

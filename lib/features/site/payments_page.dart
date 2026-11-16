@@ -8,6 +8,7 @@ import '../../core/official_api.dart';
 import '../../core/payments.dart';
 import '../../core/site_client.dart';
 import '../room/room_controller.dart';
+import '../room/deepseek_tariff.dart';
 import 'login_dialog.dart';
 import 'native_site_shell.dart';
 import 'official_service_admin.dart';
@@ -606,6 +607,7 @@ class _PaymentsPageState extends State<PaymentsPage>
                       ),
                       if (officialModelSupportsImages(model))
                         const Text('Room 可直接发送图片，图片与文字按实际 Token 用量统一计费。'),
+                      DeepseekTariff(model: model),
                       if (model['price'] is Map) ...[
                         for (final rate in {
                           'input_uncached': '输入 · 未命中缓存',

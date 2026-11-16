@@ -1,5 +1,9 @@
 import 'dart:async';
 
+import 'package:file_selector/file_selector.dart';
+
+import '../../core/models.dart';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -32,6 +36,7 @@ class RoomComposer extends StatefulWidget {
 
 class RoomComposerState extends State<RoomComposer> {
   final _input = TextEditingController();
+  final _editorKey = GlobalKey();
   final _focus = FocusNode();
   late Object _state;
   late String _scope, _draft;
@@ -45,6 +50,10 @@ class RoomComposerState extends State<RoomComposer> {
     c.canSend,
     c.settings.demo,
     c.attachment != null,
+    c.files,
+    c.inputBusy,
+    c.recordingInput,
+    c.settings.options,
   );
 
   @override
@@ -84,8 +93,84 @@ class RoomComposerState extends State<RoomComposer> {
     unawaited(c.saveComposerDraft(value));
   }
 
+  Future<void> _document({bool ocr = false}) async {
+    final scope = c.scope, config = c.settings;
+    try {
+      final file = await openFile(
+        acceptedTypeGroups: [
+          XTypeGroup(
+            label: ocr ? '图片或文档' : '文档',
+            extensions: ocr
+                ? ['png', 'jpg', 'jpeg', 'pdf', 'docx']
+                : c.deepseekSupported
+                ? [
+                    'txt',
+                    'md',
+                    'csv',
+                    'json',
+                    'pdf',
+                    'doc',
+                    'docx',
+                    'ppt',
+                    'pptx',
+                  ]
+                : ['txt', 'md', 'csv', 'json', 'log'],
+            uniformTypeIdentifiers: const ['public.data'],
+          ),
+        ],
+      );
+      if (file == null ||
+          !mounted ||
+          scope != c.scope ||
+          !identical(config, c.settings)) {
+        return;
+      }
+      final limit =
+          c.deepseekSupported &&
+              !c.settings.usesOfficialApi &&
+              !c.settings.flag('llmProxy')
+          ? 100 * 1024 * 1024
+          : 8 * 1024 * 1024;
+      if (await file.length() > limit) {
+        throw ApiFailure('文件不能超过 ${limit ~/ (1024 * 1024)} MB');
+      }
+      if (c.deepseekSupported) {
+        await c.attachDocument(
+          await file.readAsBytes(),
+          file.name,
+          file.mimeType ?? 'application/octet-stream',
+          ocr: ocr,
+        );
+      } else {
+        final text = await file.readAsString();
+        if (!mounted || scope != c.scope || !identical(config, c.settings)) {
+          return;
+        }
+        if (text.length + c.draft.length > 12000) {
+          throw const ApiFailure('文档文字超过 12000 字，请分段添加');
+        }
+        fillDraft(
+          [
+            c.draft,
+            '【附件：${file.name}】',
+            text,
+          ].where((s) => s.isNotEmpty).join('\n\n'),
+        );
+      }
+    } catch (e) {
+      if (mounted && scope == c.scope) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e is ApiFailure ? e.message : '无法读取此文件')),
+        );
+      }
+    }
+  }
+
   void _send() {
-    if ((_input.text.trim().isEmpty && c.attachment == null) || !c.canSend) {
+    if ((_input.text.trim().isEmpty &&
+            c.attachment == null &&
+            c.files.isEmpty) ||
+        !c.canSend) {
       return;
     }
     final value = _input.text;
@@ -123,6 +208,7 @@ class RoomComposerState extends State<RoomComposer> {
     final composing = _input.value.composing;
     final isComposing = composing.isValid && !composing.isCollapsed;
     final input = Shortcuts(
+      key: _editorKey,
       shortcuts: {
         if (!mobile && !isComposing)
           const SingleActivator(LogicalKeyboardKey.enter):
@@ -202,7 +288,9 @@ class RoomComposerState extends State<RoomComposer> {
         onPressed: c.generating
             ? c.stop
             : (!c.canSend ||
-                      (_input.text.trim().isEmpty && c.attachment == null)
+                      (_input.text.trim().isEmpty &&
+                          c.attachment == null &&
+                          c.files.isEmpty)
                   ? null
                   : _send),
         style: FilledButton.styleFrom(
@@ -235,50 +323,185 @@ class RoomComposerState extends State<RoomComposer> {
         ),
       ),
     );
-    return Container(
-      key: const Key('room-composer'),
-      padding: mobile
-          ? const EdgeInsets.all(6)
-          : const EdgeInsets.fromLTRB(10, 12, 10, 9),
-      decoration: BoxDecoration(
-        color: mobile ? p.glass : Colors.transparent,
-        border: Border.all(color: p.line),
-        borderRadius: BorderRadius.circular(mobile ? 30 : 14),
-      ),
-      child: mobile
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                attach,
-                Expanded(child: input),
-                send,
-              ],
-            )
-          : Column(
-              children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 40),
-                  child: input,
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    attach,
-                    Expanded(
-                      child: SiteText(
-                        'Enter 发送 · Shift + Enter 换行',
-                        textAlign: TextAlign.right,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 8, color: p.muted),
+    final compact =
+        mobile &&
+        MediaQuery.sizeOf(context).height -
+                MediaQuery.viewInsetsOf(context).bottom <
+            300;
+    if (compact) {
+      return Container(
+        key: const Key('room-composer'),
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: p.glass,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          children: [
+            PopupMenuButton<String>(
+              tooltip: '添加附件与工具',
+              icon: const Icon(Icons.add),
+              onSelected: (v) {
+                if (v == 'image') {
+                  widget.onAttach();
+                } else if (v == 'file') {
+                  _document();
+                } else if (v == 'ocr') {
+                  _document(ocr: true);
+                } else {
+                  c.toggleDeepseek(v);
+                }
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'image', child: SiteText('添加图片')),
+                const PopupMenuItem(value: 'file', child: SiteText('添加文件')),
+                if (c.deepseekSupported) ...[
+                  const PopupMenuItem(
+                    value: 'ocr',
+                    child: SiteText('提取文字 OCR'),
+                  ),
+                  for (final option in [
+                    ('deepseekThinking', '深度思考'),
+                    ('deepseekSearch', '联网搜索'),
+                    ('deepseekReadUrl', '阅读链接'),
+                  ])
+                    CheckedPopupMenuItem(
+                      value: option.$1,
+                      checked: c.settings.flag(
+                        option.$1,
+                        option.$1 == 'deepseekReadUrl',
                       ),
+                      child: SiteText(option.$2),
                     ),
-                    const SizedBox(width: 10),
-                    send,
-                  ],
+                ],
+              ],
+            ),
+            Expanded(child: input),
+            if (c.deepseekSupported)
+              IconButton(
+                tooltip: c.recordingInput ? '停止录音并转写' : '语音输入',
+                onPressed: c.canSend || c.recordingInput
+                    ? c.toggleVoiceInput
+                    : null,
+                icon: Icon(c.recordingInput ? Icons.stop : Icons.mic_none),
+              ),
+            send,
+          ],
+        ),
+      );
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (c.deepseekSupported)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final option in [
+                  ('deepseekThinking', '深度思考'),
+                  ('deepseekSearch', '联网搜索'),
+                  ('deepseekReadUrl', '阅读链接'),
+                ])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: FilterChip(
+                      label: SiteText(option.$2),
+                      selected: c.settings.flag(
+                        option.$1,
+                        option.$1 == 'deepseekReadUrl',
+                      ),
+                      onSelected: c.canSend
+                          ? (_) => c.toggleDeepseek(option.$1)
+                          : null,
+                    ),
+                  ),
+                IconButton(
+                  tooltip: '提取文字 OCR',
+                  onPressed: c.canSend ? () => _document(ocr: true) : null,
+                  icon: const Icon(Icons.document_scanner_outlined),
                 ),
               ],
             ),
+          ),
+        if (c.files.isNotEmpty)
+          Wrap(
+            spacing: 6,
+            children: [
+              for (final file in c.files)
+                InputChip(
+                  label: Text(
+                    '${file['name']}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onDeleted: c.canSend
+                      ? () => c.removeFile('${file['id']}')
+                      : null,
+                ),
+            ],
+          ),
+        if (c.inputBusy || c.recordingInput)
+          Padding(
+            padding: const EdgeInsets.all(4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SiteText(
+                    c.recordingInput ? '正在录音 · 最长 120 秒' : '正在处理附件…',
+                  ),
+                ),
+                IconButton(
+                  tooltip: '取消',
+                  onPressed: () {
+                    c.resetInput();
+                    setState(() {});
+                  },
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+          ),
+        Container(
+          key: const Key('room-composer'),
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: p.glass,
+            border: Border.all(color: p.line),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              input,
+              Row(
+                children: [
+                  attach,
+                  IconButton(
+                    tooltip: '添加文件',
+                    onPressed: c.canSend ? _document : null,
+                    icon: const Icon(Icons.attach_file),
+                  ),
+                  if (c.deepseekSupported)
+                    IconButton(
+                      tooltip: c.recordingInput ? '停止录音并转写' : '语音输入',
+                      onPressed: c.recordingInput || c.canSend
+                          ? c.toggleVoiceInput
+                          : null,
+                      icon: Icon(
+                        c.recordingInput
+                            ? Icons.stop_circle_outlined
+                            : Icons.mic_none,
+                      ),
+                    ),
+                  const Spacer(),
+                  send,
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

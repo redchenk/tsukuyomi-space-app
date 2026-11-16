@@ -180,6 +180,7 @@ class ChatTurn {
     this.memoryEnabled = true,
     this.memorySource = 'cloud',
     this.localMemoryKey,
+    this.deepseek,
   });
   final String id, user, assistant;
   final DateTime createdAt;
@@ -187,6 +188,7 @@ class ChatTurn {
   final String memorySource;
   final String? localMemoryKey;
   final Map<String, dynamic>? image;
+  final Map<String, dynamic>? deepseek;
   ChatTurn synced() => ChatTurn(
     id: id,
     user: user,
@@ -196,6 +198,7 @@ class ChatTurn {
     memoryEnabled: memoryEnabled,
     memorySource: memorySource,
     localMemoryKey: localMemoryKey,
+    deepseek: deepseek,
   );
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -204,6 +207,7 @@ class ChatTurn {
     'createdAt': createdAt.toIso8601String(),
     'pending': pending,
     'image': image,
+    if (deepseek != null) 'deepseek': deepseek,
     'memoryEnabled': memoryEnabled,
     if (memorySource == 'local') 'memorySource': 'local',
     if (localMemoryKey != null) 'localMemoryKey': localMemoryKey,
@@ -218,6 +222,9 @@ class ChatTurn {
     memoryEnabled: j['memoryEnabled'] != false,
     memorySource: j['memorySource'] == 'local' ? 'local' : 'cloud',
     localMemoryKey: j['localMemoryKey'] as String?,
+    deepseek: j['deepseek'] is Map
+        ? Map<String, dynamic>.from(j['deepseek'])
+        : null,
   );
 }
 

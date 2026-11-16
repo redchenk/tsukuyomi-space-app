@@ -146,7 +146,7 @@ void main() {
       expect(SiteArchive.imageAsset('https://example.com/photo.png'), isNull);
       expect(rowsOf(SiteArchive.reality['privacyRows']).length, 5);
       expect(rowsOf(SiteArchive.reality['rightsCards']).length, 3);
-      expect(SiteArchive.reality['attributions'], hasLength(7));
+      expect(SiteArchive.reality['attributions'], hasLength(8));
     },
   );
 

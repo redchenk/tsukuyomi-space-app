@@ -9,7 +9,7 @@ import '../room/room_style.dart';
 import 'site_icon.dart';
 import 'site_seasonal_surface.dart';
 
-/// A single top-anchored surface shared by the mobile explore/account flows.
+/// A single bottom-anchored surface shared by the mobile explore/account flows.
 /// Insets are recomputed in the route so rotation and the IME cannot hide it.
 Future<T?> showSiteMobilePanel<T>(
   BuildContext context, {
@@ -26,7 +26,7 @@ Future<T?> showSiteMobilePanel<T>(
     opacity: animation,
     child: SlideTransition(
       position: Tween(
-        begin: const Offset(0, -.015),
+        begin: const Offset(0, .035),
         end: Offset.zero,
       ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
       child: child,
@@ -34,7 +34,7 @@ Future<T?> showSiteMobilePanel<T>(
   ),
   pageBuilder: (context, _, _) {
     final media = MediaQuery.of(context);
-    final top = media.padding.top + 78;
+    final top = media.padding.top + 24;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         12,
@@ -43,7 +43,7 @@ Future<T?> showSiteMobilePanel<T>(
         math.max(12, media.padding.bottom) + media.viewInsets.bottom,
       ),
       child: Align(
-        alignment: Alignment.topCenter,
+        alignment: Alignment.bottomCenter,
         child: Material(
           type: MaterialType.transparency,
           child: SiteSeasonalSurface(
@@ -67,7 +67,8 @@ const _groups = {
   '阅读与发现': [
     ('/wiki', '百科', 'crown'),
     ('/gallery', '图库', 'image'),
-    ('/game', '辉夜快跑', 'gamepad'),
+    ('/game', '游戏中心', 'gamepad'),
+    ('/drift', '星海来信', 'mail'),
   ],
   '创作与游玩': [('/stage', '主舞台', 'book'), ('/pixel', '像素画', 'palette')],
   '更多空间': [

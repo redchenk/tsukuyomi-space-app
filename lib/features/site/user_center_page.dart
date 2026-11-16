@@ -1,4 +1,5 @@
 import 'qq_auth.dart';
+import 'google_auth.dart';
 import '../../core/site_localization.dart';
 
 import 'dart:convert';
@@ -296,7 +297,9 @@ class _UserCenterPageState extends State<UserCenterPage>
       _error = '';
     });
     try {
-      final bound = provider == 'github'
+      final bound = provider == 'google'
+          ? await showNativeGoogleBinding(context, c)
+          : provider == 'github'
           ? await showNativeGitHubBinding(context, c)
           : await showNativeQQBinding(context, c);
       if (bound && mounted && scope == _accountScope) await _load();
@@ -769,6 +772,51 @@ class _UserCenterPageState extends State<UserCenterPage>
               OutlinedButton(
                 onPressed: _saving ? null : () => _bindOAuth('qq'),
                 child: const SiteText('绑定 QQ 账号'),
+              ),
+          ],
+        ),
+      ),
+      NativeSiteSection(
+        title: 'Google 账号',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final account in rowsOf(_profile['oauth_accounts']))
+              if (account['provider'] == 'google') ...[
+                Text('已绑定：${textOf(account, 'nickname', 'Google 用户')}'),
+                Text('绑定时间：${dateText(account['created_at'])}'),
+                TextButton(
+                  onPressed: _saving
+                      ? null
+                      : () async {
+                          final scope = _accountScope;
+                          if (!await _confirm(
+                            '解绑 Google',
+                            '解绑后可继续使用邮箱和密码登录。请在当前密码框输入密码以确认。',
+                          )) {
+                            return;
+                          }
+                          if (!mounted || scope != _accountScope || !loggedIn) {
+                            return;
+                          }
+                          await _write(
+                            'POST',
+                            '/api/auth/oauth/google/unlink',
+                            {'currentPassword': _currentPassword.text},
+                            'Google 已解绑',
+                          );
+                          if (mounted && scope == _accountScope) {
+                            _currentPassword.clear();
+                          }
+                        },
+                  child: const SiteText('解绑 Google'),
+                ),
+              ],
+            if (!rowsOf(_profile['oauth_accounts'])
+                .any((account) => account['provider'] == 'google'))
+              OutlinedButton(
+                onPressed: _saving ? null : () => _bindOAuth('google'),
+                child: const SiteText('绑定 Google 账号'),
               ),
           ],
         ),

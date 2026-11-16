@@ -39,7 +39,11 @@ String sanitizeAuthRedirect(String? value, [String fallback = '/hub']) {
 class QQOAuthTarget {
   const QQOAuthTarget(this.start, this.configuredSite, {this.provider = 'qq'});
   final String provider;
-  String get name => provider == 'github' ? 'GitHub' : 'QQ';
+  String get name => switch (provider) {
+    'github' => 'GitHub',
+    'google' => 'Google',
+    _ => 'QQ',
+  };
   final Uri start, configuredSite;
   String get origin => start.origin;
   static QQOAuthTarget fromSettings(

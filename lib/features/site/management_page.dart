@@ -8,6 +8,8 @@ import '../room/room_controller.dart';
 import 'login_dialog.dart';
 import 'management_service.dart';
 import 'payment_admin.dart';
+import 'official_services_manager.dart';
+import 'mail_campaign_manager.dart';
 import 'native_site_shell.dart';
 import 'site_widgets.dart';
 
@@ -24,6 +26,8 @@ const _panels = <String, String>{
   'notifications': '通知设置',
   'settings': '站点设置',
   'payments': '支付与订单',
+  'official-services': '官方 AI 服务',
+  'mail': '邮件群发',
 };
 const _siteFields = <String, String>{
   'siteTitle': '站点标题',
@@ -120,7 +124,7 @@ class _ManagementPageState extends State<ManagementPage> {
           'account',
           'notifications',
           'settings',
-          if (superAdmin) 'payments',
+          if (superAdmin) ...['payments', 'official-services', 'mail'],
         ]
       : ['articles', 'messages', 'notifications'];
 
@@ -287,7 +291,12 @@ class _ManagementPageState extends State<ManagementPage> {
       } else if (panel == 'notifications') {
         data = await api.data('GET', '/notification-preferences');
         if (superAdmin) summary = mapOf(await api.data('GET', '/settings'));
-      } else if (panel != 'account' && panel != 'payments') {
+      } else if (![
+        'account',
+        'payments',
+        'official-services',
+        'mail',
+      ].contains(panel)) {
         data = await api.data('GET', '/$panel');
       }
       if (!_valid(epoch, scope) || panel != _panel) return;
@@ -1038,6 +1047,16 @@ class _ManagementPageState extends State<ManagementPage> {
     ),
   );
   Widget _content() {
+    if (_panel == 'official-services' && superAdmin) {
+      return OfficialServicesManager(
+        key: ValueKey(_accountScope),
+        api: api,
+        onGo: widget.onGo,
+      );
+    }
+    if (_panel == 'mail' && superAdmin) {
+      return MailCampaignManager(key: ValueKey(_accountScope), api: api);
+    }
     if (_panel == 'payments' && superAdmin) {
       return PaymentAdmin(key: ValueKey(_accountScope), api: api);
     }

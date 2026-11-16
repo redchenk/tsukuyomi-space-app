@@ -46,6 +46,58 @@ class SiteClient
     : _client = client ?? http.Client();
   final http.Client _client;
   final Duration timeout;
+  bool Function()? contentTranslation;
+  bool translatesContent(String site) =>
+      const {
+        'tsukuyomi-space.com',
+        'www.tsukuyomi-space.com',
+      }.contains(endpointUri(site).host) &&
+      (contentTranslation?.call() ?? true);
+  String contentMode(String site) =>
+      translatesContent(site) ? 'en' : 'original';
+  Future<List<String>> translatePrivate(String site, List<String> texts) async {
+    if (!const {
+          'tsukuyomi-space.com',
+          'www.tsukuyomi-space.com',
+        }.contains(endpointUri(site).host) ||
+        texts.isEmpty ||
+        texts.length > 8 ||
+        texts.any((t) => t.length > 2000)) {
+      throw const ApiFailure('无法翻译这封来信');
+    }
+    final result = await _request(site, 'POST', '/en-translate-private', {
+      'texts': texts,
+      'private': true,
+    }, privateTranslation: true);
+    final rows = result['translations'];
+    if (rows is! List ||
+        rows.length != texts.length ||
+        rows.any((v) => v is! String)) {
+      throw const ApiFailure('翻译响应无效');
+    }
+    return rows.cast<String>();
+  }
+
+  Future<Map<String, dynamic>> terminalOfficialRequest(
+    String site,
+    String method,
+    String path,
+    String account,
+    Map<String, dynamic>? body,
+  ) {
+    if (!const {'settings', 'reconciliation', 'reconcile'}.contains(path) ||
+        account.isEmpty) {
+      throw const ApiFailure('请重新读取服务配置');
+    }
+    return _request(
+      site,
+      method,
+      '/api/admin/official-services/llm/$path',
+      body,
+      account: account,
+    );
+  }
+
   String? _cookie;
   String? _cookieOrigin;
   final readerCookies = <String, String>{};
@@ -192,13 +244,26 @@ class SiteClient
     String path,
     Map<String, dynamic>? body, {
     bool official = false,
+    bool privateTranslation = false,
     String? account,
   }) async {
     final base = endpointUri(site);
-    final target = base.resolve(path);
+    var target = base.resolve(path);
     if (target.origin != base.origin ||
-        !target.path.startsWith(official ? '/official-api/api/' : '/api/')) {
+        !(privateTranslation
+            ? target.path == '/en-translate-private'
+            : target.path.startsWith(
+                official ? '/official-api/api/' : '/api/',
+              ))) {
       throw const ApiFailure('无效的站点接口地址');
+    }
+    if (!official &&
+        translatesContent(site) &&
+        const {'GET', 'HEAD'}.contains(method) &&
+        RegExp(
+          r'^/api/(?:live/[^/]+/)?(?:settings|hub-preview|articles|messages|assets/gallery|pixel-art|friend-links)(?:[/?#]|$)',
+        ).hasMatch(path)) {
+      target = base.resolve('/en-api${path.substring(4)}');
     }
     final revision = _revision, musicEpoch = _musicEpoch;
     final musicRequest = target.path.startsWith('/api/music/');
@@ -214,8 +279,7 @@ class SiteClient
             'Origin': base.origin,
             'X-Requested-With': 'XMLHttpRequest',
             'Cache-Control': 'no-cache',
-            if (official && account != null)
-              'X-Official-Expected-Account': account,
+            'X-Official-Expected-Account': ?account,
             if (sessionCookie != null ||
                 readerCookies.containsKey(base.origin) ||
                 visitorCookies.containsKey(base.origin) ||
@@ -303,7 +367,7 @@ class SiteClient
         );
       }
       if (response.statusCode >= 300 ||
-          (!official && json['success'] != true)) {
+          (!official && !privateTranslation && json['success'] != true)) {
         throw ApiFailure(
           official && json['error'] is Map && json['error']['message'] is String
               ? json['error']['message'] as String
@@ -423,12 +487,20 @@ class SiteClient
         'createdAt': row['createdAt'],
       })['${row['role']}'] = row['content'];
       if (row['image'] is Map) grouped[id]!['image'] = row['image'];
+      if (row['deepseek'] is Map) {
+        (grouped[id]!.putIfAbsent('deepseek', () => <String, dynamic>{})
+                as Map)[row['role']] =
+            row['deepseek'];
+      }
     }
     return grouped.values
         .where((r) => r['assistant'] is String)
         .map(
           (r) => ChatTurn(
             id: r['id'],
+            deepseek: r['deepseek'] is Map
+                ? Map<String, dynamic>.from(r['deepseek'])
+                : null,
             user: r['user'] as String? ?? '',
             assistant: r['assistant'],
             image: r['image'] is Map
@@ -446,6 +518,7 @@ class SiteClient
   Future<void> saveTurn(String site, ChatTurn turn) async {
     await _data(site, 'POST', '/api/room/chat/turn', {
       'turnId': turn.id,
+      if (turn.deepseek != null) 'deepseek': turn.deepseek,
       'userMessage': turn.user,
       'assistantMessage': turn.assistant,
       'memoryEnabled': turn.memorySource != 'local' && turn.memoryEnabled,

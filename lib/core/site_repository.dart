@@ -27,7 +27,10 @@ class SiteRepository {
   final String? Function() accountId;
   int? get _sessionRevision =>
       api is SiteClient ? (api as SiteClient).sessionRevision : null;
-  String get scope => '${endpointUri(site()).origin}:${accountId() ?? 'guest'}';
+  String get identityScope =>
+      '${endpointUri(site()).origin}:${accountId() ?? 'guest'}';
+  String get scope =>
+      '${endpointUri(site()).origin}:${accountId() ?? 'guest'}${api is SiteClient && (api as SiteClient).translatesContent(site()) ? ':en' : ''}';
   final Map<String, Future<SiteDocument>> _inFlight = {};
   Future<SiteDocument?> cached(String path, {bool private = false}) async {
     if (private && accountId() == null) return null;

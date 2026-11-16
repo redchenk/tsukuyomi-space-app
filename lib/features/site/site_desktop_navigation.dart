@@ -13,7 +13,7 @@ import '../room/room_style.dart';
 import 'site_widgets.dart';
 
 const siteNavigationGroups = <String, List<String>>{
-  '发现': ['/wiki', '/plaza', '/gallery', '/game'],
+  '发现': ['/wiki', '/plaza', '/gallery', '/game', '/drift'],
   '创作': ['/stage', '/pixel'],
   '空间': ['/agent-os', '/reality', '/friend-links', '/growth', '/rss.xml'],
 };
@@ -21,7 +21,8 @@ const _descriptions = {
   '/wiki': '角色、音乐与月读世界',
   '/plaza': '留言、回复与社区日常',
   '/gallery': '收集与分享喜欢的创作',
-  '/game': '跟着节拍，轻松玩一局',
+  '/game': '和八千代一起，轻松玩一局',
+  '/drift': '把一句心事交给月光',
   '/stage': '文章、故事与创作手记',
   '/pixel': '把灵感画进小小像素',
   '/agent-os': '打开你的智能工作空间',

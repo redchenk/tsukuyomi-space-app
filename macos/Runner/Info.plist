@@ -39,5 +39,7 @@
 	<string>仅在你选择使用当前位置时，获取房间所在地的天气与时间。</string>
 	<key>NSLocationUsageDescription</key>
 	<string>仅在你选择使用当前位置时，获取房间所在地的天气与时间。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>用于将您主动录制的语音转写到聊天草稿。</string>
 </dict>
 </plist>

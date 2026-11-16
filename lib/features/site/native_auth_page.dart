@@ -9,6 +9,7 @@ import '../../core/site_client.dart';
 import '../room/room_controller.dart';
 import 'native_site_shell.dart';
 import 'qq_auth.dart';
+import 'google_auth.dart';
 import 'site_widgets.dart';
 import 'site_icon.dart';
 import '../room/room_style.dart';
@@ -29,6 +30,7 @@ class NativeAuthPage extends StatefulWidget {
     this.onTheme,
     this.authorize = showQQAuthorization,
     this.authorizeGitHub = showGitHubAuthorization,
+    this.authorizeGoogle = showGoogleAuthorization,
     this.autoStartQQ = false,
     this.onAuthenticated,
   });
@@ -36,7 +38,7 @@ class NativeAuthPage extends StatefulWidget {
   final String path;
   final ValueChanged<String> onGo;
   final VoidCallback? onTheme;
-  final QQAuthorize authorize, authorizeGitHub;
+  final QQAuthorize authorize, authorizeGitHub, authorizeGoogle;
   final bool autoStartQQ;
   final VoidCallback? onAuthenticated;
   @override
@@ -117,7 +119,11 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
           'reset' => '重设密码',
           _ => '欢迎回来',
         };
-  String get providerName => _provider == 'github' ? 'GitHub' : 'QQ';
+  String get providerName => _provider == 'google'
+      ? 'Google'
+      : _provider == 'github'
+      ? 'GitHub'
+      : 'QQ';
   bool get githubExisting =>
       _provider == 'github' &&
       _qqProfile['hasEmailMatch'] == true &&
@@ -350,7 +356,9 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
     });
     try {
       final grant =
-          await (provider == 'github'
+          await (provider == 'google'
+              ? widget.authorizeGoogle
+              : provider == 'github'
               ? widget.authorizeGitHub
               : widget.authorize)(
             context,
@@ -863,18 +871,17 @@ class _NativeAuthPageState extends State<NativeAuthPage> {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         ),
       );
-      return MediaQuery.textScalerOf(context).scale(14) > 21
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [qqButton, const SizedBox(height: 10), github],
-            )
-          : Row(
-              children: [
-                Expanded(child: qqButton),
-                const SizedBox(width: 10),
-                Expanded(child: github),
-              ],
-            );
+      final google = OutlinedButton.icon(
+        key: const Key('auth-google'),
+        onPressed: _busy ? null : () => _startQQ('google'),
+        icon: const Icon(Icons.account_circle_outlined, size: 20),
+        label: const SiteText('Google 登录'),
+      );
+      return Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [qqButton, github, google],
+      );
     },
   );
 

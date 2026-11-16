@@ -5,7 +5,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../core/models.dart';
 import '../../core/site_client.dart';
 import '../../core/site_repository.dart';
 import '../room/room_controller.dart';
@@ -83,7 +82,9 @@ class _AccessPageState extends State<AccessPage>
     if (_entering) return;
     setState(() => _entering = true);
     final reduced = MediaQuery.disableAnimationsOf(context);
-    _transition.duration = Duration(milliseconds: reduced ? 100 : 300);
+    _transition.duration = Duration(
+      milliseconds: reduced || !widget.playVideo ? 100 : 2500,
+    );
     await _transition.forward();
     if (!mounted) return;
     _navigationTimer = Timer(Duration(milliseconds: reduced ? 24 : 70), () {
@@ -108,7 +109,10 @@ class _AccessPageState extends State<AccessPage>
       body: Stack(
         fit: StackFit.expand,
         children: [
-          Image.asset('assets/images/tsukuyomi-bg.webp', fit: BoxFit.cover),
+          Image.asset(
+            'assets/images/access/water-mirror/water-mirror-poster.webp',
+            fit: BoxFit.cover,
+          ),
           if (widget.playVideo && !MediaQuery.disableAnimationsOf(context))
             IgnorePointer(
               child: LayoutBuilder(
@@ -122,21 +126,16 @@ class _AccessPageState extends State<AccessPage>
                         ? box.maxWidth * 9 / 16
                         : box.maxHeight,
                     child: NativeMediaView(
-                      url: endpointUri(site)
-                          .resolve(
-                            '/assets/video/【4K⧸中日双语】超时空辉夜姬「ray 」官方MV.mp4',
-                          )
-                          .toString(),
-                      poster: endpointUri(site)
-                          .resolve('/assets/images/tsukuyomi-bg.webp')
-                          .toString(),
+                      url: _entering
+                          ? 'asset:///assets/images/access/water-mirror/water-mirror-enter.mp4'
+                          : 'asset:///assets/images/access/water-mirror/water-mirror-standby.mp4',
                       autoPlay: true,
                       muted: true,
-                      loop: true,
+                      loop: !_entering,
                       showControls: false,
                       fit: BoxFit.cover,
                       placeholder: Image.asset(
-                        'assets/images/tsukuyomi-bg.webp',
+                        'assets/images/access/water-mirror/water-mirror-poster.webp',
                         fit: BoxFit.cover,
                       ),
                     ),
@@ -236,7 +235,8 @@ class _AccessPageState extends State<AccessPage>
           ),
           if (_entering)
             ColoredBox(
-              color: const Color(0xe6110d1d),
+              color: const Color(0xff110d1d)
+                  .withValues(alpha: (progress * .4).clamp(0, .4)),
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 290),

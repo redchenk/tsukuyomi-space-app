@@ -31,7 +31,8 @@ const _aliases = {
   '/wiki': '百科 角色 音乐 wiki',
   '/gallery': '图库 图片 插画 gallery',
   '/pixel': '像素 工坊 pixel arena',
-  '/game': '游戏 辉夜快跑 game',
+  '/game': '游戏 游戏中心 辉夜快跑 五子棋 game gomoku',
+  '/drift': '星海来信 漂流瓶 月光 湖灯 drift letters',
   '/friend-links': '友链 友情链接 friends',
   '/reality': '现实 关于 感谢 about',
   '/notifications': '通知 站内信 inbox notifications',
@@ -50,6 +51,7 @@ List<MapEntry<String, String>> searchSitePages(
       .split(RegExp(r'\s+'))
       .where((v) => v.isNotEmpty);
   return siteDestinations.entries.where((item) {
+    if (item.key == '/terminal' || item.key.startsWith('/admin')) return false;
     if (!authenticated &&
         {
           '/user',
