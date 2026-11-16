@@ -39,8 +39,9 @@ dependency_result = subprocess.check_output(
     cwd=metadata, text=True, encoding='utf-8')
 linked_dependencies = dependency_result.strip().removeprefix('shlibs:Depends=')
 assert linked_dependencies and linked_dependencies != dependency_result.strip(), 'Cannot determine native runtime dependencies'
-# GStreamer loads codec plugins dynamically, so ELF inspection cannot infer these.
-dependencies = linked_dependencies + ', gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-libav'
+# GStreamer loads codec plugins dynamically; record_linux launches parecord and
+# pactl for PCM microphone capture. ELF inspection cannot infer these packages.
+dependencies = linked_dependencies + ', gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-libav, pulseaudio-utils'
 app = pkg / 'opt/tsukuyomi-space'
 shutil.copytree(bundle, app, dirs_exist_ok=True)
 shutil.copyfile(root / 'THIRD_PARTY_NOTICES.md', app / 'THIRD_PARTY_NOTICES.md')

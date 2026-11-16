@@ -8,4 +8,4 @@ if ((${#unwind_packages[@]})); then
 fi
 sudo apt-get install -y clang cmake ninja-build pkg-config dpkg-dev libunwind-dev libgtk-3-dev \
   libsecret-1-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-  gstreamer1.0-plugins-good gstreamer1.0-libav libmpv-dev libepoxy-dev
+  gstreamer1.0-plugins-good gstreamer1.0-libav libmpv-dev libepoxy-dev pulseaudio-utils
