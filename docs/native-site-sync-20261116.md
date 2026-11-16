@@ -5,7 +5,7 @@
 - 网站来源：`937cee71`，`codex/vendor-browser-compat-20261116`，包含最新浏览器兼容修复、像素画工作室、水镜入口、季节主题、DeepSeek 应用接口、星海来信及管理功能。
 - App 基线：`686da4d`（0.6.35+42）；新版本：0.6.36+43。
 - App 实现：`/Users/yxy/Desktop/codex/tsukuyomi-space-app-sync`，分支 `codex/native-site-sync-20261116`。
-- Google 配套服务端：`/Users/yxy/Desktop/codex/tsukuyomi-space-native-sync`，分支 `codex/native-auth-handoff-20261116`。
+- Google 配套服务端：`/Users/yxy/Desktop/codex/tsukuyomi-space-native-sync`，分支 `codex/native-auth-handoff-20261116`，提交 `e6efb01a`。
 - 原始 App 和网站工作区的未提交修改保留在原位置。本次在独立 worktree 完成，未覆盖用户工作。
 
 ## 同步范围
@@ -37,11 +37,13 @@
 
 ## 验证记录
 
-- macOS：原生 Release 已构建，主程序包含 arm64 与 x86_64；最终安装包验证结果见同目录验证附件。
+- macOS：原生 Release 已构建，主程序包含 arm64 与 x86_64；安装包已包含两种架构的固定 Agent 运行时；最终包验证 430 个网站/游戏/角色资源和两个编译后着色器。
 - 自动化：完整 Flutter 回归 1121 项通过，40 项条件测试跳过；新功能专测 13 项通过；Dart 静态分析无问题。
 - 服务端：29 项 native/Google/GitHub OAuth 回归通过；全部使用临时数据库与模拟身份，未联系真实收件人。
 - Android：本地构建确认缺少 Android SDK，且未配置发行签名；没有产出可用于升级的正式 APK。
 - HarmonyOS：25 项构建准备/发布脚本测试通过；录音适配锁定 CPF-Flutter record 6.1.2 的提交 `7dfa5d9e8dd59da1dcc9f2ec9f7fe8e4a9e3daf9`，需在其专用 SDK 构建验证。
 - 截图：`artifacts/native-sync-20261116/`，包含来信、五子棋、官方服务和邮件管理的 320 / 1280 像素布局。
+
+macOS 包使用本地 ad-hoc 签名，未进行 Apple 公证。
 
 没有将原生构建或模拟接口测试表述为真机麦克风、真实 Google 账号授权、付费 DeepSeek 工具请求或商店验收。Windows、Linux、iOS、Android、HarmonyOS 的最终安装与原生插件行为需各平台构建/设备验收，不能从 macOS 结果推定。
