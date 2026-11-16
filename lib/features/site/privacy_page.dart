@@ -31,7 +31,8 @@ class _PrivacyPageState extends State<PrivacyPage> {
   // The 24 October policy adds QQ SDK disclosure only. Its deletion terms
   // are identical to 23 October, which the deployed website still accepts.
   // A future policy version must be assessed again instead of reusing this.
-  String get _deletionPolicyVersion => _policy['version'] == '2026-10-24'
+  String get _deletionPolicyVersion =>
+      ['2026-10-24', '2026-11-01'].contains(_policy['version'])
       ? '2026-10-23'
       : textOf(_policy, 'version');
   Map<String, dynamic> _request = {};

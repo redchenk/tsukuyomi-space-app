@@ -79,7 +79,11 @@ class _NativeMediaViewState extends State<NativeMediaView>
   Future<void> _open() async {
     final uri = Uri.tryParse(widget.url);
     if (uri == null ||
-        !['https', 'http'].contains(uri.scheme) ||
+        (!['https', 'http'].contains(uri.scheme) &&
+            !(uri.scheme == 'asset' &&
+                uri.host.isEmpty &&
+                uri.path.startsWith('/assets/images/access/water-mirror/') &&
+                !uri.path.contains('..'))) ||
         uri.userInfo.isNotEmpty) {
       setState(() => _error = '媒体地址无效');
       return;

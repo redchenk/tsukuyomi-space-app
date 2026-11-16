@@ -63,6 +63,25 @@ class _OfficialServiceAdminState extends State<OfficialServiceAdmin> {
           : '${data[name]}';
       _fields.putIfAbsent(name, TextEditingController.new).text = value;
     }
+    final apps = Map<String, dynamic>.from(data['deepseekApps'] as Map? ?? {});
+    _draft['deepseekApps'] = apps;
+    for (final entry in {
+      'markupNumerator': '11',
+      'markupDenominator': '10',
+      'reservationAtoms': '1000000000',
+      'input_uncached': '2200000000',
+      'input_cached': '44000000',
+      'output': '8800000000',
+    }.entries) {
+      final value = _rates.containsKey(entry.key)
+          ? (apps['tokenRates'] as Map? ?? {})[entry.key] ?? entry.value
+          : apps[entry.key] ?? entry.value;
+      _fields
+          .putIfAbsent('deepseek:${entry.key}', TextEditingController.new)
+          .text = entry.key.startsWith('markup')
+          ? '$value'
+          : moneyAtoms(value);
+    }
     _key.clear();
     _replace = false;
     _remove = false;
@@ -119,7 +138,7 @@ class _OfficialServiceAdminState extends State<OfficialServiceAdmin> {
       ])
         key: _draft[key],
       'model': model,
-      'paymentsEnabled': false,
+      'paymentsEnabled': _draft['paymentsEnabled'] == true,
       'rates': {
         for (final key in _rates.keys)
           key: rateAtoms(_fields[key]!.text.trim()),
@@ -132,6 +151,26 @@ class _OfficialServiceAdminState extends State<OfficialServiceAdmin> {
       }
       body[entry.key] = value;
     }
+    final numerator = int.tryParse(_fields['deepseek:markupNumerator']!.text),
+        denominator = int.tryParse(_fields['deepseek:markupDenominator']!.text);
+    if (numerator == null ||
+        denominator == null ||
+        numerator < 1 ||
+        denominator < 1) {
+      throw const ApiFailure('工具费倍率须为正整数');
+    }
+    body['deepseekApps'] = {
+      'enabled': _draft['deepseekApps']['enabled'] == true,
+      'markupNumerator': '$numerator',
+      'markupDenominator': '$denominator',
+      'reservationAtoms': rateAtoms(
+        _fields['deepseek:reservationAtoms']!.text.trim(),
+      ),
+      'tokenRates': {
+        for (final name in _rates.keys)
+          name: rateAtoms(_fields['deepseek:$name']!.text.trim()),
+      },
+    };
     if (_replace && _key.text.isNotEmpty) body['apiKey'] = _key.text;
     if (_remove) body['removeKey'] = true;
     final data = await _api('settings', method: 'POST', body: body);
@@ -294,6 +333,29 @@ class _OfficialServiceAdminState extends State<OfficialServiceAdmin> {
           ),
           for (final rate in _rates.entries)
             _field(rate.key, '${rate.value} · 元 / 百万 Token', number: true),
+          ExpansionTile(
+            title: const Text('DeepSeek 对话与工具'),
+            children: [
+              SwitchListTile(
+                title: const Text('开放 DeepSeek 应用能力'),
+                value: _draft['deepseekApps']['enabled'] == true,
+                onChanged: _busy
+                    ? null
+                    : (v) =>
+                          setState(() => _draft['deepseekApps']['enabled'] = v),
+              ),
+              const Text('使用已保存的 DeepSeek 密钥。工具费按倍率收取，Token 售价包含加价。'),
+              _field('deepseek:markupNumerator', '工具倍率分子', number: true),
+              _field('deepseek:markupDenominator', '工具倍率分母', number: true),
+              _field('deepseek:reservationAtoms', '每次预留金额（元）', number: true),
+              for (final rate in _rates.entries)
+                _field(
+                  'deepseek:${rate.key}',
+                  'DeepSeek ${rate.value} · 元 / 百万 Token',
+                  number: true,
+                ),
+            ],
+          ),
           for (final limit in _limits.entries)
             _field(
               limit.key,

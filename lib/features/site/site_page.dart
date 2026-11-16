@@ -88,7 +88,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
   bool get privatePage =>
       ['/growth', '/user', '/conversations', '/notifications'].contains(route);
   String get title => article ? '文章阅读' : siteDestinations[route] ?? '月读空间';
-  String get draftKey => 'site-draft:${repo.scope}:$route';
+  String get draftKey => 'site-draft:${repo.identityScope}:$route';
   @override
   void initState() {
     super.initState();
@@ -813,6 +813,38 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
           child: const SiteText('上一页'),
         ),
         Text('第 $_page 页 / 共 $totalPages 页'),
+        if (totalPages > 1)
+          SizedBox(
+            width: 80,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: TextFormField(
+                key: ValueKey('page-jump-$_page-$totalPages'),
+                initialValue: '$_page',
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.go,
+                decoration: const InputDecoration(
+                  labelText: '跳至',
+                  isDense: true,
+                ),
+                onFieldSubmitted:
+                    _loading || (route == '/notifications' && _notificationBusy)
+                    ? null
+                    : (value) {
+                        final page = int.tryParse(value.trim());
+                        if (page == null ||
+                            page < 1 ||
+                            page > totalPages ||
+                            page == _page) {
+                          return;
+                        }
+                        if (route == '/plaza') _cancelAnchor();
+                        setState(() => _page = page);
+                        if (route != '/plaza') _load();
+                      },
+              ),
+            ),
+          ),
         TextButton(
           onPressed:
               _page < totalPages &&

@@ -1,33 +1,149 @@
 [
-  ["第一次玩舞台：等待角色就绪 → 试一次点头 → 再尝试 AI 演出。", "初めてのステージ：読み込みを待つ → うなずきを試す → AIの演出を試す。", "First time on stage: wait for the character → try a nod → try an AI performance."],
-  ["先用点头按钮检查角色；仍无反应时重新进入舞台并查看加载提示。AI 演出需要配置聊天模型，声音还需要语音服务。没有声音也可以先试动作。", "うなずきでキャラクターを確認しましょう。動かない場合はステージに入り直して読み込み表示を確認してください。AI演出にはチャットモデル、音声には音声サービスが必要です。音がなくても動作は試せます。", "Try a nod to check the character. If nothing moves, re-enter the stage and check its loading status. AI performances need a chat model; sound needs a voice service. Motions work without sound."],
-  ["好感度如何变化？", "好感度はどう変わる？", "How does affection change?"],
-  ["① 选择聊天服务\\n② 测试连接并保存\\n③ 发一句话，收到完整回复", "① サービスを選ぶ\\n② 接続をテストして保存\\n③ 話しかけて完全な返信を受け取る", "① Choose a chat service\\n② Test and save the connection\\n③ Send a message and receive a full reply"],
-  ["语音、记忆和外观可以稍后设置。站内直供需要账号与可用额度，也可以连接自己的云端或本机模型。", "音声・記憶・外観は後から設定できます。サイト提供モデルにはアカウントと利用可能な残高が必要です。自分のクラウドやローカルモデルも接続できます。", "Voice, memory and appearance can wait. Site supply needs an account and available credit, or you can connect your own cloud or local model."],
-  ["测试会调用所选服务，可能产生用量。通过后保存，回到房间发一句话，收到回复后就能继续聊了。也可以跳过测试。", "テストでは選択したサービスを呼び出し、利用量が発生する場合があります。成功後に保存し、部屋で話しかけてみましょう。テストを省略することもできます。", "Testing calls the selected service and may incur usage. Save after testing, return to the room and send a message. You can also skip testing."],
-  ["请查看上方失败原因，可以回到上一步修改；填写的内容会保留。", "上の失敗理由を確認し、前のステップで修正できます。入力内容は保持されます。", "Check the reason above and go back to make changes. Your draft is preserved."],
-  ["选择适合你的聊天服务", "チャットサービスを選んでください", "Choose a chat service that works for you"],
-  ["继续使用当前连接", "現在の接続を使う", "Keep the current connection"],
-  ["语音、记忆和外观可以稍后设置。", "音声・記憶・外観は後から設定できます。", "Voice, memory and appearance can wait."],
-  ["① 选择聊天服务 → ② 测试并保存 → ③ 发送第一句话。收到完整回复，才算完成首次对话。语音可以稍后开启。", "① サービスを選ぶ → ② テストして保存 → ③ 最初のメッセージを送信。完全な返信が届いたら最初の会話は完了です。音声は後から設定できます。", "① Choose a service → ② Test and save → ③ Send your first message. A full reply completes your first conversation. Voice can wait."],
-  ["当前是离线演示，连接模型后才能进行真实对话。", "現在はオフラインデモです。実際の会話にはモデルを接続してください。", "This is an offline demo. Connect a model for a real conversation."],
-  ["查看分步配置", "設定手順を見る", "View guided setup"],
-  ["好感度来自当前日记存档，不按消息条数或点击角色次数自动增加。结束聊天并成功生成、保存日记后，会记录本次好感度，也可能保持不变。导入或同步存档后，数值可能改变。", "好感度は現在の日記セーブに記録され、メッセージ数やタップ回数では増えません。会話を終えて日記の生成・保存に成功すると記録され、変わらない場合もあります。セーブのインポートや同期で変わることがあります。", "Affection comes from the current diary save, not message or tap counts. It is recorded after a diary is successfully generated and saved, and may stay unchanged. Importing or syncing saves can change it."],
-  ["文字、角色动作与语音分别运行。先等角色加载完成，在舞台试一次点头；仍无反应时查看加载提示。声音需要单独配置，不是每条文字都会带动作。", "文字・動作・音声は個別に動きます。読み込み後にステージでうなずきを試し、動かない場合は読み込み表示を確認してください。音声は別の設定が必要で、すべての返信に動作が付くわけではありません。", "Text, motion and voice run separately. Wait for loading, then try a nod on the stage. If nothing moves, check the loading message. Voice needs separate setup, and not every reply has a motion."],
-  ["角色尚未就绪。请查看下方加载状态，失败时点击重试。文字输出不代表动作已执行。", "準備ができていません。下の読み込み状態を確認し、失敗した場合は再試行してください。文字が出ても動作が実行されたとは限りません。", "Character not ready. Check the loading status below and retry on failure. Text output does not confirm a motion ran."],
-  ["动作指令已发送，请观察上方角色；文字和语音分别运行。", "動作指令を送信しました。上のキャラクターを確認してください。文字と音声は個別に動きます。", "Motion command sent. Watch the character above; text and voice run separately."],
-  ["需要登录账号与可用额度，无需服务商密钥", "ログインと利用可能な残高が必要です。サービスのキーは不要です。", "Requires a signed-in account and available credit; no provider key needed"],
-  ["已有服务商账号与密钥，连接自己的服务", "お持ちのサービスアカウントとキーで接続", "Connect with your own provider account and key"],
-  ["已安装并启动本机模型，无需密钥", "起動済みのローカルモデル。キーは不要です。", "For an installed and running local model; no key needed"],
-  ["跟着音乐跑一局，查看键盘或触屏操作。", "音楽に合わせて遊びましょう。キーボード・タッチ操作を確認できます。", "Play along with the music and check keyboard or touch controls."],
-  ["浏览大家分享的图片。", "共有された画像を眺めましょう。", "Browse images shared by the community."],
-  ["查看签到、任务与等级；等级与日记好感度分开记录。", "チェックイン・タスク・レベルを確認できます。レベルと日記の好感度は別の記録です。", "View check-ins, tasks and levels. Levels are separate from diary affection."],
-  ["填写连接信息", "接続情報を入力", "Enter connection details"],
-  ["测试并保存", "テストして保存", "Test and save"],
-  ["第 {step} / 3 步 · {label}", "ステップ {step} / 3 ・{label}", "Step {step} / 3 · {label}"],
-  ["第 {step} / 3 步", "ステップ {step} / 3", "Step {step} / 3"],
-  ["当前模型：{model}", "現在のモデル：{model}", "Current model: {model}"],
-  ["最近记录：{date} {time}", "最新の記録：{date} {time}", "Latest record: {date} {time}"],
+  [
+    "第一次玩舞台：等待角色就绪 → 试一次点头 → 再尝试 AI 演出。",
+    "初めてのステージ：読み込みを待つ → うなずきを試す → AIの演出を試す。",
+    "First time on stage: wait for the character → try a nod → try an AI performance."
+  ],
+  [
+    "先用点头按钮检查角色；仍无反应时重新进入舞台并查看加载提示。AI 演出需要配置聊天模型，声音还需要语音服务。没有声音也可以先试动作。",
+    "うなずきでキャラクターを確認しましょう。動かない場合はステージに入り直して読み込み表示を確認してください。AI演出にはチャットモデル、音声には音声サービスが必要です。音がなくても動作は試せます。",
+    "Try a nod to check the character. If nothing moves, re-enter the stage and check its loading status. AI performances need a chat model; sound needs a voice service. Motions work without sound."
+  ],
+  [
+    "好感度如何变化？",
+    "好感度はどう変わる？",
+    "How does affection change?"
+  ],
+  [
+    "① 选择聊天服务\\n② 测试连接并保存\\n③ 发一句话，收到完整回复",
+    "① サービスを選ぶ\\n② 接続をテストして保存\\n③ 話しかけて完全な返信を受け取る",
+    "① Choose a chat service\\n② Test and save the connection\\n③ Send a message and receive a full reply"
+  ],
+  [
+    "语音、记忆和外观可以稍后设置。站内直供需要账号与可用额度，也可以连接自己的云端或本机模型。",
+    "音声・記憶・外観は後から設定できます。サイト提供モデルにはアカウントと利用可能な残高が必要です。自分のクラウドやローカルモデルも接続できます。",
+    "Voice, memory and appearance can wait. Site supply needs an account and available credit, or you can connect your own cloud or local model."
+  ],
+  [
+    "测试会调用所选服务，可能产生用量。通过后保存，回到房间发一句话，收到回复后就能继续聊了。也可以跳过测试。",
+    "テストでは選択したサービスを呼び出し、利用量が発生する場合があります。成功後に保存し、部屋で話しかけてみましょう。テストを省略することもできます。",
+    "Testing calls the selected service and may incur usage. Save after testing, return to the room and send a message. You can also skip testing."
+  ],
+  [
+    "请查看上方失败原因，可以回到上一步修改；填写的内容会保留。",
+    "上の失敗理由を確認し、前のステップで修正できます。入力内容は保持されます。",
+    "Check the reason above and go back to make changes. Your draft is preserved."
+  ],
+  [
+    "选择适合你的聊天服务",
+    "チャットサービスを選んでください",
+    "Choose a chat service that works for you"
+  ],
+  [
+    "继续使用当前连接",
+    "現在の接続を使う",
+    "Keep the current connection"
+  ],
+  [
+    "语音、记忆和外观可以稍后设置。",
+    "音声・記憶・外観は後から設定できます。",
+    "Voice, memory and appearance can wait."
+  ],
+  [
+    "① 选择聊天服务 → ② 测试并保存 → ③ 发送第一句话。收到完整回复，才算完成首次对话。语音可以稍后开启。",
+    "① サービスを選ぶ → ② テストして保存 → ③ 最初のメッセージを送信。完全な返信が届いたら最初の会話は完了です。音声は後から設定できます。",
+    "① Choose a service → ② Test and save → ③ Send your first message. A full reply completes your first conversation. Voice can wait."
+  ],
+  [
+    "当前是离线演示，连接模型后才能进行真实对话。",
+    "現在はオフラインデモです。実際の会話にはモデルを接続してください。",
+    "This is an offline demo. Connect a model for a real conversation."
+  ],
+  [
+    "查看分步配置",
+    "設定手順を見る",
+    "View guided setup"
+  ],
+  [
+    "好感度来自当前日记存档，不按消息条数或点击角色次数自动增加。结束聊天并成功生成、保存日记后，会记录本次好感度，也可能保持不变。导入或同步存档后，数值可能改变。",
+    "好感度は現在の日記セーブに記録され、メッセージ数やタップ回数では増えません。会話を終えて日記の生成・保存に成功すると記録され、変わらない場合もあります。セーブのインポートや同期で変わることがあります。",
+    "Affection comes from the current diary save, not message or tap counts. It is recorded after a diary is successfully generated and saved, and may stay unchanged. Importing or syncing saves can change it."
+  ],
+  [
+    "文字、角色动作与语音分别运行。先等角色加载完成，在舞台试一次点头；仍无反应时查看加载提示。声音需要单独配置，不是每条文字都会带动作。",
+    "文字・動作・音声は個別に動きます。読み込み後にステージでうなずきを試し、動かない場合は読み込み表示を確認してください。音声は別の設定が必要で、すべての返信に動作が付くわけではありません。",
+    "Text, motion and voice run separately. Wait for loading, then try a nod on the stage. If nothing moves, check the loading message. Voice needs separate setup, and not every reply has a motion."
+  ],
+  [
+    "角色尚未就绪。请查看下方加载状态，失败时点击重试。文字输出不代表动作已执行。",
+    "準備ができていません。下の読み込み状態を確認し、失敗した場合は再試行してください。文字が出ても動作が実行されたとは限りません。",
+    "Character not ready. Check the loading status below and retry on failure. Text output does not confirm a motion ran."
+  ],
+  [
+    "动作指令已发送，请观察上方角色；文字和语音分别运行。",
+    "動作指令を送信しました。上のキャラクターを確認してください。文字と音声は個別に動きます。",
+    "Motion command sent. Watch the character above; text and voice run separately."
+  ],
+  [
+    "需要登录账号与可用额度，无需服务商密钥",
+    "ログインと利用可能な残高が必要です。サービスのキーは不要です。",
+    "Requires a signed-in account and available credit; no provider key needed"
+  ],
+  [
+    "已有服务商账号与密钥，连接自己的服务",
+    "お持ちのサービスアカウントとキーで接続",
+    "Connect with your own provider account and key"
+  ],
+  [
+    "已安装并启动本机模型，无需密钥",
+    "起動済みのローカルモデル。キーは不要です。",
+    "For an installed and running local model; no key needed"
+  ],
+  [
+    "跟着音乐跑一局，查看键盘或触屏操作。",
+    "音楽に合わせて遊びましょう。キーボード・タッチ操作を確認できます。",
+    "Play along with the music and check keyboard or touch controls."
+  ],
+  [
+    "浏览大家分享的图片。",
+    "共有された画像を眺めましょう。",
+    "Browse images shared by the community."
+  ],
+  [
+    "查看签到、任务与等级；等级与日记好感度分开记录。",
+    "チェックイン・タスク・レベルを確認できます。レベルと日記の好感度は別の記録です。",
+    "View check-ins, tasks and levels. Levels are separate from diary affection."
+  ],
+  [
+    "填写连接信息",
+    "接続情報を入力",
+    "Enter connection details"
+  ],
+  [
+    "测试并保存",
+    "テストして保存",
+    "Test and save"
+  ],
+  [
+    "第 {step} / 3 步 · {label}",
+    "ステップ {step} / 3 ・{label}",
+    "Step {step} / 3 · {label}"
+  ],
+  [
+    "第 {step} / 3 步",
+    "ステップ {step} / 3",
+    "Step {step} / 3"
+  ],
+  [
+    "当前模型：{model}",
+    "現在のモデル：{model}",
+    "Current model: {model}"
+  ],
+  [
+    "最近记录：{date} {time}",
+    "最新の記録：{date} {time}",
+    "Latest record: {date} {time}"
+  ],
   [
     "ACT · 实际执行指令",
     "ACT · 実行した指示",
@@ -2978,10 +3094,234 @@
     "ストリーミング出力",
     "Streaming output"
   ],
-  ["应用更新", "アプリの更新", "App updates"],
-  ["更多 App 功能", "その他のアプリ機能", "More app features"],
-  ["写下你的留言…", "メッセージを書きましょう…", "Write a message…"],
-  ["开始记录你的月下旅程", "月夜の旅を記録しましょう", "Start your moonlit journey"],
-  ["验证邮箱，重新设置密码", "メールを確認してパスワードを再設定", "Verify your email to reset your password"],
-  ["稍后设置", "あとで設定", "Set up later"]
+  [
+    "应用更新",
+    "アプリの更新",
+    "App updates"
+  ],
+  [
+    "更多 App 功能",
+    "その他のアプリ機能",
+    "More app features"
+  ],
+  [
+    "写下你的留言…",
+    "メッセージを書きましょう…",
+    "Write a message…"
+  ],
+  [
+    "开始记录你的月下旅程",
+    "月夜の旅を記録しましょう",
+    "Start your moonlit journey"
+  ],
+  [
+    "验证邮箱，重新设置密码",
+    "メールを確認してパスワードを再設定",
+    "Verify your email to reset your password"
+  ],
+  [
+    "稍后设置",
+    "あとで設定",
+    "Set up later"
+  ],
+  [
+    "深度思考",
+    "深く考える",
+    "Think deeply"
+  ],
+  [
+    "联网搜索",
+    "ウェブ検索",
+    "Web search"
+  ],
+  [
+    "阅读链接",
+    "リンクを読む",
+    "Read links"
+  ],
+  [
+    "添加文件",
+    "ファイルを追加",
+    "Attach file"
+  ],
+  [
+    "语音输入",
+    "音声入力",
+    "Voice input"
+  ],
+  [
+    "提取文字 OCR",
+    "文字を抽出（OCR）",
+    "Extract text (OCR)"
+  ],
+  [
+    "停止录音并转写",
+    "録音を停止して文字起こし",
+    "Stop and transcribe"
+  ],
+  [
+    "正在录音 · 最长 120 秒",
+    "録音中・最大120秒",
+    "Recording · up to 120 seconds"
+  ],
+  [
+    "正在处理附件…",
+    "添付ファイルを処理中…",
+    "Processing attachment…"
+  ],
+  [
+    "星海来信",
+    "星の海の手紙",
+    "Letters across the stars"
+  ],
+  [
+    "把一句心事交给月光，遇见另一端的某个人。",
+    "想いを月明かりに託して、向こう岸の誰かと出会う。",
+    "Let moonlight carry a thought to someone on the other shore."
+  ],
+  [
+    "写一封信",
+    "手紙を書く",
+    "Write a letter"
+  ],
+  [
+    "今日命题",
+    "今日のお題",
+    "Today’s prompt"
+  ],
+  [
+    "拾起一封来信",
+    "手紙を拾う",
+    "Pick up a letter"
+  ],
+  [
+    "全部来信",
+    "すべての手紙",
+    "All letters"
+  ],
+  [
+    "寄出的信",
+    "送った手紙",
+    "Sent letters"
+  ],
+  [
+    "拾起的信",
+    "拾った手紙",
+    "Received letters"
+  ],
+  [
+    "写给有缘人",
+    "めぐり逢う誰かへ",
+    "To someone out there"
+  ],
+  [
+    "放灯入湖",
+    "湖へ灯を流す",
+    "Release the lantern"
+  ],
+  [
+    "寄出回信",
+    "返信を送る",
+    "Send reply"
+  ],
+  [
+    "月光下的来信",
+    "月明かりの手紙",
+    "A letter in the moonlight"
+  ],
+  [
+    "登录后写信、拾起一封来信，或查看自己的信件。",
+    "ログインして手紙を書いたり、拾ったり、自分の手紙を読めます。",
+    "Sign in to write, pick up or read your letters."
+  ],
+  [
+    "还没有来信，先写下一句心事吧。",
+    "まだ手紙はありません。想いを書いてみましょう。",
+    "No letters yet. Write your first thought."
+  ],
+  [
+    "游戏中心",
+    "ゲームセンター",
+    "Game center"
+  ],
+  [
+    "月下五子棋",
+    "月下の五目並べ",
+    "Moonlit Gomoku"
+  ],
+  [
+    "新的⼀局",
+    "新しい対局",
+    "New game"
+  ],
+  [
+    "新的一局",
+    "新しい対局",
+    "New game"
+  ],
+  [
+    "悔棋",
+    "待った",
+    "Undo move"
+  ],
+  [
+    "提示",
+    "ヒント",
+    "Hint"
+  ],
+  [
+    "和八千代聊棋",
+    "ヤチヨと碁を語る",
+    "Talk about the game with Yachiyo"
+  ],
+  [
+    "轮到你了 · 连成五子获胜",
+    "あなたの番です・五つ並べると勝利",
+    "Your turn · connect five to win"
+  ],
+  [
+    "官方 AI 服务",
+    "公式 AI サービス",
+    "Official AI services"
+  ],
+  [
+    "调用统计",
+    "呼び出し統計",
+    "Usage statistics"
+  ],
+  [
+    "邮件群发",
+    "一斉メール",
+    "Email campaigns"
+  ],
+  [
+    "Google 账号",
+    "Google アカウント",
+    "Google account"
+  ],
+  [
+    "绑定 Google 账号",
+    "Google アカウントを連携",
+    "Link Google account"
+  ],
+  [
+    "解绑 Google",
+    "Google の連携を解除",
+    "Unlink Google"
+  ],
+  [
+    "重试确认",
+    "確認を再試行",
+    "Retry confirmation"
+  ],
+  [
+    "搜索与引用",
+    "検索と引用",
+    "Search and citations"
+  ],
+  [
+    "正在思考…",
+    "考え中…",
+    "Thinking…"
+  ]
 ]

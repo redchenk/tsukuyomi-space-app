@@ -219,15 +219,36 @@ class PixelDocument extends ChangeNotifier {
     _changed();
   }
 
+  PixelSnapshot? _beforeStroke;
+  List<PixelSnapshot>? _undoBeforeStroke, _redoBeforeStroke;
+
+  void cancelStroke() {
+    final before = _beforeStroke;
+    if (before == null) return;
+    _undo
+      ..clear()
+      ..addAll(_undoBeforeStroke!);
+    _redo
+      ..clear()
+      ..addAll(_redoBeforeStroke!);
+    endStroke();
+    _restore(before);
+    _changed();
+  }
+
   void beginStroke(
     double x,
     double y, {
     double pressure = .5,
     bool pen = false,
   }) {
+    endStroke();
     if (tool == PixelTool.move) return;
     final index = cellIndex(x, y);
     if (index == null) return;
+    _beforeStroke = snapshot;
+    _undoBeforeStroke = List.of(_undo);
+    _redoBeforeStroke = List.of(_redo);
     _pushHistory();
     _paintColor = tool == PixelTool.eraser ? -1 : selected;
     if (tool == PixelTool.fill) {
@@ -276,6 +297,8 @@ class PixelDocument extends ChangeNotifier {
   }
 
   void endStroke() {
+    _beforeStroke = null;
+    _undoBeforeStroke = _redoBeforeStroke = null;
     _drawing = false;
     _lastPoint = null;
   }

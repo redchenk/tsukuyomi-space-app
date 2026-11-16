@@ -290,6 +290,21 @@
         "path": "packages/window_manager",
         "ref": "ac535d09a5850279e6591a9bdd285f9a3edeebf8"
       }
-    }
+    },
+    "record": {
+      "git": {
+        "url": "https://gitcode.com/CPF-Flutter/fluttertpc_record.git",
+        "path": "record",
+        "ref": "7dfa5d9e8dd59da1dcc9f2ec9f7fe8e4a9e3daf9"
+      }
+    },
+    "record_ohos": {
+      "git": {
+        "url": "https://gitcode.com/CPF-Flutter/fluttertpc_record.git",
+        "path": "record_ohos",
+        "ref": "7dfa5d9e8dd59da1dcc9f2ec9f7fe8e4a9e3daf9"
+      }
+    },
+    "uuid": "4.5.3"
   }
 }

@@ -54,7 +54,7 @@ void main() {
         now: () => DateTime(2026, 10, 6),
       );
       addTearDown(season.dispose);
-      expect(season.season, SiteSeason.autumn);
+      expect(season.season, SiteSeason.spring);
       final read = season.restore();
       await season.select('summer', southern: true);
       storage.read.complete(jsonEncode({'mode': 'winter'}));
@@ -82,7 +82,7 @@ void main() {
     'automatic theme refreshes after midnight/resume without periodic polling',
     () {
       var now = DateTime(2026, 8, 31, 23, 59);
-      final season = SeasonThemeController(MemoryStorage(), now: () => now);
+      final season = SeasonThemeController(MemoryStorage(), now: () => now)..select('auto');
       addTearDown(season.dispose);
       expect(season.season, SiteSeason.summer);
       now = DateTime(2026, 9, 1);

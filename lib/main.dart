@@ -43,6 +43,9 @@ import 'features/site/user_center_page.dart';
 import 'features/site/payments_page.dart';
 import 'features/pixel/pixel_page.dart';
 import 'features/game/game_page.dart';
+import 'features/game/game_center_page.dart';
+import 'features/game/gomoku_page.dart';
+import 'features/drift/drift_page.dart';
 import 'features/site/native_auth_page.dart';
 import 'features/site/site_search.dart';
 import 'features/site/site_chrome.dart';
@@ -478,7 +481,22 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
             onTheme: _toggleTheme,
           );
         }
+        if (route == '/drift' || route == '/admin/drift') {
+          return DriftPage(
+            controller: c,
+            onGo: go,
+            onTheme: _toggleTheme,
+            path: path!,
+            admin: route == '/admin/drift',
+          );
+        }
         if (route == '/game') {
+          return GameCenterPage(controller: c, onGo: go, onTheme: _toggleTheme);
+        }
+        if (route == '/game/gomoku') {
+          return GomokuPage(controller: c, onGo: go, onTheme: _toggleTheme);
+        }
+        if (route == '/game/kaguya-run') {
           return GamePage(
             controller: c,
             path: path!,

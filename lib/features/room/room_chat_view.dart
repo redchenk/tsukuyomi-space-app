@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../core/models.dart';
 import '../../core/site_localization.dart';
 import 'room_actions.dart';
+import 'deepseek_details.dart';
 import 'room_controller.dart';
 import 'room_message_cache.dart';
 import 'room_style.dart';
@@ -407,7 +408,13 @@ class RoomChatViewState extends State<RoomChatView> {
           onNotice: widget.onNotice,
         );
       case RoomTranscriptRowKind.actions:
-        child = _RoomTurnActions(controller: c, turn: turn);
+        child = Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DeepseekDetails(controller: c, contextData: turn.deepseek),
+            _RoomTurnActions(controller: c, turn: turn),
+          ],
+        );
       case RoomTranscriptRowKind.pending:
         child = _RoomPendingStatus(mobile: widget.mobile);
     }
@@ -618,6 +625,9 @@ class _RoomStreamingSliverState extends State<_RoomStreamingSliver> {
     final questionCount = question.isEmpty ? 0 : 1;
     return SliverList(
       delegate: SliverChildBuilderDelegate((context, index) {
+        if (index == questionCount + _reply.parts.length) {
+          return DeepseekDetails(controller: widget.controller, live: true);
+        }
         final user = index < questionCount;
         final part = index - questionCount;
         final text = user ? question : _reply.parts[part];
@@ -643,7 +653,7 @@ class _RoomStreamingSliverState extends State<_RoomStreamingSliver> {
           _bubbles.remove(_bubbles.keys.first);
         }
         return bubble;
-      }, childCount: questionCount + _reply.parts.length),
+      }, childCount: questionCount + _reply.parts.length + 1),
     );
   }
 }
@@ -790,7 +800,9 @@ class RoomChatBubble extends StatelessWidget {
                         vertical: 11,
                       ),
                       decoration: BoxDecoration(
-                        color: user
+                        color: mobile
+                            ? Colors.transparent
+                            : user
                             ? Color.alphaBlend(
                                 p.accent.withValues(alpha: .12),
                                 mobile ? p.glass : p.surface,
@@ -799,7 +811,9 @@ class RoomChatBubble extends StatelessWidget {
                             ? p.glass
                             : p.soft,
                         border: Border.all(
-                          color: p.line.withValues(alpha: .65),
+                          color: mobile
+                              ? Colors.transparent
+                              : p.line.withValues(alpha: .65),
                         ),
                         borderRadius: BorderRadius.only(
                           topLeft: Radius.circular(user ? 20 : 4),
@@ -1003,6 +1017,7 @@ class _RoomTurnActionsState extends State<_RoomTurnActions> {
         if (!c.isSharedTurn(turn) &&
             !turn.pending &&
             turn.image == null &&
+            (turn.deepseek?['user']?['files'] as List? ?? []).isEmpty &&
             last) ...[
           if (turn.user.isNotEmpty)
             TextButton(
@@ -1022,7 +1037,10 @@ class _RoomTurnActionsState extends State<_RoomTurnActions> {
             child: const SiteText('重新生成'),
           ),
         ],
-        if (!c.isSharedTurn(turn) && turn.user.isNotEmpty && turn.image == null)
+        if (!c.isSharedTurn(turn) &&
+            turn.user.isNotEmpty &&
+            turn.image == null &&
+            (turn.deepseek?['user']?['files'] as List? ?? []).isEmpty)
           TextButton(
             onPressed: c.canSend ? () => shareRoomTurn(context, c, turn) : null,
             child: const SiteText('分享'),

@@ -49,6 +49,8 @@ class _PixelPageState extends State<PixelPage> {
   final _notes = <String>[];
   bool _spacePan = false, _galleryOpen = false, _controlsOpen = true;
   int? _pointer;
+  final _pointers = <int>{};
+  bool _gestureBlocked = false;
   Offset? _panLast;
   DateTime? _lastPen;
   double _viewportWidth = 0;
@@ -189,11 +191,14 @@ class _PixelPageState extends State<PixelPage> {
         DateTime.now().difference(_lastPen!).inMilliseconds < 850) {
       return;
     }
-    if (_pointer != null) {
-      doc.endStroke();
+    _pointers.add(event.pointer);
+    if (_pointers.length > 1) {
+      doc.cancelStroke();
       _pointer = null;
-      return;
+      _panLast = null;
+      setState(() => _gestureBlocked = true);
     }
+    if (_gestureBlocked) return;
     _pointer = event.pointer;
     if (_spacePan ||
         doc.tool == PixelTool.move ||
@@ -234,6 +239,10 @@ class _PixelPageState extends State<PixelPage> {
   }
 
   void _end(PointerEvent event) {
+    _pointers.remove(event.pointer);
+    if (_pointers.isEmpty && _gestureBlocked) {
+      setState(() => _gestureBlocked = false);
+    }
     if (_pointer == event.pointer) {
       doc.endStroke();
       _pointer = null;
@@ -441,7 +450,7 @@ class _PixelPageState extends State<PixelPage> {
                 children: [
                   _canvasPanel(),
                   const SizedBox(height: 12),
-                  if (_controlsOpen) _controls(),
+                  if (_controlsOpen && box.maxWidth >= 860) _controls(),
                 ],
               );
             }
@@ -546,7 +555,7 @@ class _PixelPageState extends State<PixelPage> {
                     minScale: .2,
                     maxScale: 2.6,
                     constrained: false,
-                    panEnabled: false,
+                    panEnabled: _gestureBlocked,
                     scaleEnabled: true,
                     boundaryMargin: const EdgeInsets.all(1500),
                     child: SizedBox(
@@ -623,7 +632,7 @@ class _PixelPageState extends State<PixelPage> {
         icon: const Icon(Icons.redo),
       ),
       IconButton(
-        onPressed: () => setState(() => _controlsOpen = !_controlsOpen),
+        onPressed: _showControls,
         tooltip: siteTranslate(context, '颜色与设置'),
         icon: const Icon(Icons.palette),
       ),
@@ -662,6 +671,31 @@ class _PixelPageState extends State<PixelPage> {
       ),
     ],
   );
+  Future<void> _showControls() async {
+    if (MediaQuery.sizeOf(context).width >= 860) {
+      setState(() => _controlsOpen = !_controlsOpen);
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (context) => SizedBox(
+        height: MediaQuery.sizeOf(context).height * .72,
+        child: AnimatedBuilder(
+          animation: doc,
+          builder: (_, _) => SingleChildScrollView(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
+            ),
+            child: _controls(),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _controls() => SiteCard(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -30,6 +30,10 @@ const nativeSiteRoutes = {
   '/admin',
   '/terminal',
   '/game',
+  '/game/gomoku',
+  '/game/kaguya-run',
+  '/drift',
+  '/admin/drift',
   '/login',
   '/register',
 };

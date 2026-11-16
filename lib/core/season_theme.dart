@@ -40,7 +40,7 @@ class SeasonThemeController extends ChangeNotifier with WidgetsBindingObserver {
   final RoomStorage storage;
   final DateTime Function() now;
   late DateTime _date;
-  String mode = 'auto';
+  String mode = 'spring';
   bool south = false, _disposed = false;
   int _revision = 0;
   Timer? _timer;
@@ -80,7 +80,7 @@ class SeasonThemeController extends ChangeNotifier with WidgetsBindingObserver {
             ...SiteSeason.values.map((s) => s.name),
           ].contains(saved['mode'])
           ? saved['mode'] as String
-          : 'auto';
+          : 'spring';
       south = saved['hemisphere'] == 'south';
       refresh();
       notifyListeners();
@@ -142,7 +142,8 @@ class SiteSeasonScope extends InheritedNotifier<SeasonThemeController> {
 class SeasonalArt {
   const SeasonalArt(this.season);
   final SiteSeason season;
-  String get _folder => 'assets/images/seasons/${season.name}-v1';
+  String get _folder =>
+      'assets/images/seasons/${season.name}-${season == SiteSeason.autumn ? 'v2' : 'v1'}';
   String background(bool dark) => season == SiteSeason.spring
       ? 'assets/images/sakura/${dark ? 'moonlit-shrine' : 'moonwhite-lake'}.webp'
       : '$_folder/background-${dark ? 'dark' : 'light'}.webp';

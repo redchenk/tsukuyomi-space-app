@@ -108,6 +108,7 @@ RoomSettings officialRoomSettings(
 }
 
 String usageStatus(dynamic status) => switch (status) {
+  'waived' => '已完成 · 免扣费',
   'reserved' => '处理中',
   'settled' => '已结算',
   'released' => '未消费，已释放',

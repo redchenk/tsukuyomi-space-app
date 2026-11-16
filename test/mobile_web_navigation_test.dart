@@ -35,16 +35,16 @@ Future<RoomController> mount(WidgetTester tester, {double width = 390}) async {
 void main() {
   for (final width in [320.0, 390.0, 768.0]) {
     testWidgets(
-      'mobile explore at $width opens below the bar and preserves route on back',
+      'mobile explore at $width opens as a bottom sheet and preserves route on back',
       (tester) async {
         await mount(tester, width: width);
         await tester.tap(find.byTooltip('探索'));
         await tester.pumpAndSettle();
         final panel = tester.getRect(find.byType(SiteMobileNavigation));
         expect(panel.left, 12);
-        expect(panel.top, 78);
+        expect(panel.top, greaterThanOrEqualTo(24));
         expect(panel.right, width - 12);
-        expect(panel.bottom, lessThanOrEqualTo(832));
+        expect(panel.bottom, 832);
         for (final path in ['/hub', '/room', '/plaza', '/stage']) {
           final target = find.byKey(ValueKey('mobile-nav-primary-$path'));
           expect(target.hitTestable(), findsOneWidget);

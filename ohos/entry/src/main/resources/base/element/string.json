@@ -27,6 +27,10 @@
     {
       "name": "network_info_reason",
       "value": "用于检测网络状态以保障媒体播放"
+    },
+    {
+      "name": "microphone_reason",
+      "value": "用于你主动开启的语音输入，录音转写后填入聊天草稿"
     }
   ]
 }

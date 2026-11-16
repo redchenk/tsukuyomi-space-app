@@ -1,6 +1,7 @@
 // Generate native, data-only archives from the adjacent original website.
 // Usage: node tool/sync_site_archive.mjs ../tsukuyomi-space
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import vm from 'node:vm';
 const root = path.resolve(process.argv[2] || '../tsukuyomi-space');
@@ -52,7 +53,7 @@ reality.localized = Object.fromEntries(['ja', 'en'].map(lang => {
   value.attributions = [...template.matchAll(pattern)].map(match => match[1].trim());
   return [lang, value];
 }));
-const archive = {wiki, reality, access: Object.fromEntries(['title','heroCopy','access','connecting','loading','sync','welcome'].map(key => [key, i18n.zh[key]])), sourceCommit: fs.readFileSync(path.join(root,'.git/refs/heads/main'),'utf8').trim()};
+const archive = {wiki, reality, access: Object.fromEntries(['title','heroCopy','access','connecting','loading','sync','welcome'].map(key => [key, i18n.zh[key]])), sourceCommit: execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], {encoding:'utf8'}).trim()};
 let assetCount = 0;
 const imageRoot = path.join(root, 'assets/images/wiki');
 function visit(directory) {
