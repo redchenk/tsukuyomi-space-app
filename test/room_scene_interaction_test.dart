@@ -172,6 +172,7 @@ void main() {
             matching: find.byType(Scrollable),
           )
           .first;
+      expect(find.text('跳过开场'), findsNothing);
       final gesture = await tester.startGesture(tester.getCenter(scroll));
       await gesture.moveBy(const Offset(0, 100));
       await tester.pump();

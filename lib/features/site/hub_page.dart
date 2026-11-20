@@ -1,9 +1,8 @@
-import 'app_registration_link.dart';
+import 'hub_hero.dart';
 import '../../core/season_theme.dart';
 import '../../core/site_localization.dart';
 
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -14,13 +13,12 @@ import '../../core/site_repository.dart';
 import '../room/room_controller.dart';
 import '../room/room_style.dart';
 import 'hub_pixel_preview.dart';
-import 'login_dialog.dart';
+
 import 'native_site_shell.dart';
 import 'site_widgets.dart';
-import 'site_icon.dart';
+
 import 'site_chrome.dart';
 import 'site_notice.dart';
-import 'site_seasonal_surface.dart';
 
 /// Native counterpart of the website HubPage and its aggregated preview API.
 class HubPage extends StatefulWidget {
@@ -42,11 +40,12 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
   late final SiteRepository _repo;
   final _greeting = TextEditingController();
   Map<String, dynamic> _data = {}, _settings = {};
-  String _scope = '', _siteUrl = '', _error = '', _notice = '', _feedback = '';
-  bool _loading = true, _submitting = false, _feedbackError = false;
-  int _request = 0, _draftRequest = 0;
+  String _scope = '', _siteUrl = '', _error = '', _notice = '';
+  final _journal = GlobalKey();
+  List<Map<String, dynamic>> _articles = [];
+  bool _loading = true;
+  int _request = 0;
   RoomController get c => widget.controller;
-  String get _draftKey => 'hub-greeting:${_repo.identityScope}';
 
   @override
   void initState() {
@@ -61,25 +60,8 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
     _scope = _repo.scope;
     _siteUrl = c.settings.siteUrl;
     c.addListener(_accountChanged);
-    _restoreGreeting();
+
     _load();
-  }
-
-  Future<void> _restoreGreeting() async {
-    final owner = _repo.scope, ticket = ++_draftRequest;
-    try {
-      final value = await c.storage.draft(_draftKey);
-      if (mounted && ticket == _draftRequest && owner == _repo.scope) {
-        _greeting.text = value;
-      }
-    } catch (_) {
-      // A local draft failure must not prevent public previews from loading.
-    }
-  }
-
-  void _saveGreeting(String value) {
-    _draftRequest++;
-    unawaited(c.storage.saveDraft(_draftKey, value).catchError((_) {}));
   }
 
   void _accountChanged() {
@@ -91,9 +73,8 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
       _data = {};
       _settings = {};
       _greeting.clear();
-      _feedback = '';
-      _submitting = false;
-      _restoreGreeting();
+      _articles = [];
+
       _load();
     }
     // Chat/workspace/voice changes are unrelated to this public preview. The
@@ -112,7 +93,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
   @override
   void dispose() {
     _request++;
-    _draftRequest++;
+
     c.removeListener(_accountChanged);
     WidgetsBinding.instance.removeObserver(this);
     _greeting.dispose();
@@ -125,7 +106,10 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
       _loading = true;
       _error = '';
     });
-    final settings = _loadSettings(ticket);
+    final secondary = Future.wait([
+      _loadSettings(ticket),
+      _loadArticles(ticket),
+    ]);
     try {
       if (_data.isEmpty) {
         final cached = await _repo.cached('/api/hub-preview');
@@ -153,7 +137,7 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
     } finally {
       if (mounted && ticket == _request) setState(() => _loading = false);
     }
-    await settings;
+    await secondary;
   }
 
   Future<void> _loadSettings(int ticket) async {
@@ -173,272 +157,419 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _login() async {
-    if (c.account != null && !c.sessionExpired) {
-      widget.onGo('/user');
-      return;
+  Future<void> _loadArticles(int ticket) async {
+    try {
+      final doc = await _repo.read('/api/articles?page=1&limit=6&sort=latest');
+      if (mounted && ticket == _request) {
+        setState(() => _articles = rowsOf(doc.data));
+      }
+    } catch (_) {
+      // The featured story remains available through the independent preview.
     }
-    await showSiteLogin(context, c);
   }
 
-  Future<void> _submitGreeting() async {
-    if (_submitting) return;
-    final content = _greeting.text.trim();
-    if (content.isEmpty) {
-      setState(() {
-        _feedback = '留言不能为空';
-        _feedbackError = true;
-      });
-      return;
-    }
-    if (c.account == null || c.sessionExpired) {
-      await _login();
-      return;
-    }
-    final owner = _repo.scope;
-    setState(() {
-      _submitting = true;
-      _feedback = '';
-    });
-    try {
-      final result = await _repo.write('POST', '/api/messages', {
-        'content': content,
-      });
-      if (!mounted || owner != _repo.scope) return;
-      _greeting.clear();
-      _saveGreeting('');
-      setState(() {
-        final message = mapOf(result['data']);
-        if (message['id'] != null) {
-          _data['messages'] = [
-            message,
-            ...rowsOf(_data['messages'])
-                .where((item) => item['id'] != message['id']),
-          ];
-          final stats = mapOf(_data['stats']);
-          if (stats.isNotEmpty) {
-            stats['messages'] = (stats['messages'] as num? ?? 0) + 1;
-            _data['stats'] = stats;
-          }
-        }
-        _feedback = '已发布';
-        _feedbackError = false;
-      });
-      await _load();
-    } catch (e) {
-      if (mounted && owner == _repo.scope) {
-        setState(() {
-          _feedback = '$e';
-          _feedbackError = true;
-        });
+  Future<void> _enter(String value) async {
+    final text = value.trim(), owner = c.scope;
+    if (text.isNotEmpty) {
+      if (c.loading || c.busy || c.generating) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: SiteText('房间正忙，请稍后重试')));
+        return;
       }
-    } finally {
-      if (mounted && owner == _repo.scope) setState(() => _submitting = false);
+      try {
+        await c.saveComposerDraft(text, notify: true);
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: SiteText('草稿保存失败，请重试')));
+        }
+        return;
+      }
     }
+    if (mounted && c.scope == owner) widget.onGo('/room');
+  }
+
+  String tr(String zh, String en, String ja) =>
+      switch (SiteLocaleScope.maybeOf(context)?.language) {
+        'en' => en,
+        'ja' => ja,
+        _ => zh,
+      };
+  String articlePath(Map article) {
+    if (article['id'] == null) return '/stage';
+    final slug = textOf(article, 'slug');
+    return '/articles/${Uri.encodeComponent('${article['id']}')}${slug.isEmpty ? '' : '/${Uri.encodeComponent(slug)}'}';
   }
 
   @override
-  Widget build(BuildContext context) => NativeSiteShell(
-    controller: c,
-    title: '中枢',
-    onGo: widget.onGo,
-    onTheme: widget.onTheme,
-    onRefresh: _load,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        RepaintBoundary(child: _hero()),
-        const SizedBox(height: 20),
-        _announcement(),
-        const SizedBox(height: 26),
-        _latest(),
-        const SizedBox(height: 20),
-        if (_notice.isNotEmpty) _status(_notice),
-        if (_error.isNotEmpty) _status(_error, error: true),
-        if (_loading && _data.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(40),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (_data.isNotEmpty) ...[
-          RepaintBoundary(child: HubFeatheredSurface(child: _scenes())),
-          const SizedBox(height: 20),
-          RepaintBoundary(child: _plaza()),
-        ],
-        RepaintBoundary(child: HubFeatheredSurface(child: _stats())),
-      ],
-    ),
-  );
-
-  Widget _hero() => LayoutBuilder(
-    builder: (context, box) {
-      final p = RoomStyle(context);
-      final mobile = box.maxWidth <= 600, tablet = box.maxWidth < 1100;
-      Widget artwork() => Image.asset(
-        SeasonalArt(p.palette.season).hero,
-        cacheWidth:
-            (math.max(box.maxWidth, mobile ? 490 : 0) *
-                    MediaQuery.devicePixelRatioOf(context))
-                .ceil()
-                .clamp(1, 1672),
-        fit: BoxFit.cover,
-        alignment: p.palette.season == SiteSeason.spring
-            ? (mobile ? const Alignment(.3, 0) : const Alignment(0, -.24))
-            : (mobile ? const Alignment(.5, 0) : const Alignment(.44, -1)),
-        color: p.dark ? Colors.black.withValues(alpha: .22) : null,
-        colorBlendMode: BlendMode.darken,
-        semanticLabel: '月见八千代',
-      );
-      final copy = Padding(
-        padding: EdgeInsets.fromLTRB(
-          mobile ? 22 : 40,
-          mobile ? 26 : 36,
-          mobile ? 22 : 36,
-          mobile ? 0 : 36,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SiteText(
-              'TSUKUYOMI · A MOONLIT COMMUNITY',
-              style: TextStyle(
-                fontSize: mobile ? 9 : 11,
-                color: p.muted,
-                letterSpacing: mobile ? .9 : 1.2,
-              ),
+  Widget build(BuildContext context) {
+    final featured = mapOf(_data['article']).isNotEmpty
+        ? mapOf(_data['article'])
+        : _articles.firstOrNull ?? {};
+    return NativeSiteShell(
+      controller: c,
+      title: '中枢',
+      onGo: widget.onGo,
+      onTheme: widget.onTheme,
+      onRefresh: _load,
+      fullBleed: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RepaintBoundary(
+            child: HubHero(
+              input: _greeting,
+              onEnter: _enter,
+              onDiscover: () {
+                final target = _journal.currentContext;
+                if (target != null) {
+                  Scrollable.ensureVisible(
+                    target,
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 300),
+                    alignment: .12,
+                  );
+                }
+              },
             ),
-            const SizedBox(height: 20),
-            SiteText(
-              '与你相遇，在月光之下',
-              style: TextStyle(color: p.ink, fontSize: mobile ? 12 : 17),
-            ),
-            const SizedBox(height: 8),
-            SiteText(
-              '月读空间',
-              style: TextStyle(
-                fontFamily: RoomStyle.serif,
-                fontSize: mobile
-                    ? (MediaQuery.sizeOf(context).width * .09).clamp(34.0, 46.0)
-                    : tablet
-                    ? 48
-                    : 68,
-                fontWeight: FontWeight.w700,
-                letterSpacing: .5,
-                height: 1.2,
-              ),
-            ),
-            const SizedBox(height: 9),
-            SiteText(
-              'Tsukuyomi Space',
-              translate: false,
-              style: TextStyle(
-                fontSize: mobile ? 10 : 12,
-                letterSpacing: 2.6,
-                color: p.muted,
-              ),
-            ),
-            SizedBox(height: mobile ? 16 : 24),
-            SiteText(
-              '给日常留一点月光。与八千代聊天，读故事、看创作，遇见同频的人。',
-              style: TextStyle(
-                fontSize: mobile ? 13 : 18,
-                height: 1.8,
-                color: p.muted,
-              ),
-            ),
-            SizedBox(height: mobile ? 20 : 30),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                FilledButton.icon(
-                  onPressed: () => widget.onGo('/room'),
-                  icon: const SiteIcon('moon', size: 17),
-                  style: mobile
-                      ? FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 15,
-                            vertical: 11,
-                          ),
-                          textStyle: Theme.of(context).textTheme.labelLarge
-                              ?.copyWith(fontSize: 12, height: 1.5),
-                        )
-                      : null,
-                  label: const SiteText('进入私人居所'),
+          ),
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1360),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: MediaQuery.sizeOf(context).width > 600 ? 48 : 20,
                 ),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: p.surface,
-                    padding: mobile
-                        ? const EdgeInsets.symmetric(
-                            horizontal: 15,
-                            vertical: 11,
-                          )
-                        : null,
-                    textStyle: mobile
-                        ? Theme.of(context).textTheme.labelLarge
-                              ?.copyWith(fontSize: 12, height: 1.5)
-                        : null,
-                  ),
-                  onPressed: () => widget.onGo('/stage'),
-                  icon: const SiteIcon('arrowRight', size: 17),
-                  iconAlignment: IconAlignment.end,
-                  label: const SiteText('发现创作'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-      return Container(
-        decoration: BoxDecoration(
-          color: p.surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: p.line),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: mobile
-            ? Column(
-                children: [
-                  copy,
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 245,
-                    width: double.infinity,
-                    child: artwork(),
-                  ),
-                ],
-              )
-            : ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 416),
-                child: Stack(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Positioned(
-                      top: 0,
-                      bottom: 0,
-                      right: 0,
-                      width: box.maxWidth * (tablet ? .54 : .64),
-                      child: IgnorePointer(
-                        child: ShaderMask(
-                          blendMode: BlendMode.dstIn,
-                          shaderCallback: (bounds) => const LinearGradient(
-                            colors: [Colors.transparent, Colors.black],
-                            stops: [0, .44],
-                          ).createShader(bounds),
-                          child: artwork(),
+                    if (announcementContent(_settings).isNotEmpty)
+                      _announcement(),
+                    SizedBox(key: _journal, height: 40),
+                    _heading(
+                      '01 — UNDER THE MOON',
+                      tr('月下新鲜事', 'Under the moon', '月の下の新着'),
+                      tr(
+                        '把值得记录的日常，变成值得阅读的故事。',
+                        'Everyday moments, made into stories worth keeping.',
+                        '日々の記録を、読みたい物語に。',
+                      ),
+                      tr('全部文章', 'All stories', '記事一覧'),
+                      '/stage',
+                    ),
+                    if (_loading && _data.isEmpty)
+                      const LinearProgressIndicator(),
+                    if (_error.isNotEmpty) _status(_error, error: true),
+                    if (_notice.isNotEmpty) _status(_notice),
+                    _stories(featured),
+                    _heading(
+                      '02 — WANDER A LITTLE',
+                      tr('随心逛逛', 'Follow your curiosity', '気ままに歩こう'),
+                      tr(
+                        '喜欢的事，都能在这里找到一席之地。',
+                        'A little space for everything you love.',
+                        '好きなことが見つかる場所。',
+                      ),
+                    ),
+                    _places(),
+                    _heading(
+                      '03 — SMALL MOMENTS, SHARED',
+                      tr('月光下的声音', 'Meet under the moon', '月明かりの下で'),
+                      tr(
+                        '今天的小事、想分享的心情，总有人愿意听。',
+                        'Small moments, little thoughts, and someone who’s here to listen.',
+                        '今日の小さな出来事を分かち合おう。',
+                      ),
+                      tr('去广场坐坐', 'Visit the plaza', '広場へ'),
+                      '/plaza',
+                    ),
+                    for (final m in rowsOf(_data['messages']).take(3))
+                      ListTile(
+                        onTap: () => widget.onGo('/plaza'),
+                        leading: SiteAvatar(
+                          value: textOf(m, 'avatar'),
+                          name: userDisplayName(m, prefix: 'author'),
+                          site: c.settings.siteUrl,
+                        ),
+                        title: Text(userDisplayName(m, prefix: 'author')),
+                        subtitle: Text(
+                          textOf(m, 'content'),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Text(dateText(m['created_at'])),
+                      ),
+                    if (rowsOf(_data['messages']).isEmpty)
+                      Text(
+                        tr(
+                          '安静的广场，等你留下第一句问候。',
+                          'A quiet plaza, waiting for your first hello.',
+                          '静かな広場は、あなたの挨拶を待っています。',
+                        ),
+                      ),
+                    const SizedBox(height: 36),
+                    InkWell(
+                      onTap: () => widget.onGo('/drift'),
+                      child: Container(
+                        key: const Key('hub-letter'),
+                        padding: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          image: const DecorationImage(
+                            image: AssetImage(
+                              'assets/images/drift/lantern/lake-wide.webp',
+                            ),
+                            fit: BoxFit.cover,
+                            colorFilter: ColorFilter.mode(
+                              Colors.black54,
+                              BlendMode.darken,
+                            ),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tr(
+                                '写给远方的某个人',
+                                'A LETTER TO SOMEONE, SOMEWHERE',
+                                '遠くの誰かへの手紙',
+                              ),
+                              style: const TextStyle(color: Colors.white70),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              tr(
+                                '把心事，交给星海。',
+                                'Let a little thought drift away.',
+                                '思いを星の海へ。',
+                              ),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 28,
+                                fontFamily: RoomStyle.serif,
+                              ),
+                            ),
+                            Text(
+                              tr(
+                                '写一封信，让月光带它去遇见一个陌生人。',
+                                'Write a letter. Let the moon find someone to read it.',
+                                '手紙を月明かりに託そう。',
+                              ),
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    SizedBox(
-                      width: box.maxWidth * (tablet ? .46 : .54),
-                      child: copy,
-                    ),
+                    const SizedBox(height: 24),
+                    const SiteBeianLinks(),
                   ],
                 ),
               ),
-      );
-    },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heading(
+    String eyebrow,
+    String title,
+    String description, [
+    String? label,
+    String? path,
+  ]) => Padding(
+    padding: const EdgeInsets.only(top: 24, bottom: 16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(eyebrow, style: const TextStyle(fontSize: 11, letterSpacing: 1.6)),
+        const SizedBox(height: 12),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 20,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontFamily: RoomStyle.serif,
+                fontSize: 30,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (label != null)
+              TextButton(
+                onPressed: () => widget.onGo(path!),
+                child: Text('$label →'),
+              ),
+          ],
+        ),
+        Text(description),
+        const SizedBox(height: 18),
+        const Divider(),
+      ],
+    ),
   );
+  Widget _art(String url, String fallback) {
+    final asset = Image.asset(
+      fallback,
+      fit: BoxFit.cover,
+      excludeFromSemantics: true,
+    );
+    final uri = endpointUri(c.settings.siteUrl).resolve(url);
+    return url.isEmpty ||
+            !['http', 'https'].contains(uri.scheme) ||
+            uri.userInfo.isNotEmpty
+        ? asset
+        : Image.network(
+            '$uri',
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => asset,
+          );
+  }
+
+  Widget _stories(Map featured) {
+    final art = SeasonalArt(RoomStyle(context).palette.season);
+    final tile = InkWell(
+      onTap: () => widget.onGo(articlePath(featured)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: _art(textOf(featured, 'cover_image'), art.article),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(textOf(featured, 'category', tr('月读手记', 'Journal', '手記'))),
+          Text(
+            textOf(
+              featured,
+              'title',
+              tr(
+                '每一个故事，都值得被看见。',
+                'Every story deserves a little light.',
+                'すべての物語に光を。',
+              ),
+            ),
+            style: const TextStyle(
+              fontSize: 24,
+              fontFamily: RoomStyle.serif,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(plainText(textOf(featured, 'excerpt'))),
+          Text(userDisplayName(featured, prefix: 'author', fallback: '')),
+        ],
+      ),
+    );
+    final latest = _articles
+        .where((a) => a['id'] != featured['id'])
+        .take(4)
+        .toList();
+    final list = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(tr('最近写下', 'Recent stories', '最近の記事')),
+        if (latest.isEmpty)
+          TextButton(
+            onPressed: () => widget.onGo('/stage'),
+            child: Text(tr('去主舞台发现更多故事', 'Discover more stories', 'もっと読む')),
+          ),
+        for (final (i, a) in latest.indexed)
+          ListTile(
+            leading: Text('0${i + 1}'),
+            onTap: () => widget.onGo(articlePath(a)),
+            title: Text(textOf(a, 'title')),
+            subtitle: Text(userDisplayName(a, prefix: 'author', fallback: '')),
+            trailing: const Icon(Icons.north_east),
+          ),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (_, box) => box.maxWidth > 720
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 6, child: tile),
+                const SizedBox(width: 40),
+                Expanded(flex: 5, child: list),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [tile, const SizedBox(height: 20), list],
+            ),
+    );
+  }
+
+  Widget _places() {
+    final art = SeasonalArt(RoomStyle(context).palette.season),
+        pixel = mapOf(_data['pixel']);
+    final places = [
+      (
+        '/gallery',
+        tr('光影收藏', 'Collected light', '光のコレクション'),
+        _art(textOf(mapOf(_data['gallery']), 'url'), art.gallery),
+      ),
+      (
+        '/pixel',
+        tr('像素里的宇宙', 'Little pixel worlds', 'ピクセルの宇宙'),
+        pixel.isEmpty ? _art('', art.pixel) : HubPixelPreview(artwork: pixel),
+      ),
+      (
+        '/wiki',
+        tr('走进月读世界', 'The world of Tsukuyomi', '月読の世界へ'),
+        _art('', 'assets/images/navigation/wiki-study.webp'),
+      ),
+      (
+        '/game',
+        tr('一起玩一会儿', 'A little time to play', '一緒に遊ぼう'),
+        _art('', 'assets/images/navigation/kaguya-run.webp'),
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (_, box) {
+        final n = box.maxWidth > 900 ? 4 : 2;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 16,
+          children: [
+            for (final p in places)
+              SizedBox(
+                width: (box.maxWidth - 12 * (n - 1)) / n,
+                child: InkWell(
+                  onTap: () => widget.onGo(p.$1),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      AspectRatio(
+                        aspectRatio: .92,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: p.$3,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        '${p.$2} ↗',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
 
   Widget _announcement() => Material(
     color: RoomStyle(context).surface,
@@ -498,26 +629,6 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
     ),
   );
 
-  String _setting(String key, String fallback) {
-    final value = textOf(_settings, key).trim();
-    return value.isEmpty ? fallback : value;
-  }
-
-  Widget _latest() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const SiteText(
-        '月下新鲜事',
-        style: TextStyle(fontSize: 25, fontFamily: RoomStyle.serif),
-      ),
-      const SizedBox(height: 7),
-      SiteText(
-        '读一篇文章，发现一份创作，留下今天的问候。',
-        style: TextStyle(fontSize: 13, color: RoomStyle(context).muted),
-      ),
-    ],
-  );
-
   Widget _status(String text, {bool error = false}) => Padding(
     padding: const EdgeInsets.only(bottom: 16),
     child: SiteCard(
@@ -534,518 +645,5 @@ class _HubPageState extends State<HubPage> with WidgetsBindingObserver {
         ],
       ),
     ),
-  );
-
-  Widget _scenes() => LayoutBuilder(
-    builder: (context, box) {
-      final article = mapOf(_data['article']);
-      final gallery = mapOf(_data['gallery']);
-      final pixel = mapOf(_data['pixel']);
-      final columns = box.maxWidth > 820
-          ? 3
-          : box.maxWidth > 600
-          ? 2
-          : 1;
-      final width = (box.maxWidth - 20 * (columns - 1)) / columns;
-      return Wrap(
-        spacing: 20,
-        runSpacing: 20,
-        children: [
-          SizedBox(
-            width: columns == 2 ? box.maxWidth : width,
-            child: _scene(
-              path: '/stage',
-              metadata: article,
-              title: textOf(article, 'title', '主舞台'),
-              description: plainText(textOf(article, 'excerpt', '记录、创作、知识')),
-              label: '主舞台',
-              code: textOf(article, 'category', 'Stage'),
-              icon: CupertinoIcons.book,
-              image: textOf(
-                article,
-                'cover_image',
-                textOf(article, 'cover_image_url'),
-              ),
-            ),
-          ),
-          SizedBox(
-            width: width,
-            child: _scene(
-              path: '/gallery',
-              metadata: gallery,
-              title: gallery.isEmpty ? '月影图库' : '最新图库影像',
-              description: gallery.isEmpty
-                  ? '公开影像、插画与站点视觉记录'
-                  : '发布于 ${dateText(gallery['created_at'] ?? gallery['updated_at'])}',
-              label: '月影图库',
-              code: 'Gallery',
-              icon: CupertinoIcons.photo,
-              image: textOf(
-                gallery,
-                'url',
-                textOf(gallery, 'access_url', textOf(gallery, 'display_url')),
-              ),
-            ),
-          ),
-          SizedBox(
-            width: width,
-            child: _scene(
-              path: '/pixel',
-              metadata: pixel,
-              title: textOf(pixel, 'title', '月光像素工坊'),
-              description: pixel.isEmpty
-                  ? '绘制、发布、点赞月光像素画'
-                  : '${userDisplayName(pixel, prefix: 'author')} 发布于 ${dateText(pixel['created_at'] ?? pixel['updated_at'])}',
-              label: pixel.isEmpty ? '月光像素工坊' : '最新像素画',
-              code: pixel.isEmpty
-                  ? 'Arena'
-                  : '${pixel['width'] ?? 96}×${pixel['height'] ?? 54}',
-              icon: CupertinoIcons.paintbrush,
-              artwork: pixel.isEmpty ? null : pixel,
-            ),
-          ),
-        ],
-      );
-    },
-  );
-
-  Widget _scene({
-    required String path,
-    required String title,
-    required String description,
-    required String label,
-    required String code,
-    required IconData icon,
-    String image = '',
-    Map<String, dynamic>? artwork,
-    Map<String, dynamic> metadata = const {},
-  }) => LayoutBuilder(
-    builder: (context, box) {
-      final p = RoomStyle(context);
-      final mobile = MediaQuery.sizeOf(context).width <= 600;
-      final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
-      final author = userDisplayName(metadata, prefix: 'author', fallback: '');
-      final date = dateText(metadata['created_at'] ?? metadata['updated_at']);
-      Widget media() {
-        final fallback = Image.asset(
-          switch (path) {
-            '/stage' => SeasonalArt(p.palette.season).article,
-            '/gallery' => SeasonalArt(p.palette.season).gallery,
-            _ => SeasonalArt(p.palette.season).pixel,
-          },
-          fit: BoxFit.cover,
-          cacheHeight: (160 * scale * MediaQuery.devicePixelRatioOf(context))
-              .ceil()
-              .clamp(1, 1600),
-        );
-        Widget imageWidget = fallback;
-        if (artwork != null) {
-          imageWidget = HubPixelPreview(artwork: artwork);
-        } else if (image.isNotEmpty) {
-          final target = endpointUri(c.settings.siteUrl).resolve(image);
-          if (['https', 'http'].contains(target.scheme) &&
-              target.userInfo.isEmpty) {
-            imageWidget = Image.network(
-              '$target',
-              fit: BoxFit.cover,
-              cacheHeight:
-                  (160 * scale * MediaQuery.devicePixelRatioOf(context))
-                      .ceil()
-                      .clamp(1, 1600),
-              errorBuilder: (_, _, _) => fallback,
-            );
-          }
-        }
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(mobile ? 10 : 0),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ShaderMask(
-                blendMode: BlendMode.dstIn,
-                shaderCallback: (bounds) => LinearGradient(
-                  begin: mobile ? Alignment.centerLeft : Alignment.topCenter,
-                  end: mobile ? Alignment.centerRight : Alignment.bottomCenter,
-                  colors: [
-                    Colors.black,
-                    Colors.black.withValues(alpha: .88),
-                    Colors.black.withValues(alpha: .38),
-                    Colors.transparent,
-                  ],
-                  stops: mobile
-                      ? const [.65, .78, .92, 1]
-                      : const [.60, .74, .90, 1],
-                ).createShader(bounds),
-                child: imageWidget,
-              ),
-              if (!mobile)
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(icon, size: 18, color: Colors.white),
-                  ),
-                ),
-            ],
-          ),
-        );
-      }
-
-      Widget details() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (mobile)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Text(
-                code,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 10, color: p.muted),
-              ),
-            ),
-          Text(
-            title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontFamily: RoomStyle.serif,
-              fontSize: mobile ? 17 : 19,
-              fontWeight: FontWeight.w600,
-              height: 1.45,
-              color: p.ink,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            description,
-            maxLines: mobile ? 1 : 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: mobile ? 12 : 15,
-              color: p.muted,
-              height: 1.65,
-            ),
-          ),
-          if (author.isNotEmpty || date.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 4,
-              children: [
-                if (author.isNotEmpty)
-                  Text(
-                    author,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: p.muted),
-                  ),
-                if (date.isNotEmpty)
-                  Text(
-                    date,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 10, color: p.muted),
-                  ),
-              ],
-            ),
-          ],
-        ],
-      );
-      return Semantics(
-        label: '$label：$title',
-        button: true,
-        child: Material(
-          color: p.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-            side: BorderSide(color: p.line),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () => widget.onGo(path),
-            child: Padding(
-              padding: EdgeInsets.all(mobile ? 10 : 0),
-              child: mobile
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: box.maxWidth * .30,
-                          height: 122 * scale,
-                          child: media(),
-                        ),
-                        const SizedBox(width: 13),
-                        Expanded(child: details()),
-                      ],
-                    )
-                  : ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: 320 * scale),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SizedBox(height: 180, child: media()),
-                          const SizedBox(height: 6),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                            child: details(),
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                      ),
-                    ),
-            ),
-          ),
-        ),
-      );
-    },
-  );
-
-  Widget _plaza() => SiteCard(
-    child: LayoutBuilder(
-      builder: (context, box) {
-        final p = RoomStyle(context);
-        final messages = rowsOf(_data['messages']).take(3).toList();
-        final wide = box.maxWidth >= 700;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Wrap(
-              spacing: 12,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Icon(CupertinoIcons.chat_bubble_2, color: p.accent),
-                const SiteText('月读广场', style: TextStyle(fontSize: 21)),
-                TextButton(
-                  onPressed: () => widget.onGo('/plaza'),
-                  child: const SiteText('逛逛广场'),
-                ),
-              ],
-            ),
-            SiteText(
-              '分享此刻，也遇见同频的人。',
-              style: TextStyle(color: p.muted, fontSize: 13),
-            ),
-            const SizedBox(height: 22),
-            if (messages.isEmpty) const SiteText('还没有留言，写下第一句问候。'),
-            Wrap(
-              spacing: 14,
-              runSpacing: 14,
-              children: [
-                for (final message in messages)
-                  SizedBox(
-                    width: wide ? (box.maxWidth - 28) / 3 : box.maxWidth,
-                    child: InkWell(
-                      onTap: () => widget.onGo('/plaza'),
-                      borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        padding: const EdgeInsets.all(17),
-                        decoration: BoxDecoration(
-                          color: p.background,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: p.line),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                SiteAvatar(
-                                  value: textOf(message, 'avatar'),
-                                  name: userDisplayName(
-                                    message,
-                                    prefix: 'author',
-                                  ),
-                                  site: c.settings.siteUrl,
-                                  size: 28,
-                                ),
-                                const SizedBox(width: 9),
-                                Expanded(
-                                  child: Text(
-                                    userDisplayName(message, prefix: 'author'),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              textOf(message, 'content'),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                height: 1.75,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Divider(color: p.line),
-            const SizedBox(height: 12),
-            const SiteText('留一句问候', style: TextStyle(fontSize: 13)),
-            const SizedBox(height: 10),
-            TextField(
-              key: const Key('hub-greeting'),
-              controller: _greeting,
-              enabled: !_submitting,
-              onChanged: _saveGreeting,
-              onSubmitted: (_) => _submitGreeting(),
-              decoration: const InputDecoration(
-                hintText: '今天有什么想和大家分享的？',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton.icon(
-                key: const Key('hub-send'),
-                onPressed: _submitting ? null : _submitGreeting,
-                icon: const Icon(CupertinoIcons.paperplane, size: 15),
-                label: Text(_submitting ? '发送中' : '发送'),
-              ),
-            ),
-            if (_feedback.isNotEmpty)
-              Text(
-                _feedback,
-                key: const Key('hub-feedback'),
-                style: TextStyle(
-                  color: _feedbackError
-                      ? Theme.of(context).colorScheme.error
-                      : p.accent,
-                ),
-              ),
-          ],
-        );
-      },
-    ),
-  );
-
-  Widget _stats() => LayoutBuilder(
-    builder: (context, box) {
-      final stats = mapOf(_data['stats']);
-      final visits = SiteChromeScope.maybeOf(context)?.publicStats;
-      if (visits != null) {
-        for (final key in ['todayViews', 'totalViews']) {
-          if (visits.containsKey(key)) stats[key] = visits[key];
-        }
-      }
-      final uptime = (stats['uptime'] as num? ?? 0).toInt();
-      final days = uptime ~/ 86400, hours = uptime % 86400 ~/ 3600;
-      String count(dynamic value) => '$value'.replaceAllMapped(
-        RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-        (match) => '${match[1]},',
-      );
-      final language = SiteLocaleScope.maybeOf(context)?.language ?? 'zh';
-      final duration = language == 'zh'
-          ? (days > 0 ? '$days天$hours时' : '${hours > 0 ? hours : 1}小时')
-          : language == 'ja'
-          ? (days > 0 ? '$days日 $hours時間' : '${hours > 0 ? hours : 1}時間')
-          : (days > 0 ? '${days}d ${hours}h' : '${hours > 0 ? hours : 1}h');
-      final values = {
-        '今日访问': count(stats['todayViews'] ?? 0),
-        '总访问': count(stats['totalViews'] ?? 0),
-        '注册用户': count(stats['users'] ?? 0),
-        '站内文章': count(stats['articles'] ?? 0),
-        '广场留言': count(stats['messages'] ?? 0),
-        '运行时间': uptime == 0 ? '--' : duration,
-      };
-      final columns = box.maxWidth >= 700 ? 6 : 3;
-      final p = RoomStyle(context);
-      const sans = 'Roboto';
-      const fallback = [
-        'PingFang SC',
-        'Microsoft YaHei',
-        'Noto Sans CJK SC',
-        'Arial',
-      ];
-      final valueSize = box.maxWidth >= 700 ? 18.0 : 16.0;
-      return Padding(
-        key: const Key('hub-community-stats'),
-        padding: const EdgeInsets.fromLTRB(0, 32, 0, 20),
-        child: Column(
-          children: [
-            SiteText(
-              '一起留下的足迹',
-              key: const Key('hub-stats-title'),
-              style: TextStyle(
-                fontFamily: sans,
-                fontFamilyFallback: fallback,
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-                height: 1.5,
-                letterSpacing: .15,
-                color: p.muted,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Wrap(
-              runSpacing: 24,
-              children: [
-                for (final entry in values.entries)
-                  SizedBox(
-                    width: box.maxWidth / columns,
-                    child: Column(
-                      children: [
-                        Text(
-                          entry.value,
-                          key: Key('hub-stat-value-${entry.key}'),
-                          style: TextStyle(
-                            fontFamily: sans,
-                            fontFamilyFallback: fallback,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                            fontSize: valueSize,
-                            fontWeight: FontWeight.w500,
-                            height: 1.4,
-                            color: p.ink,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        SiteText(
-                          entry.key,
-                          style: TextStyle(
-                            fontFamily: sans,
-                            fontFamilyFallback: fallback,
-                            fontSize: 11,
-                            height: 1.5,
-                            fontWeight: FontWeight.w400,
-                            color: p.muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-            const AppRegistrationLink(),
-            if (textOf(_settings, 'mpsBeianText').isNotEmpty)
-              TextButton(
-                onPressed: () => openSiteLink(
-                  c.settings.siteUrl,
-                  _setting('mpsBeianUrl', 'https://beian.mps.gov.cn/'),
-                ),
-                child: Text(textOf(_settings, 'mpsBeianText')),
-              ),
-          ],
-        ),
-      );
-    },
   );
 }

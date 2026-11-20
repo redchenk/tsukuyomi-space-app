@@ -7,6 +7,7 @@ import 'package:tsukuyomi_space_app/core/models.dart';
 import 'package:tsukuyomi_space_app/core/site_client.dart';
 import 'package:tsukuyomi_space_app/features/pixel/pixel_document.dart';
 import 'package:tsukuyomi_space_app/features/pixel/pixel_page.dart';
+import 'package:tsukuyomi_space_app/features/pixel/pixel_image.dart';
 import 'package:tsukuyomi_space_app/features/pixel/pixel_session.dart';
 import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
 
@@ -53,6 +54,28 @@ class PixelApi extends FakeSite implements SiteDataService {
 }
 
 void main() {
+  test('eyedropper samples a stroke or its background without painting and restores the tool', () {
+    final doc = PixelDocument();
+    addTearDown(doc.dispose);
+    doc.brushSize = 8;
+    doc.beginStroke(14, 14);
+    doc.endStroke();
+    expect(doc.paintedCount, 64);
+    doc.chooseColor(0);
+    doc.chooseTool(PixelTool.eraser);
+    doc.chooseTool(PixelTool.picker);
+    doc.beginStroke(14, 14);
+    doc.endStroke();
+    expect(doc.selected, 3);
+    expect(doc.tool, PixelTool.eraser);
+    doc.chooseTool(PixelTool.picker);
+    doc.beginStroke(0, 0);
+    doc.endStroke();
+    expect(doc.palette[doc.selected], doc.background);
+    expect(doc.paintedCount, 64);
+    doc.undo();
+    expect(doc.paintedCount, 0);
+  });
   test('192×108 indexed canvas preserves continuous strokes and one undo per stroke', () {
     final doc = PixelDocument();
     addTearDown(doc.dispose);
@@ -226,6 +249,58 @@ void main() {
       expect(storage.secrets, isEmpty);
     },
   );
+  testWidgets('two and three finger taps undo and redo without stray pixels', (
+    tester,
+  ) async {
+    final c = RoomController(
+      storage: MemoryStorage(),
+      chat: FakeChat(),
+      site: PixelApi(),
+      voice: SilentVoice(),
+    );
+    await c.initialize();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PixelPage(controller: c, onGo: (_) {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final canvas = find.byWidgetPredicate(
+      (widget) => widget is CustomPaint && widget.painter is PixelPainter,
+    );
+    final center = tester.getCenter(canvas);
+    int painted() =>
+        (tester.widget<CustomPaint>(canvas).painter! as PixelPainter)
+            .snapshot
+            .pixels
+            .where((v) => v >= 0)
+            .length;
+    await tester.tapAt(center);
+    await tester.pump();
+    expect(painted(), 1);
+    Future<void> fingers(int count) async {
+      final touches = <TestGesture>[];
+      for (var i = 0; i < count; i++) {
+        touches.add(
+          await tester.startGesture(
+            center + Offset(15.0 * i, 10),
+            pointer: 20 + i,
+          ),
+        );
+      }
+      for (final touch in touches) {
+        await touch.up();
+      }
+      await tester.pump();
+    }
+
+    await fingers(2);
+    expect(painted(), 0);
+    await fingers(3);
+    expect(painted(), 1);
+    await tester.pumpWidget(const SizedBox());
+    c.dispose();
+  });
   for (final width in [320.0, 390.0, 1280.0]) {
     testWidgets('pixel native tools and publish form fit width $width', (
       tester,
@@ -245,8 +320,11 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('画笔 B'), findsOneWidget);
-      expect(find.text('导出 PNG'), findsOneWidget);
+      expect(find.byIcon(Icons.brush), findsOneWidget);
+      expect(find.byIcon(Icons.colorize), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.more_horiz).last);
+      await tester.pumpAndSettle();
+      expect(find.textContaining('PNG'), findsWidgets);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       c.dispose();

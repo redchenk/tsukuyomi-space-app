@@ -30,6 +30,11 @@ import 'features/room/room_music.dart';
 import 'features/room/shared_room_page.dart';
 import 'features/site/site_page.dart';
 import 'features/site/hub_page.dart';
+import 'features/chatroom/chatroom_page.dart';
+import 'features/site/download_page.dart';
+import 'features/site/fushi_connect_page.dart';
+import 'features/site/community_admin_page.dart';
+import 'features/site/play_apply_page.dart';
 import 'features/site/site_navigation.dart';
 import 'features/settings/settings_page.dart';
 import 'features/site/wiki_page.dart';
@@ -362,7 +367,10 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
                                 child ?? const SizedBox(),
                                 Positioned(
                                   right: 14,
-                                  bottom: 12,
+                                  bottom:
+                                      MediaQuery.sizeOf(context).width <= 860
+                                      ? 84
+                                      : 12,
                                   child: ListenableBuilder(
                                     listenable: Listenable.merge([
                                       _activePath,
@@ -377,6 +385,8 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
                                             '/',
                                             '/login',
                                             '/register',
+                                            '/chatroom',
+                                            '/pixel',
                                             '/room',
                                             '/room/settings',
                                             '/game',
@@ -446,7 +456,9 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
     final path = nativeSitePath(Uri.parse(requested));
     return MaterialPageRoute<void>(
       settings: RouteSettings(
-        name: path ?? requested,
+        name: path?.startsWith('/fushi/') == true
+            ? Uri.parse(path!).path
+            : path ?? requested,
         arguments: settings.arguments,
       ),
       builder: (context) {
@@ -454,6 +466,20 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
         void go(String value) =>
             navigateSite(context, widget.controller, value);
         final c = widget.controller;
+        if (route?.startsWith('/fushi/') == true) {
+          return FushiConnectPage(
+            room: c,
+            path: Uri.parse(path!),
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
+        if (route == '/download') {
+          return DownloadPage(controller: c, onGo: go, onTheme: _toggleTheme);
+        }
+        if (route == '/apply') {
+          return PlayApplyPage(controller: c, onGo: go, onTheme: _toggleTheme);
+        }
         if (route == '/app/update' && widget.updates != null) {
           return AppUpdatePage(
             updates: widget.updates!,
@@ -587,6 +613,15 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
             orderId: Uri.parse(path!).queryParameters['order'],
           );
         }
+        if (route == '/admin/play-testing' ||
+            route == '/admin/account-deletions') {
+          return CommunityAdminPage(
+            room: c,
+            path: route!,
+            onGo: go,
+            onTheme: _toggleTheme,
+          );
+        }
         if (route == '/admin' || route == '/terminal') {
           return ManagementPage(
             controller: c,
@@ -606,11 +641,17 @@ class _TsukuyomiAppState extends State<TsukuyomiApp>
             onTheme: _toggleTheme,
           );
         }
+        if (route == '/chatroom') {
+          return ChatroomPage(
+            controller: c,
+            onGo: go,
+            channel: Uri.parse(path!).queryParameters['channel'],
+          );
+        }
         if (route == '/hub') {
           return HubPage(
             controller: widget.controller,
-            onGo: (value) =>
-                navigateSite(context, widget.controller, value, replace: true),
+            onGo: go,
             onTheme: _toggleTheme,
           );
         }

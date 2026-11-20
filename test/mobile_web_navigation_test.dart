@@ -78,7 +78,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(SiteMobileNavigation), findsNothing);
       expect(find.text('想找些什么？'), findsOneWidget);
-      await tester.enterText(find.byType(TextField), '主舞台');
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(Dialog),
+          matching: find.byType(TextField),
+        ),
+        '主舞台',
+      );
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       await tester.tap(find.widgetWithText(ListTile, '主舞台').first);
       await tester.pumpAndSettle();

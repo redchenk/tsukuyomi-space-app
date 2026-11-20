@@ -110,7 +110,10 @@ class PixelSession extends ChangeNotifier {
       title = '${data['title'] ?? ''}';
       description = '${data['description'] ?? ''}';
       document.brushSize =
-          (data['brushSize'] is int ? data['brushSize'] as int : 1).clamp(1, 6);
+          (data['brushSize'] is int ? data['brushSize'] as int : 1).clamp(
+            1,
+            maxPixelBrushSize,
+          );
       editingId = data['editingId'] as String?;
       notice = '已恢复本机画稿';
       _changed();

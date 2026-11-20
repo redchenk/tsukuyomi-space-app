@@ -11,6 +11,7 @@ import 'login_dialog.dart';
 import 'site_archive_data.dart';
 import 'site_chrome.dart';
 import 'site_widgets.dart';
+import 'site_mobile_navigation.dart';
 
 class SiteArchive {
   static final Map<String, dynamic> data = mapOf(jsonDecode(siteArchiveJson));
@@ -39,7 +40,7 @@ class SiteArchive {
   }
 }
 
-class NativeSiteShell extends StatelessWidget {
+class NativeSiteShell extends StatefulWidget {
   const NativeSiteShell({
     super.key,
     required this.controller,
@@ -53,6 +54,8 @@ class NativeSiteShell extends StatelessWidget {
     this.showChrome = true,
     this.maxWidth = 1280,
     this.footer,
+    this.fullBleed = false,
+    this.fixedViewport = false,
   });
   final RoomController controller;
   final String title;
@@ -65,39 +68,58 @@ class NativeSiteShell extends StatelessWidget {
   final bool showChrome;
   final double maxWidth;
   final Widget? footer;
+  final bool fullBleed;
+  final bool fixedViewport;
+  @override
+  State<NativeSiteShell> createState() => _NativeSiteShellState();
+}
+
+class _NativeSiteShellState extends State<NativeSiteShell> {
+  bool scrolled = false, hideDock = false;
+  double lastOffset = 0;
+
   @override
   Widget build(BuildContext context) {
-    final p = RoomStyle(context);
+    final w = widget, p = RoomStyle(context);
     final narrow = MediaQuery.sizeOf(context).width <= 860;
     final route =
         Uri.tryParse(ModalRoute.of(context)?.settings.name ?? '')?.path ?? '';
-    final showBeian =
-        showChrome &&
-        route != '/hub' &&
-        route != '/room' &&
-        !route.startsWith('/room/');
-    Widget body = SingleChildScrollView(
-      controller: scrollController,
+    final dock =
+        narrow &&
+        !w.fixedViewport &&
+        w.showChrome &&
+        !route.startsWith('/articles/') &&
+        !route.startsWith('/room') &&
+        MediaQuery.viewInsetsOf(context).bottom == 0;
+    final headerHeight = narrow ? 58.0 : 76.0;
+    final body = SingleChildScrollView(
+      controller: w.scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
-      clipBehavior: Clip.none,
       child: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth),
+          constraints: BoxConstraints(
+            maxWidth: w.fullBleed ? double.infinity : w.maxWidth,
+          ),
           child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              narrow ? 14 : 32,
-              narrow ? 14 : 12,
-              narrow ? 14 : 32,
-              24,
-            ),
+            padding: w.fullBleed
+                ? EdgeInsets.zero
+                : EdgeInsets.fromLTRB(
+                    narrow ? 14 : 32,
+                    narrow ? 14 : 12,
+                    narrow ? 14 : 32,
+                    24,
+                  ),
             child: DefaultTextStyle.merge(
               style: TextStyle(color: p.ink),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  child,
-                  if (showBeian) footer ?? const SiteBeianLinks(),
-                  const SizedBox(height: 36),
+                  w.child,
+                  if (w.showChrome &&
+                      !w.fullBleed &&
+                      !route.startsWith('/room'))
+                    w.footer ?? const SiteBeianLinks(),
+                  SizedBox(height: dock ? 100 : 36),
                 ],
               ),
             ),
@@ -105,57 +127,88 @@ class NativeSiteShell extends StatelessWidget {
         ),
       ),
     );
-    if (onRefresh != null) {
-      body = RefreshIndicator(onRefresh: onRefresh!, child: body);
-    }
-    final header = AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) => SiteHeader(
-        title: title,
-        onGo: onGo,
-        onTheme: onTheme,
-        username: controller.sessionExpired
-            ? null
-            : controller.account?.displayName,
-        role: controller.sessionExpired ? null : controller.account?.role,
-        onLogin: () {
-          if (controller.account != null && !controller.sessionExpired) {
-            onGo('/user');
-          } else {
-            showSiteLogin(context, controller);
-          }
-        },
-      ),
-    );
     return Scaffold(
       backgroundColor: p.background,
-      floatingActionButton: floatingActionButton,
+      floatingActionButton: w.floatingActionButton,
       body: SiteBackground(
         child: SafeArea(
-          child: narrow
-              ? Stack(
-                  children: [
-                    Positioned.fill(
-                      top: showChrome ? 80 : 0,
-                      child: RepaintBoundary(child: body),
-                    ),
-                    if (showChrome)
-                      Positioned(top: 10, left: 12, right: 12, child: header),
-                  ],
-                )
-              : Column(
-                  children: [
-                    if (showChrome)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 16,
-                        ),
-                        child: header,
-                      ),
-                    Expanded(child: RepaintBoundary(child: body)),
-                  ],
+          child: Stack(
+            children: [
+              Positioned.fill(
+                top: w.showChrome ? headerHeight : 0,
+                child: NotificationListener<ScrollUpdateNotification>(
+                  onNotification: (n) {
+                    if (n.depth != 0 || n.metrics.axis != Axis.vertical) {
+                      return false;
+                    }
+                    final y = n.metrics.pixels;
+                    final down = y - lastOffset;
+                    final hidden =
+                        y > 120 && (down.abs() < 3 ? hideDock : down > 0);
+                    lastOffset = y;
+                    if (scrolled != (y > 24) || hideDock != hidden) {
+                      setState(() {
+                        scrolled = y > 24;
+                        hideDock = hidden;
+                      });
+                    }
+                    return false;
+                  },
+                  child: RepaintBoundary(
+                    child: w.fixedViewport
+                        ? w.child
+                        : w.onRefresh == null
+                        ? body
+                        : RefreshIndicator(
+                            onRefresh: w.onRefresh!,
+                            child: body,
+                          ),
+                  ),
                 ),
+              ),
+              if (w.showChrome)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: AnimatedBuilder(
+                    animation: w.controller,
+                    builder: (context, _) => SiteHeader(
+                      onHero: w.fullBleed && !scrolled,
+                      title: w.title,
+                      onGo: w.onGo,
+                      onTheme: w.onTheme,
+                      username: w.controller.sessionExpired
+                          ? null
+                          : w.controller.account?.displayName,
+                      role: w.controller.sessionExpired
+                          ? null
+                          : w.controller.account?.role,
+                      onLogin: () {
+                        if (w.controller.account != null &&
+                            !w.controller.sessionExpired) {
+                          w.onGo('/user');
+                        } else {
+                          showSiteLogin(context, w.controller);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              if (dock && !hideDock)
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 8,
+                  child: SiteMobileDock(
+                    onTheme: w.onTheme,
+                    path: w.fullBleed ? '/hub' : route,
+                    onGo: w.onGo,
+                    controller: w.controller,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

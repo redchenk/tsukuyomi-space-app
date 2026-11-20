@@ -426,9 +426,10 @@ class RoomController extends ChangeNotifier {
     });
   }
 
-  Future<void> saveComposerDraft(String value) async {
+  Future<void> saveComposerDraft(String value, {bool notify = false}) async {
     if (generating || busy || loading) return;
     draft = value;
+    if (notify) _changed();
     await storage.saveDraft(scope, value);
   }
 
