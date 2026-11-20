@@ -15,6 +15,7 @@ const _groups = <String, List<(String, IconData)>>{
     ('/live2d', Icons.face),
   ],
   '发现': [
+    ('/chatroom', Icons.forum_outlined),
     ('/wiki', Icons.menu_book),
     ('/plaza', Icons.forum_outlined),
     ('/drift', Icons.mail_outline),
@@ -30,6 +31,8 @@ const _groups = <String, List<(String, IconData)>>{
   ],
   '空间': [
     ('/hub', Icons.home_outlined),
+    ('/', Icons.play_circle_outline),
+    ('/download', Icons.download_outlined),
     ('/agent-os', Icons.auto_awesome),
     ('/reality', Icons.public),
     ('/friend-links', Icons.link),
@@ -199,7 +202,7 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
   Widget build(BuildContext context) => IconButton(
     key: _anchor,
     focusNode: _focus,
-    tooltip: siteTranslate(context, '探索'),
+    tooltip: siteTranslate(context, widget.showLabel ? '更多' : '探索'),
     onPressed: _show,
     icon: widget.showLabel
         ? Row(
@@ -207,7 +210,13 @@ class _SiteExploreMenuState extends State<SiteExploreMenu> {
             children: [
               const Icon(Icons.menu_rounded, size: 17),
               const SizedBox(width: 6),
-              SiteText('探索', style: const TextStyle(fontSize: 14)),
+              SiteText(
+                '更多',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: IconTheme.of(context).color,
+                ),
+              ),
               const Icon(Icons.expand_more, size: 16),
             ],
           )

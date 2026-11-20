@@ -61,7 +61,14 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       _sort = 'latest',
       _tab = '会话';
   bool _loading = true, _working = false, _copying = false;
-  bool _notificationBusy = false;
+  bool _notificationBusy = false, _stageMoreFailed = false;
+  int _stageStart = 1;
+  String tr(String zh, String en, String ja) =>
+      switch (SiteLocaleScope.maybeOf(context)?.language) {
+        'en' => en,
+        'ja' => ja,
+        _ => zh,
+      };
   int _page = 1, _request = 0, _writeRevision = 0;
   Timer? _debounce, _readingTimer;
   final _visibleReading = Stopwatch();
@@ -164,7 +171,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
   String get _stageReturnPath {
     final query = {
       if (_sort != 'latest') 'sort': _sort,
-      if (_page > 1) 'page': '$_page',
+      if (_stageStart > 1) 'page': '$_stageStart',
       if (_category.isNotEmpty) 'category': _category,
       if (_search.text.trim().isNotEmpty) 'q': _search.text.trim(),
     };
@@ -351,8 +358,16 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _load() async {
-    if (!mounted) return;
+  Future<void> _load({bool append = false}) async {
+    if (!mounted || (append && (route != '/stage' || _loading))) return;
+    final nextPage = append ? _page + 1 : _page;
+    final snapshot = append && _sort != 'latest'
+        ? textOf(_payload, 'recommendationSnapshot')
+        : '';
+    final snapshotQuery = RegExp(r'^[a-f0-9]{24}$').hasMatch(snapshot)
+        ? '&snapshot=$snapshot'
+        : '';
+    _stageMoreFailed = false;
     final ticket = ++_request;
     setState(() {
       _loading = true;
@@ -390,7 +405,7 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 ? '/api/room/diary?cursor=${Uri.encodeQueryComponent(_diaryCursors.last)}'
                 : '/api/room/chat?limit=100',
           _ =>
-            '/api/articles?limit=6&page=$_page&sort=$_sort&category=${Uri.encodeQueryComponent(_category)}&q=${Uri.encodeQueryComponent(_search.text)}',
+            '/api/articles?limit=6&page=$nextPage&sort=$_sort$snapshotQuery&category=${Uri.encodeQueryComponent(_category)}&q=${Uri.encodeQueryComponent(_search.text)}',
         };
       }
       if (_payload.isEmpty) {
@@ -411,6 +426,23 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
         if (claimed != null) payload = {...payload, 'data': claimed};
       }
       setState(() {
+        if (route == '/stage') {
+          if (append) {
+            final combined = {
+              for (final a in [
+                ...rowsOf(_payload['data']),
+                ...rowsOf(payload['data']),
+              ])
+                a['id']: a,
+            };
+            payload = {...payload, 'data': combined.values.toList()};
+          } else {
+            _stageStart = nextPage;
+          }
+          _page =
+              (mapOf(payload['pagination'])['page'] as num?)?.toInt() ??
+              nextPage;
+        }
         _payload = payload;
         if (route == '/plaza') _anchorDataReady = true;
         if (route == '/notifications') {
@@ -489,7 +521,16 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      if (mounted && ticket == _request) setState(() => _error = '$e');
+      if (!mounted || ticket != _request) return;
+      if (append && e is ApiFailure && e.status == 409) {
+        _page = _stageStart;
+        await _load();
+        return;
+      }
+      setState(() {
+        _stageMoreFailed = append;
+        _error = '$e';
+      });
     } finally {
       if (mounted && ticket == _request) setState(() => _loading = false);
     }
@@ -734,21 +775,41 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
           ),
         if (kicker != null || MediaQuery.sizeOf(context).width >= 650)
           const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
+        if (action != null &&
+            MediaQuery.sizeOf(context).width <
+                540 * MediaQuery.textScalerOf(context).scale(12) / 12)
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
                 heading,
                 style: TextStyle(
-                  fontSize: MediaQuery.sizeOf(context).width < 700 ? 28 : 38,
+                  fontSize: 28,
                   fontWeight: FontWeight.w600,
                   fontFamily: RoomStyle.serif,
                 ),
               ),
-            ),
-            ?action,
-          ],
-        ),
+              action,
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  heading,
+                  style: TextStyle(
+                    fontSize: MediaQuery.sizeOf(context).width < 700 ? 28 : 38,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: RoomStyle.serif,
+                  ),
+                ),
+              ),
+              ?action,
+            ],
+          ),
         const SizedBox(height: 8),
         Text(
           subtitle,
@@ -835,7 +896,8 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                         if (page == null ||
                             page < 1 ||
                             page > totalPages ||
-                            page == _page) {
+                            (page == _page &&
+                                !(route == '/stage' && _stageStart != _page))) {
                           return;
                         }
                         if (route == '/plaza') _cancelAnchor();
@@ -867,189 +929,140 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
   );
   Widget _articleCard(Map a) => LayoutBuilder(
     builder: (context, box) {
-      final desktop = box.maxWidth >= 650;
-      final author = userDisplayName(a, prefix: 'author', fallback: 'admin');
-      final cover = textOf(a, 'cover_image');
-      final metadata = Wrap(
-        spacing: 10,
-        runSpacing: 6,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          if (a['pinned_at'] != null)
-            SiteText(
-              '编辑推荐',
-              style: TextStyle(
-                color: RoomStyle(context).accent,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: RoomStyle(context).soft,
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Text(
-              textOf(a, 'category'),
-              style: const TextStyle(fontSize: 11),
-            ),
-          ),
-          InkWell(
-            onTap: textOf(a, 'author_username', textOf(a, 'author')).isEmpty
-                ? null
-                : () => _go(
-                    '/users/${Uri.encodeComponent(textOf(a, "author_username", textOf(a, "author")))}',
-                  ),
-            child: Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
+      final paint = RoomStyle(context), cover = textOf(a, 'cover_image');
+      final author = userDisplayName(
+        a,
+        prefix: 'author',
+        fallback: tr('月下旅人', 'Moonlit traveler', '月下の旅人'),
+      );
+      final username = textOf(a, 'author_username'), slug = textOf(a, 'slug');
+      final uri = Uri(
+        pathSegments: ['', 'articles', '${a['id']}', if (slug.isNotEmpty) slug],
+        queryParameters: route == '/stage' ? {'from': _stageReturnPath} : null,
+      );
+      final readTime = textOf(a, 'read_time');
+      final date = dateText(
+        a['published_at'] ?? a['created_at'] ?? a['publish_date'],
+      );
+      final width = box.maxWidth;
+      final thumb = width >= 650
+          ? math.min(255.0, width * .25)
+          : math.min(112.0, width * .25);
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: paint.line)),
+        ),
+        child: InkWell(
+          onTap: () => _go(uri.toString()),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SiteAvatar(
-                  value: textOf(a, 'author_avatar'),
-                  name: author.toUpperCase(),
-                  site: c.settings.siteUrl,
-                  size: 22,
-                ),
-                const SizedBox(width: 6),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: box.maxWidth < 600 ? 112 : 180,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 5,
+                        children: [
+                          Text(
+                            textOf(a, 'category'),
+                            style: TextStyle(color: paint.accent),
+                          ),
+                          if (a['pinned_at'] != null)
+                            Text(tr('精选', 'Featured', 'おすすめ')),
+                          if (readTime.isNotEmpty) Text(readTime),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        textOf(a, 'title'),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: RoomStyle.serif,
+                          fontWeight: FontWeight.w600,
+                          fontSize: width >= 650 ? 27 : 21,
+                          color: paint.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        plainText(textOf(a, 'excerpt')),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(height: 1.6, color: paint.muted),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          InkWell(
+                            onTap: username.isEmpty
+                                ? null
+                                : () => _go(
+                                    '/users/${Uri.encodeComponent(username)}',
+                                  ),
+                            child: Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 5,
+                              children: [
+                                SiteAvatar(
+                                  value: textOf(a, 'author_avatar'),
+                                  name: author,
+                                  site: c.settings.siteUrl,
+                                  size: 22,
+                                ),
+                                Text(
+                                  author,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (a['author_id'] != null)
+                            NativeUserLevelBadge(
+                              level: _levels.level(a['author_id']),
+                              compact: true,
+                              showTitle: false,
+                            ),
+                          Text(
+                            date,
+                            style: TextStyle(fontSize: 12, color: paint.muted),
+                          ),
+                          Text(
+                            '♡ ${a['like_count'] ?? 0}   ◉ ${a['view_count'] ?? a['views'] ?? 0}',
+                            style: TextStyle(fontSize: 12, color: paint.muted),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    author,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11),
-                  ),
                 ),
-                if (a['author_id'] != null) ...[
-                  const SizedBox(width: 6),
-                  NativeUserLevelBadge(
-                    level: _levels.level(a['author_id']),
-                    compact: true,
-                    showTitle: false,
+                if (cover.isNotEmpty) ...[
+                  const SizedBox(width: 14),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: nativeSiteImage(
+                      c.settings.siteUrl,
+                      cover,
+                      width: thumb,
+                      height: thumb * .65,
+                    ),
                   ),
                 ],
               ],
             ),
           ),
-        ],
-      );
-      final body = Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: desktop ? 30 : 20,
-          vertical: desktop ? 24 : 20,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: desktop ? MainAxisSize.max : MainAxisSize.min,
-          children: [
-            metadata,
-            const SizedBox(height: 12),
-            Text(
-              textOf(a, 'title'),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: desktop ? 23 : 21,
-                fontWeight: FontWeight.w600,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              plainText(textOf(a, 'excerpt')),
-              maxLines: desktop ? 1 : 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                height: 1.5,
-                fontSize: 13,
-                color: RoomStyle(context).muted,
-              ),
-            ),
-            if (desktop) const Spacer() else const SizedBox(height: 20),
-            Wrap(
-              spacing: 14,
-              runSpacing: 8,
-              children: [
-                Text(
-                  '${a['views'] ?? a['view_count'] ?? 0} 阅读   ${a['like_count'] ?? 0} 点赞   ${a['bookmark_count'] ?? 0} 收藏',
-                  style: const TextStyle(fontSize: 11),
-                ),
-                Text(
-                  '约 ${textOf(a, 'read_time').replaceAll(RegExp(r'\s*min'), ' 分钟')}  ${dateText(a['published_at'] ?? a['created_at'])}',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: RoomStyle(context).muted,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-      final image = cover.isEmpty
-          ? null
-          : Image.network(
-              '${endpointUri(c.settings.siteUrl).resolve(cover)}',
-              fit: BoxFit.cover,
-              cacheWidth:
-                  ((desktop ? box.maxWidth * .45 : box.maxWidth) *
-                          MediaQuery.devicePixelRatioOf(context))
-                      .ceil()
-                      .clamp(1, 1600),
-              width: double.infinity,
-              height: double.infinity,
-              errorBuilder: (_, _, _) =>
-                  ColoredBox(color: RoomStyle(context).soft),
-            );
-      return InkWell(
-        onTap: () => Navigator.pushNamed(
-          context,
-          Uri(
-            path: '/articles/${a['id']}',
-            queryParameters: route == '/stage'
-                ? {'from': _stageReturnPath}
-                : null,
-          ).toString(),
-        ),
-        borderRadius: BorderRadius.circular(20),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: ColoredBox(
-            color: RoomStyle(context).surface,
-            child: desktop
-                ? SizedBox(
-                    height:
-                        222 *
-                        math.max(
-                          1,
-                          MediaQuery.textScalerOf(context).scale(14) / 14,
-                        ),
-                    child: Row(
-                      children: [
-                        Expanded(child: body),
-                        if (image != null)
-                          SizedBox(width: box.maxWidth * .45, child: image),
-                      ],
-                    ),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (image != null)
-                        SizedBox(
-                          height: (box.maxWidth * .52).clamp(172, 210),
-                          child: image,
-                        ),
-                      body,
-                    ],
-                  ),
-          ),
         ),
       );
     },
   );
+
   Widget _articles() {
     final rows = rowsOf(_payload['data']);
     final pages = (mapOf(_payload['pagination'])['totalPages'] as num? ?? 1)
@@ -1085,9 +1098,9 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
       child: Wrap(
         children: [
           for (final item in const {
-            'featured': '精选优先',
+            'featured': '编辑精选',
             'daily': '每日推荐',
-            'latest': '最新优先',
+            'latest': '最新发布',
           }.entries)
             InkWell(
               onTap: () {
@@ -1118,47 +1131,23 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _heading('主舞台', '博客文章'),
-        ExpansionTile(
-          minTileHeight: MediaQuery.sizeOf(context).width < 650 ? 32 : null,
-          tilePadding: EdgeInsets.zero,
-          dense: true,
-          visualDensity: VisualDensity.compact,
-          title: const SiteText('关于主舞台', style: TextStyle(fontSize: 12)),
-          children: const [
-            Padding(
-              padding: EdgeInsets.only(bottom: 16),
-              child: SiteText('月读空间的文章与创作档案。浏览公告、传说、技术、二创和日常记录。'),
-            ),
-          ],
+        _heading(
+          tr('主舞台', 'The journal', 'メインステージ'),
+          tr(
+            '故事、创作与生活的切片。每一种表达，都有自己的光。',
+            'Stories, creations, and everyday discoveries. Every voice has its own light.',
+            '物語、創作、日々の発見。それぞれの表現に光があります。',
+          ),
+          kicker: 'THE JOURNAL',
+          action: OutlinedButton.icon(
+            key: const Key('stage-new-article'),
+            onPressed: () => _go('/editor'),
+            icon: const Icon(CupertinoIcons.pencil, size: 16),
+            label: Text(tr('写点什么', 'Write a story', '書いてみる')),
+          ),
         ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _search,
-                onChanged: _searchChanged,
-                decoration: InputDecoration(
-                  hintText: siteTranslate(context, '搜索文章…'),
-                  isDense: true,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
-                  prefixIcon: Icon(CupertinoIcons.search, size: 18),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            FilledButton.icon(
-              key: const Key('stage-new-article'),
-              onPressed: () => _go('/editor'),
-              icon: const Icon(CupertinoIcons.pencil, size: 16),
-              label: const SiteText('新建投稿', style: TextStyle(fontSize: 12)),
-            ),
-          ],
-        ),
+        const SizedBox(height: 12),
+        _searchBox(tr('搜索文章…', 'Search stories…', '記事を検索…')),
         const SizedBox(height: 14),
         LayoutBuilder(
           builder: (context, box) => box.maxWidth >= 850
@@ -1175,28 +1164,45 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 ),
         ),
         const SizedBox(height: 12),
-        if (_sort != 'latest')
-          Text(
-            '${textOf(_payload, 'recommendationDate')} · 综合内容、有效阅读、点赞与收藏，每日轮换推荐，也让新作与较少曝光的创作被看见。',
-            style: TextStyle(
-              fontSize: 11,
-              height: 1.7,
-              color: RoomStyle(context).muted,
-            ),
-          ),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 18),
+          padding: const EdgeInsets.symmetric(vertical: 14),
           child: Text(
-            '共 ${mapOf(_payload['pagination'])['total'] ?? rows.length} 篇  当前 ${(_page - 1) * 6 + (rows.isEmpty ? 0 : 1)}–${(_page - 1) * 6 + rows.length} 篇',
-            style: const TextStyle(fontSize: 12),
+            '${_category.isEmpty ? tr('所有故事', 'All stories', 'すべての記事') : _category}  ·  ${mapOf(_payload['pagination'])['total'] ?? rows.length} ${tr('篇文字', 'stories', '件の記事')}',
           ),
         ),
-        for (final a in rows)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 18),
-            child: _articleCard(a),
+        for (final a in rows) _articleCard(a),
+        if (rows.isEmpty && !_loading)
+          _empty(
+            tr(
+              '这里还没有找到故事。换一个关键词试试。',
+              'No stories found. Try another search.',
+              '記事が見つかりません。検索語を変えてみてください。',
+            ),
           ),
-        if (rows.isEmpty && !_loading) _empty('没有找到文章，试试其他关键词。'),
+        if (rows.isEmpty && (_category.isNotEmpty || _search.text.isNotEmpty))
+          TextButton(
+            onPressed: () {
+              _category = '';
+              _search.clear();
+              _page = 1;
+              _load();
+            },
+            child: Text(tr('浏览全部文章', 'See all stories', 'すべての記事を見る')),
+          ),
+        if (rows.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Text(
+              '${tr('已读到这里', 'You’re here', 'ここまで読みました')} · ${rows.length} / ${mapOf(_payload['pagination'])['total'] ?? rows.length}',
+            ),
+          ),
+        if (_page < pages)
+          OutlinedButton.icon(
+            key: const Key('stage-more'),
+            onPressed: _loading ? null : () => _load(append: true),
+            icon: const Icon(Icons.arrow_downward, size: 16),
+            label: Text(tr('再读一些', 'More stories', '続きを読む')),
+          ),
         _pager(pages),
       ],
     );
@@ -3313,7 +3319,10 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
     title: title,
     onGo: _go,
     onTheme: widget.onTheme,
-    onRefresh: _load,
+    onRefresh: () {
+      if (route == '/stage') _page = _stageStart;
+      return _load();
+    },
     scrollController: _scroll,
     maxWidth: article
         ? 940
@@ -3353,7 +3362,10 @@ class _SitePageState extends State<SitePage> with WidgetsBindingObserver {
                 Wrap(
                   spacing: 12,
                   children: [
-                    FilledButton(onPressed: _load, child: const SiteText('重试')),
+                    FilledButton(
+                      onPressed: () => _load(append: _stageMoreFailed),
+                      child: const SiteText('重试'),
+                    ),
                     if (privatePage || c.sessionExpired)
                       OutlinedButton(
                         onPressed: _login,

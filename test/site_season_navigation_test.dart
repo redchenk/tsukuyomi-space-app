@@ -59,7 +59,7 @@ void main() {
       for (final mode in SiteSeason.values) {
         await season.select(mode.name);
         await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const Key('site-navigation-group-0')));
+        await tester.tap(find.byTooltip('更多'));
         await tester.pumpAndSettle();
         await capture(tester, 'navigation-${mode.name}');
         expect(tester.takeException(), isNull);
@@ -87,49 +87,31 @@ void main() {
   );
 
   testWidgets(
-    'desktop discover preview and Create grouping match updated website',
+    'desktop primary navigation exposes the website links and secondary menu',
     (tester) async {
       final shadows = await mount(tester);
-      await tester.tap(find.text('发现'));
-      await tester.pumpAndSettle();
-      expect(find.text('百科'), findsWidgets);
-      expect(find.text('游戏中心'), findsOneWidget);
-      expect(find.text('主舞台'), findsNothing);
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('创作'));
-      await tester.pumpAndSettle();
-      expect(find.text('主舞台'), findsOneWidget);
-      expect(find.text('游戏中心'), findsNothing);
-      expect(tester.takeException(), isNull);
-      debugDisableShadows = shadows;
-    },
-  );
-  testWidgets(
-    'arrow keys enter panel, Escape restores trigger, outside closes',
-    (tester) async {
-      final shadows = await mount(tester);
-      final trigger = find.descendant(
-        of: find.byType(SiteDesktopNavigation),
-        matching: find.widgetWithText(TextButton, '发现'),
-      );
-      final button = tester.widget<TextButton>(trigger);
-      button.focusNode!.requestFocus();
-      await tester.pump();
-      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-      await tester.pumpAndSettle();
-      expect(find.text('游戏中心'), findsOneWidget);
-      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
-      await tester.pumpAndSettle();
-      expect(button.focusNode!.hasFocus, true);
-      expect(find.text('游戏中心'), findsNothing);
-      await tester.tap(find.text('空间'));
+      addTearDown(() => debugDisableShadows = shadows);
+      for (final path in [
+        '/chatroom',
+        '/stage',
+        '/gallery',
+        '/plaza',
+        '/wiki',
+        '/game',
+        '/download',
+      ]) {
+        expect(
+          find.byKey(ValueKey('site-navigation-link-$path')),
+          findsOneWidget,
+        );
+      }
+      await tester.tap(find.byTooltip('更多'));
       await tester.pumpAndSettle();
       expect(find.text('RSS 订阅'), findsOneWidget);
-      await tester.tapAt(const Offset(50, 850));
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
       expect(find.text('RSS 订阅'), findsNothing);
-      debugDisableShadows = shadows;
+      expect(tester.takeException(), isNull);
     },
   );
 }

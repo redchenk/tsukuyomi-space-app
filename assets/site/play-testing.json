@@ -1,0 +1,223 @@
+{
+  "policy": {
+    "consentVersion": "2026-10-23",
+    "packageName": "space.tsukuyomi.tsukuyomi_space_app",
+    "contact": "redchenk919@gmail.com",
+    "requirementsUrl": "https://support.google.com/googleplay/android-developer/answer/14151465?hl=zh-Hans",
+    "joiningGuideUrl": "https://support.google.com/googleplay/android-developer/answer/9845334?hl=zh-Hans"
+  },
+  "zh": {
+    "steps": [
+      [
+        "确认 Google 账号",
+        "打开手机上的 Google Play，点击右上角头像，确认当前邮箱。请用这个邮箱报名；Google 账号不一定是 Gmail 邮箱。"
+      ],
+      [
+        "填写申请，等待邀请",
+        "提交本页表单后，站长会整理名单。测试版本和名单就绪后，加入链接与使用说明会发到报名邮箱，请留意垃圾邮件。此时还没有开始计算 14 天。"
+      ],
+      [
+        "打开邀请，成为测试者",
+        "收到封闭测试邀请后，用报名时的同一个 Google 账号打开邀请链接，点击“成为测试者 / Become a tester”。页面显示你已成为测试者后，才算加入封闭测试。若之前加入了内部测试，需要先退出内部测试，再加入此次封闭测试。"
+      ],
+      [
+        "从 Google Play 安装",
+        "在加入成功页面点击 Google Play 下载入口，确认商店右上角还是同一个账号，再安装或更新月读空间。安装后按应用内引导设置；聊天服务尚未配置时，可以先测试页面、阅读和 Live2D。"
+      ],
+      [
+        "实际体验，持续参与 14 天",
+        "从成功加入封闭测试起，连续保持测试资格至少 14 天，期间在不同日期实际体验并反馈。没有固定每日打卡或好评任务。可以随时退出；退出再加入后，连续参与时间需要重新累计。"
+      ]
+    ],
+    "faqs": [
+      [
+        "报名后没有收到邀请？",
+        "提交表单只是登记申请。站长需要把邮箱加入测试名单，并确认版本可用；名单和链接的更改也可能需要数小时生效。请先检查邮箱拼写和垃圾邮件，再联系下方邮箱。"
+      ],
+      [
+        "提示“不符合资格”或找不到应用？",
+        "先核对浏览器和 Play 商店是否都登录报名邮箱。封闭测试通常不能直接搜索到，请从邀请链接进入；仍无法加入时，将页面提示、设备型号和所在国家/地区告知站长。不要提交密码、验证码或 API 密钥。"
+      ],
+      [
+        "已经安装官网 APK，可以参加吗？",
+        "可以申请，但仍需通过 Google Play 链接成为测试者并从商店安装测试版本。仅安装 APK 不计入封闭测试。如果提示签名或安装冲突，先备份本地数据并联系站长，不要贸然卸载。"
+      ],
+      [
+        "聊天没有回复，或需要配置模型？",
+        "按应用内首次使用引导配置你选择的聊天服务；服务是否收费以提供方为准。遇到配置问题也可以反馈，不必为参加测试购买服务。先测试能使用的功能即可，不要在反馈里附上密钥。"
+      ],
+      [
+        "怎么修改邮箱或删除申请？",
+        "请用报名邮箱联系 redchenk919@gmail.com，说明需要修改或删除。站长核验后处理。网站申请资料与 Google Play 的测试资格分别管理，删除申请不会自动退出 Google Play 测试。"
+      ]
+    ],
+    "eyebrow": "月读空间 · Android 封闭测试",
+    "title": "一起打磨\n八千代的日常对话",
+    "intro": "从一句问候，到接得上前文的聊天。邀请你在自己的安卓手机上体验，把真实的感受告诉我们。",
+    "android": "可使用 Google Play 的安卓设备",
+    "days": "连续加入至少 14 天，实际体验",
+    "honest": "真实反馈，不要求好评",
+    "jumpGuide": "先看加入教程",
+    "receipt": "申请已收到 · 等待邀请",
+    "receiptTitle": "谢谢，接下来留意邮箱",
+    "receiptInfo": "名单和测试版本就绪后，我们会通过邮箱发送加入链接和使用说明。同一邮箱重复申请会沿用已有记录。",
+    "receiptWait": "申请成功还不等于成为 Google Play 测试者，也没有开始计算 14 天。请收到邀请后继续完成下方步骤。",
+    "receiptNext": "查看接下来的步骤",
+    "formKicker": "先登记，再加入测试",
+    "formTitle": "申请参与测试",
+    "formIntro": "无需注册本站账号。请留下 Google Play 使用的邮箱。",
+    "loading": "正在读取报名信息…",
+    "closed": "本轮报名暂时关闭。你仍可查看下方教程，稍后再来。",
+    "email": "Google 账号邮箱",
+    "required": "必填",
+    "emailHelp": "在 Google Play 右上角头像处确认；非 Gmail 的 Google 账号也可以。",
+    "device": "设备型号",
+    "optional": "选填",
+    "deviceHint": "例如 Redmi K90",
+    "version": "Android 版本",
+    "eligible": "我有可使用 Google Play 的安卓设备，愿意连续加入至少 14 天并实际体验。",
+    "consent": "我同意将邮箱及选填的设备信息用于本次测试招募、邀请和反馈联络，并已阅读",
+    "dataUse": "资料使用说明",
+    "and": "与",
+    "privacy": "隐私政策",
+    "dot": "。",
+    "submitting": "正在提交…",
+    "submit": "提交测试申请",
+    "retry": "重新加载",
+    "noSecrets": "不需要提供 Google 密码、验证码或 API 密钥。",
+    "nav": "本页导航",
+    "apply": "申请报名",
+    "guide": "加入教程",
+    "testing": "测什么",
+    "faq": "常见问题",
+    "guideTitle": "从报名，到真正加入测试",
+    "guideIntro": "请按顺序完成。报名、成为测试者、安装应用，是三个不同的步骤。",
+    "internal": "如果收到的是内部测试邀请，请先按邮件说明加入并体验；内部测试不计入下方的封闭测试 14 天。之后收到封闭测试邀请时，需要先退出内部测试，再加入封闭测试。",
+    "join": "已收到邀请？打开 Google Play 加入页",
+    "requirements": "Google 对适用的新个人开发者账号要求：至少 12 位测试者连续加入封闭测试 14 天后，开发者才能申请正式发布资格；达到人数和天数不代表自动获批。",
+    "official": "官方要求",
+    "testingTitle": "不需要专业测试经验",
+    "character": "像不像八千代",
+    "characterBody": "聊聊音乐、创作和小愿望，试试夸奖、打趣或认真交流。告诉我们哪里像她，哪里显得刻意。",
+    "memory": "能不能接住前文",
+    "memoryBody": "连续聊几轮，再更正一个细节或换个话题。看看是否记错、反复追问，或编造没发生的共同经历。",
+    "mobile": "手机上好不好用",
+    "mobileBody": "试试安装、登录、页面阅读和 Live2D。卡顿、闪退、按钮不好点或看不懂的提示，都值得反馈。",
+    "feedbackTitle": "一句具体的反馈，就很有帮助",
+    "feedbackBody": "建议附上：手机型号、Android 版本、应用版本、操作步骤、实际发生了什么。截图可选，请遮住个人信息。",
+    "feedback": "邮件反馈",
+    "faqTitle": "遇到问题时",
+    "dataTitle": "你的申请资料",
+    "dataBody": "我们保存报名邮箱、选填的设备信息、同意说明的版本、申请时间和邀请处理状态，用于本次测试名单、邀请及反馈联络。邮箱会由站长加入 Google Play Console 测试名单，由 Google 按其规则处理。资料不公开展示，仅超级管理员可查看或导出。",
+    "contact": "如需查阅、更正或删除，请用报名邮箱联系",
+    "privacyFull": "完整隐私政策",
+    "googleGuide": "Google 官方加入说明"
+  },
+  "en": {
+    "steps": [
+      [
+        "Check your Google account",
+        "Open Google Play on your Android device, tap your profile picture and check the email. Apply with this account; it does not have to be a Gmail address."
+      ],
+      [
+        "Apply and wait for an invitation",
+        "Submit the form on this page. Once the release and tester list are ready, the administrator will email your joining link and setup instructions. Check spam too. The 14-day period has not started at this step."
+      ],
+      [
+        "Open the invitation and opt in",
+        "After receiving a closed-test invitation, open it while signed in to the same Google account and choose “Become a tester”. You have joined only once Google confirms it. If you previously joined internal testing, leave that track before joining this closed test."
+      ],
+      [
+        "Install through Google Play",
+        "Follow the Google Play download link on the confirmation page, check the account again, then install or update Tsukuyomi Space. Follow the in-app setup guide. You can test navigation, reading and Live2D before configuring a chat service."
+      ],
+      [
+        "Use the app and stay opted in for 14 days",
+        "Remain opted in continuously for at least 14 days from joining. Use the app on different days and share real feedback. There is no fixed daily check-in or positive-review task. You may leave at any time; leaving and rejoining restarts the continuous period."
+      ]
+    ],
+    "faqs": [
+      [
+        "No invitation yet?",
+        "The form registers your application. Your email still needs to be added to the tester list and the release made available. Google changes can take several hours. Check your email spelling and spam folder, then contact us below."
+      ],
+      [
+        "Not eligible or app not found?",
+        "Check that the browser and Play Store both use your registered email. Enter through the invitation instead of searching. If it still fails, send the error, device model and country/region. Never send passwords, verification codes or API keys."
+      ],
+      [
+        "Already installed the website APK?",
+        "You can apply, but must still opt in through the Google Play link and install the test version from the store. Sideloading alone does not count. If there is a signing or installation conflict, back up local data and contact us before uninstalling."
+      ],
+      [
+        "Chat needs configuration or does not reply?",
+        "Follow the in-app guide to configure your chosen chat service. Provider charges may apply, but you do not need to buy a service to participate. Report setup problems and test the features available to you; never include keys in feedback."
+      ],
+      [
+        "How do I correct or delete my application?",
+        "Contact redchenk919@gmail.com from your registered email to request a correction or deletion. The administrator will verify and handle it. Website records and Google Play membership are separate; deleting your application does not opt you out of Google Play."
+      ]
+    ],
+    "eyebrow": "Tsukuyomi Space · Android closed test",
+    "title": "Help shape everyday\nconversations with Yachiyo",
+    "intro": "From a first hello to a conversation that stays connected. Try the app on your Android device and tell us how it feels.",
+    "android": "An Android device with Google Play",
+    "days": "Stay opted in for 14 days and test the app",
+    "honest": "Honest feedback, no positive-review requirement",
+    "jumpGuide": "Read the joining guide",
+    "receipt": "Application received · Awaiting invitation",
+    "receiptTitle": "Thank you. Watch your inbox.",
+    "receiptInfo": "We will email the joining link and setup guide once the tester list and release are ready. Repeat applications keep the existing record.",
+    "receiptWait": "Applying does not make you a Google Play tester or start the 14-day period. Follow the steps below when your invitation arrives.",
+    "receiptNext": "See the next steps",
+    "formKicker": "APPLY, THEN JOIN",
+    "formTitle": "Apply to test",
+    "formIntro": "No website account needed. Use the email signed in to Google Play.",
+    "loading": "Loading registration…",
+    "closed": "Registration is currently paused. You can still read the guide below.",
+    "email": "Google account email",
+    "required": "Required",
+    "emailHelp": "Check it under your Google Play profile. Non-Gmail Google accounts work too.",
+    "device": "Device model",
+    "optional": "Optional",
+    "deviceHint": "e.g. Pixel 9",
+    "version": "Android version",
+    "eligible": "I have an Android device with Google Play and intend to stay opted in for at least 14 days and test the app.",
+    "consent": "I agree to use my email and optional device details for this test, invitations and feedback, and have read the",
+    "dataUse": "data-use notice",
+    "and": " and ",
+    "privacy": "Privacy Policy",
+    "dot": ".",
+    "submitting": "Submitting…",
+    "submit": "Submit application",
+    "retry": "Retry",
+    "noSecrets": "Never provide your Google password, verification codes or API keys.",
+    "nav": "On this page",
+    "apply": "Apply",
+    "guide": "Joining guide",
+    "testing": "What to test",
+    "faq": "Help",
+    "guideTitle": "From applying to joining the test",
+    "guideIntro": "Follow these steps in order. Applying, opting in and installing are separate steps.",
+    "internal": "If your invitation is for internal testing, follow the email to join and try the app. Internal testing does not count toward the closed-test 14 days below. Leave internal testing before accepting a later closed-test invitation.",
+    "join": "Invited? Open the Google Play opt-in page",
+    "requirements": "For affected new personal developer accounts, Google requires at least 12 testers opted in continuously for 14 days before the developer can apply for production access. Meeting the minimum does not guarantee approval.",
+    "official": "Official requirements",
+    "testingTitle": "No testing experience required",
+    "character": "Does it feel like Yachiyo?",
+    "characterBody": "Talk about music, creativity and little wishes. Try praise, banter or a serious conversation. Tell us what feels in character or forced.",
+    "memory": "Does the conversation connect?",
+    "memoryBody": "Chat for several turns, correct a detail or change the subject. Watch for forgotten details, repeated questions or invented shared memories.",
+    "mobile": "Does it work on your phone?",
+    "mobileBody": "Try installation, sign-in, reading and Live2D. Report lag, crashes, difficult buttons or confusing instructions.",
+    "feedbackTitle": "One specific observation helps",
+    "feedbackBody": "Include your device, Android and app versions, steps and what happened. Screenshots are optional; hide personal information.",
+    "feedback": "Email feedback",
+    "faqTitle": "If you get stuck",
+    "dataTitle": "Your application data",
+    "dataBody": "We store your email, optional device details, consent version, submission time and invitation status for this test. The administrator will add your email to the Google Play Console tester list, where Google processes it under its policies. These details are private and available only to the super administrator.",
+    "contact": "To access, correct or delete your application, contact us from your registered email at",
+    "privacyFull": "Full Privacy Policy",
+    "googleGuide": "Google testing guide"
+  }
+}

@@ -126,8 +126,9 @@ class ReleaseTests(unittest.TestCase):
 
     def _site_assets(self):
         source = self.root / 'assets'
-        for folder in ('images', 'game', 'live2d', 'shaders'):
+        for folder in ('images', 'game', 'live2d', 'shaders', 'site'):
             (source / folder).mkdir(parents=True)
+        (source / 'site/download-copy.json').write_bytes(b'{}')
         (source / 'images/wiki.webp').write_bytes(b'wiki-image')
         (source / 'game/costume.png').write_bytes(b'costume')
         (source / 'game/sound.wav').write_bytes(b'sound')

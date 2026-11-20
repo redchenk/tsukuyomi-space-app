@@ -33,6 +33,8 @@ class _DriftPageState extends State<DriftPage> with WidgetsBindingObserver {
   late final submissions = DriftSubmissions(c.storage);
   final draft = TextEditingController(), reply = TextEditingController();
   final replyDrafts = <String, String>{};
+  final replied = <String>{};
+  bool sealed = false;
   Map<String, dynamic>? thread, prompt, writingPrompt, pendingDaily;
   List<Map<String, dynamic>> bottles = [], moderationReplies = [];
   String owner = '', filter = 'all', notice = '', error = '', translated = '';
@@ -88,6 +90,9 @@ class _DriftPageState extends State<DriftPage> with WidgetsBindingObserver {
     draft.clear();
     reply.clear();
     replyDrafts.clear();
+    replied.clear();
+    sealed = false;
+    notice = '';
     pendingDaily = null;
     setState(() {
       thread = null;
@@ -192,6 +197,7 @@ class _DriftPageState extends State<DriftPage> with WidgetsBindingObserver {
           data['replies'].toString() != thread?['replies'].toString()) {
         translated = '';
       }
+      if ('${thread?['bottle']?['id']}' != id) sealed = false;
       thread = data;
       writing = false;
       reply.text = replyDrafts[id] ?? '';
@@ -262,18 +268,42 @@ class _DriftPageState extends State<DriftPage> with WidgetsBindingObserver {
   Future<void> _reply() async {
     final id = '${thread!['bottle']['id']}', content = reply.text.trim();
     if (content.isEmpty) return;
-    final scope = '$owner:reply:$id';
+    final scope = '$owner:reply:$id', identity = owner;
     final payload = await submissions.prepare(scope, {
       'content': content,
       'language': lang,
     });
-    await _request('POST', '/api/drift/$id/replies', payload);
+    if (!mounted ||
+        identity != c.scope ||
+        thread?['bottle']?['id'].toString() != id) {
+      return;
+    }
+    final result = mapOf(
+      await _request('POST', '/api/drift/$id/replies', payload),
+    );
     await submissions.complete(scope, '${payload['requestId']}');
-    if (!mounted) return;
-    reply.clear();
-    replyDrafts[id] = '';
-    await _open(id);
-    setState(() => notice = '回信已保存');
+    if (!mounted || identity != owner) return;
+    replied.add(id);
+    replyDrafts.remove(id);
+    final receipt = switch (result['status']) {
+      'approved' => '回信已发送',
+      'pending' => '回信已提交，审核通过后对方就能看到',
+      'rejected' => '回信未通过审核，对方无法看到',
+      _ => '回信已保存',
+    };
+    setState(() {
+      if ('${thread?['bottle']?['id']}' == id) reply.clear();
+      notice = receipt;
+    });
+    if ('${thread?['bottle']?['id']}' == id) {
+      try {
+        await _open(id);
+      } catch (_) {
+        if (mounted && identity == owner) {
+          setState(() => notice = '$receipt · 往返信件暂时无法刷新');
+        }
+      }
+    }
   }
 
   Future<void> _action(String action, String label) async {
@@ -302,6 +332,10 @@ class _DriftPageState extends State<DriftPage> with WidgetsBindingObserver {
     refresh?.cancel();
     setState(() {
       thread = null;
+      if (action == 'return') {
+        replyDrafts.remove(id);
+        bottles.removeWhere((b) => '${b['id']}' == id);
+      }
       notice = '$label · 已完成';
     });
     await _load();
@@ -427,6 +461,11 @@ class _DriftPageState extends State<DriftPage> with WidgetsBindingObserver {
                           setState(() => notice = '湖面暂时没有新的来信');
                         } else {
                           await _open('${found['id']}');
+                          if (mounted &&
+                              '${thread?['bottle']?['id']}' ==
+                                  '${found['id']}') {
+                            setState(() => sealed = true);
+                          }
                         }
                       }),
                 child: const SiteText('拾起一封来信'),
@@ -550,6 +589,40 @@ class _DriftPageState extends State<DriftPage> with WidgetsBindingObserver {
         bottle['closed'] != 1 &&
         bottle['closed'] != true &&
         thread!['blocked'] != true;
+    final canReturn =
+        canReply &&
+        '${bottle['recipient_id']}' == c.account?.id &&
+        replies.isEmpty &&
+        !replied.contains('${bottle['id']}');
+    if (sealed) {
+      return SiteCard(
+        child: Column(
+          children: [
+            Image.asset(
+              'assets/images/drift/lantern/paper-lantern.webp',
+              height: 120,
+            ),
+            const SiteText('拾到了一封来信'),
+            Wrap(
+              spacing: 12,
+              children: [
+                if (canReturn)
+                  TextButton(
+                    onPressed: busy
+                        ? null
+                        : () => _run(() => _action('return', '放回湖中')),
+                    child: const SiteText('放回湖中'),
+                  ),
+                FilledButton(
+                  onPressed: () => setState(() => sealed = false),
+                  child: const SiteText('打开来信'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
     return SiteCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -638,8 +711,7 @@ class _DriftPageState extends State<DriftPage> with WidgetsBindingObserver {
                         }),
                   child: const SiteText('关注对方'),
                 ),
-              if ('${bottle['recipient_id']}' == c.account?.id &&
-                  replies.isEmpty)
+              if (canReturn)
                 TextButton(
                   onPressed: busy
                       ? null

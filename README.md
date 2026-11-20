@@ -1,6 +1,6 @@
 # 月读空间 · Flutter 原生客户端
 
-Tsukuyomi Space 的独立 Flutter 客户端。0.6.36 同步网站近期更新，加入 DeepSeek 应用接口、语音转写、星海来信与五子棋，更新季节素材、手机交互和管理功能；保留原生 Room、官方八千代语音、Live2D 和桌面 Agent。详见[本版发布说明](docs/release-notes.md)。
+Tsukuyomi Space 的独立 Flutter 客户端。0.6.37 同步网页大厅、公共聊天室、文章列表、像素工坊及下载和管理页面；保留原生 Room、官方八千代语音、Live2D 和桌面 Agent。详见[本版发布说明](docs/release-notes.md)。
 
 站内直供、原生支付中心、充值订单、用量账单及支付宝移动支付的开发同步与验收边界见 [站内直供与原生支付中心](docs/native-official-payments-2026-10-21.md)。移动应用的 App 支付采用独立服务端凭据，SDK 回调后由主站查单确认到账。
 
@@ -10,7 +10,7 @@ Tsukuyomi Space 的独立 Flutter 客户端。0.6.36 同步网站近期更新，
 
 下载安装包见 [GitHub Releases](https://github.com/redchenk/tsukuyomi-space-app/releases)，配置与安装说明见 [release-guide.md](docs/release-guide.md)。发布包包括 Android APK、macOS Universal DMG、Windows 安装程序、Linux DEB，以及供用户自签的 iOS IPA 和 HarmonyOS HAP。
 
-所有平台打开即进入 Room，不播放 Access 动画。默认关闭演示；首次使用在聊天区填写模型地址、名称和 Key，保存后直接真实聊天。已有配置直接可用，本地历史先加载，登录与同步随后执行。升级保留独立演示历史。
+所有平台启动后直接进入私人 Room。大厅可以带着一句话进入私人 Room，也可以打开公共聊天室。默认关闭演示；首次使用在聊天区填写模型地址、名称和 Key，保存后直接真实聊天。已有配置直接可用，本地历史先加载，登录与同步随后执行。升级保留独立演示历史。
 
 Android 使用 Cubism 官方 OpenGL ES 渲染器和 Flutter 外部纹理；iOS/macOS、Windows、Linux 分别接入 Metal、D3D11 和 OpenGL。自动档使用 3K 图集，保留单帧限流、聊天交互期间动画和失败自动回退；设置中可切回 Canvas。HarmonyOS 继续使用 Canvas。实现与设备验收边界见 [原生 GPU 渲染](docs/native-live2d-gpu.md) 和 [跨平台适配](docs/native-live2d-platforms.md)。
 

@@ -88,7 +88,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(RoomPage), findsOneWidget);
     expect(launches, 0);
-    await tester.tap(find.text('中枢'));
+    await tester.tap(find.byKey(const Key('site-brand-title')));
     await tester.pumpAndSettle();
     expect(find.byType(HubPage), findsOneWidget);
     expect(find.byType(SitePage), findsNothing);
@@ -228,7 +228,7 @@ void main() {
         'memory',
       );
       final state = tester.state(find.byType(RoomSettingsPage));
-      await tester.tap(find.text('中枢'));
+      await tester.tap(find.byKey(const Key('site-brand-title')));
       await tester.pumpAndSettle();
       expect(find.byType(HubPage), findsOneWidget);
       Navigator.of(tester.element(find.byType(HubPage))).pop();
@@ -302,18 +302,18 @@ void main() {
     await tester.ensureVisible(model);
     await tester.enterText(model, 'unsaved-model');
     await tester.pump();
-    await tester.ensureVisible(find.text('中枢'));
+    await tester.ensureVisible(find.byKey(const Key('site-brand-title')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('中枢'));
+    await tester.tap(find.byKey(const Key('site-brand-title')));
     await tester.pumpAndSettle();
     expect(find.text('设置尚未保存'), findsOneWidget);
     expect(find.byType(HubPage), findsNothing);
     await tester.tap(find.text('继续编辑'));
     await tester.pumpAndSettle();
     expect(tester.widget<TextField>(model).controller!.text, 'unsaved-model');
-    await tester.ensureVisible(find.text('中枢'));
+    await tester.ensureVisible(find.byKey(const Key('site-brand-title')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('中枢'));
+    await tester.tap(find.byKey(const Key('site-brand-title')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('放弃并离开'));
     await tester.pumpAndSettle();
@@ -340,7 +340,7 @@ void main() {
       Brightness.dark,
     );
     expect((c.storage as MemoryStorage).drafts['app-theme'], 'dark');
-    await tester.tap(find.text('中枢'));
+    await tester.tap(find.byKey(const Key('site-brand-title')));
     await tester.pumpAndSettle();
     expect(
       Theme.of(tester.element(find.byType(HubPage))).brightness,

@@ -1237,6 +1237,16 @@ class _ManagementPageState extends State<ManagementPage> {
             spacing: 8,
             runSpacing: 8,
             children: [
+              if (_admin['role'] == 'super_admin') ...[
+                TextButton(
+                  onPressed: () => widget.onGo('/admin/account-deletions'),
+                  child: const SiteText('注销申请'),
+                ),
+                TextButton(
+                  onPressed: () => widget.onGo('/admin/play-testing'),
+                  child: const SiteText('Google Play 测试申请'),
+                ),
+              ],
               for (final panel in panels)
                 ChoiceChip(
                   label: Text(_panels[panel]!),

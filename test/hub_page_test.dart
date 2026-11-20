@@ -253,6 +253,11 @@ void main() {
     expect(bounded.height, 54);
   });
 
+  Future<void> reveal(WidgetTester tester, Finder control) async {
+    await Scrollable.ensureVisible(tester.element(control), alignment: .45);
+    await tester.pumpAndSettle();
+  }
+
   for (final width in [320.0, 390.0, 1280.0]) {
     testWidgets('native Hub uses website sections without overflow at $width', (
       tester,
@@ -269,30 +274,31 @@ void main() {
       addTearDown(c.dispose);
       final destinations = <String>[];
       await mount(tester, c, destinations.add);
-      expect(find.text('与你相遇，在月光之下'), findsOneWidget);
+      expect(find.text('给日常\n留一点月光。'), findsOneWidget);
       expect(find.text('月下故事'), findsOneWidget);
-      expect(find.text('最新图库影像'), findsOneWidget);
-      expect(find.text('月光像素'), findsOneWidget);
+      expect(find.text('光影收藏 ↗'), findsOneWidget);
+      expect(find.text('像素里的宇宙 ↗'), findsOneWidget);
       expect(find.text('今晚的问候'), findsOneWidget);
       expect(find.text('第四条不出现在预览'), findsNothing);
-      expect(find.text('1天1时'), findsOneWidget);
+      expect(find.byKey(const Key('hub-letter')), findsOneWidget);
       expect(
         site.calls,
         containsAll(['GET /api/hub-preview', 'GET /api/settings']),
       );
-      expect(site.calls.any((call) => call.contains('/articles?')), isFalse);
-      await tester.tap(find.text('进入私人居所'));
+      expect(site.calls.any((call) => call.contains('/articles?')), isTrue);
+      await reveal(tester, find.byTooltip('带着这句话进入房间'));
+      await tester.tap(find.byTooltip('带着这句话进入房间'));
       expect(destinations, ['/room']);
       for (final entry in {
-        '月下故事': '/stage',
-        '最新图库影像': '/gallery',
-        '月光像素': '/pixel',
+        '月下故事': '/articles/42',
+        '光影收藏 ↗': '/gallery',
+        '像素里的宇宙 ↗': '/pixel',
       }.entries) {
-        await tester.ensureVisible(find.text(entry.key));
+        await reveal(tester, find.text(entry.key));
         await tester.tap(find.text(entry.key));
         expect(destinations.last, entry.value);
       }
-      await tester.ensureVisible(find.text('九月公告'));
+      await reveal(tester, find.text('九月公告'));
       await tester.tap(find.text('九月公告'));
       await tester.pumpAndSettle();
       expect(find.text('源站的公告正文'), findsOneWidget);
@@ -301,120 +307,51 @@ void main() {
     });
   }
 
-  testWidgets(
-    'Hub failure can be retried and does not fetch article list as a fallback',
-    (tester) async {
-      var failed = true;
-      final site = HubSite((method, path, body) async {
-        if (path == '/api/settings') return publicSettings;
-        if (failed) throw const ApiFailure('预览读取失败', status: 404);
-        return preview();
-      });
-      final c = await controller(site);
-      addTearDown(c.dispose);
-      await mount(tester, c);
-      expect(find.textContaining('预览读取失败'), findsOneWidget);
-      failed = false;
-      await tester.ensureVisible(find.text('重试'));
-      await tester.tap(find.text('重试'));
-      await tester.pumpAndSettle();
-      expect(find.text('月下故事'), findsOneWidget);
-      expect(find.textContaining('预览读取失败'), findsNothing);
-      expect(
-        site.calls.where((call) => call == 'GET /api/hub-preview').length,
-        2,
-      );
-    },
-  );
+  testWidgets('Hub retries its preview after a failure', (tester) async {
+    var failed = true;
+    final site = HubSite((method, path, body) async {
+      if (path == '/api/settings') return publicSettings;
+      if (failed) throw const ApiFailure('预览读取失败', status: 404);
+      return preview();
+    });
+    final c = await controller(site);
+    addTearDown(c.dispose);
+    await mount(tester, c);
+    expect(find.textContaining('预览读取失败'), findsOneWidget);
+    failed = false;
+    await reveal(tester, find.text('重试'));
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+    expect(find.text('月下故事'), findsOneWidget);
+    expect(find.textContaining('预览读取失败'), findsNothing);
+    expect(
+      site.calls.where((call) => call == 'GET /api/hub-preview').length,
+      2,
+    );
+  });
 
   testWidgets(
-    'quick greeting uses the source mutation once and preserves failures',
-    (tester) async {
-      var fail = true, greeting = '今晚的问候';
-      final bodies = <Map<String, dynamic>>[];
-      final site = HubSite((method, path, body) async {
-        if (path == '/api/settings') return publicSettings;
-        if (method == 'POST') {
-          expect(path, '/api/messages');
-          bodies.add(body!);
-          if (fail) throw const ApiFailure('发布失败', status: 500);
-          greeting = body['content'] as String;
-          return {
-            'success': true,
-            'data': {'id': 15, 'author': 'Alice', 'content': greeting},
-          };
-        }
-        return preview(message: greeting);
-      });
-      final c = await controller(site);
-      await c.login('alice', 'test');
-      addTearDown(c.dispose);
-      await mount(tester, c);
-      await tester.ensureVisible(find.byKey(const Key('hub-greeting')));
-      await tester.enterText(
-        find.byKey(const Key('hub-greeting')),
-        '  从原生中枢问好  ',
-      );
-      await tester.ensureVisible(find.byKey(const Key('hub-send')));
-      await tester.tap(find.byKey(const Key('hub-send')));
-      await tester.pumpAndSettle();
-      expect(bodies, [
-        {'content': '从原生中枢问好'},
-      ]);
-      expect(find.textContaining('发布失败'), findsOneWidget);
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const Key('hub-greeting')))
-            .controller!
-            .text,
-        '  从原生中枢问好  ',
-      );
-      fail = false;
-      await tester.tap(find.byKey(const Key('hub-send')));
-      await tester.pumpAndSettle();
-      expect(bodies.length, 2);
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const Key('hub-greeting')))
-            .controller!
-            .text,
-        isEmpty,
-      );
-      expect(find.text('从原生中枢问好'), findsOneWidget);
-      expect(find.text('已发布'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'expired Hub session asks for login and preserves the unsent greeting',
+    'Hub carries a private room draft without posting a plaza message',
     (tester) async {
       final site = HubSite(
         (method, path, body) async =>
             path == '/api/settings' ? publicSettings : preview(),
       );
       final c = await controller(site);
-      await c.login('alice', 'test');
-      c.expireSession();
       addTearDown(c.dispose);
-      await mount(tester, c);
-      await tester.ensureVisible(find.byKey(const Key('hub-greeting')));
-      await tester.enterText(find.byKey(const Key('hub-greeting')), '尚未发送的问候');
-      await tester.ensureVisible(find.byKey(const Key('hub-send')));
-      await tester.tap(find.byKey(const Key('hub-send')));
-      await tester.pumpAndSettle();
-      expect(find.text('欢迎回来'), findsOneWidget);
-      expect(
-        site.calls.where((call) => call.startsWith('POST /api/messages')),
-        isEmpty,
-      );
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const Key('hub-greeting')))
-            .controller!
-            .text,
-        '尚未发送的问候',
-      );
-      await tester.pumpWidget(const SizedBox.shrink());
+      final routes = <String>[];
+      await mount(tester, c, routes.add);
+      final input = find.byKey(const Key('hub-room-draft'));
+      await reveal(tester, input);
+      await tester.enterText(input, '带进房间的一句话');
+      final action = find.byTooltip('带着这句话进入房间');
+      await reveal(tester, action);
+      await tester.tap(action);
+      await tester.pump();
+      expect(c.draft, '带进房间的一句话');
+      expect(await c.storage.draft(c.scope), c.draft);
+      expect(routes, ['/room']);
+      expect(site.calls.any((s) => s.startsWith('POST')), isFalse);
     },
   );
 
@@ -446,54 +383,24 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'late Hub greeting does not clear the next account draft or feedback',
-    (tester) async {
-      final pending = Completer<Map<String, dynamic>>();
-      final site = HubSite((method, path, body) async {
-        if (path == '/api/settings') return publicSettings;
-        if (method == 'POST') return pending.future;
-        return preview();
-      });
-      final storage = MemoryStorage();
-      final c = await controller(site, storage: storage);
-      await c.login('alice', 'test');
-      addTearDown(c.dispose);
-      storage.drafts['hub-greeting:https://yachiyo.hk:bob'] = 'Bob 的草稿';
-      await mount(tester, c);
-      await tester.ensureVisible(find.byKey(const Key('hub-greeting')));
-      await tester.enterText(
-        find.byKey(const Key('hub-greeting')),
-        'Alice 的留言',
-      );
-      await tester.ensureVisible(find.byKey(const Key('hub-send')));
-      await tester.tap(find.byKey(const Key('hub-send')));
-      await tester.pump();
-      await c.login('bob', 'test');
-      await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const Key('hub-greeting')))
-            .controller!
-            .text,
-        'Bob 的草稿',
-      );
-      pending.complete({
-        'success': true,
-        'data': {'id': 15, 'content': 'Alice 的留言'},
-      });
-      await tester.pumpAndSettle();
-      expect(
-        tester
-            .widget<TextField>(find.byKey(const Key('hub-greeting')))
-            .controller!
-            .text,
-        'Bob 的草稿',
-      );
-      expect(find.text('已发布'), findsNothing);
-      expect(find.text('Alice 的留言'), findsNothing);
-    },
-  );
+  testWidgets('switching identity clears the text entered on Hub', (
+    tester,
+  ) async {
+    final c = await controller(
+      HubSite(
+        (method, path, body) async =>
+            path == '/api/settings' ? publicSettings : preview(),
+      ),
+    );
+    addTearDown(c.dispose);
+    await mount(tester, c);
+    final field = find.byKey(const Key('hub-room-draft'));
+    await reveal(tester, field);
+    await tester.enterText(field, 'private draft');
+    await c.login('bob', 'test');
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+  });
 
   testWidgets('capture native Hub with system fonts', (tester) async {
     await tester.runAsync(() async {
@@ -570,9 +477,7 @@ void main() {
           await output.writeAsBytes(bytes!.buffer.asUint8List());
           image.dispose();
         });
-        await tester.ensureVisible(
-          find.byKey(const Key('hub-community-stats')),
-        );
+        await reveal(tester, find.byKey(const Key('hub-letter')));
         await tester.pumpAndSettle();
         await tester.runAsync(() async {
           final image = await boundary.toImage();

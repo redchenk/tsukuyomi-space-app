@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/models.dart';
 
-enum PixelTool { brush, eraser, fill, move }
+enum PixelTool { brush, eraser, fill, picker, move }
+
+const maxPixelBrushSize = 8;
 
 const pixelPresetPalette = [
   '#0b1020',
@@ -162,8 +164,23 @@ class PixelDocument extends ChangeNotifier {
     _changed();
   }
 
+  PixelTool _lastPaintTool = PixelTool.brush;
+  bool _sampling = false;
+
   void chooseTool(PixelTool value) {
+    if (value == PixelTool.brush ||
+        value == PixelTool.eraser ||
+        value == PixelTool.fill) {
+      _lastPaintTool = value;
+    }
     tool = value;
+    notifyListeners();
+  }
+
+  void configureBrush({int? size, bool? pressure, bool? smoothing}) {
+    if (size != null) brushSize = size.clamp(1, maxPixelBrushSize);
+    if (pressure != null) pressureEnabled = pressure;
+    if (smoothing != null) stabilizerEnabled = smoothing;
     notifyListeners();
   }
 
@@ -224,7 +241,10 @@ class PixelDocument extends ChangeNotifier {
 
   void cancelStroke() {
     final before = _beforeStroke;
-    if (before == null) return;
+    if (before == null) {
+      endStroke();
+      return;
+    }
     _undo
       ..clear()
       ..addAll(_undoBeforeStroke!);
@@ -246,6 +266,10 @@ class PixelDocument extends ChangeNotifier {
     if (tool == PixelTool.move) return;
     final index = cellIndex(x, y);
     if (index == null) return;
+    if (tool == PixelTool.picker) {
+      sample(x, y);
+      return;
+    }
     _beforeStroke = snapshot;
     _undoBeforeStroke = List.of(_undo);
     _redoBeforeStroke = List.of(_redo);
@@ -268,6 +292,10 @@ class PixelDocument extends ChangeNotifier {
     double pressure = .5,
     bool pen = false,
   }) {
+    if (_sampling) {
+      sample(x, y);
+      return;
+    }
     if (!_drawing || _lastPoint == null) return;
     final (lastX, lastY) = _lastPoint!;
     if (stabilizerEnabled && pen) {
@@ -297,6 +325,10 @@ class PixelDocument extends ChangeNotifier {
   }
 
   void endStroke() {
+    if (_sampling) {
+      _sampling = false;
+      if (tool == PixelTool.picker) chooseTool(_lastPaintTool);
+    }
     _beforeStroke = null;
     _undoBeforeStroke = _redoBeforeStroke = null;
     _drawing = false;
@@ -307,13 +339,25 @@ class PixelDocument extends ChangeNotifier {
       x < 0 || y < 0 || x >= width || y >= height
       ? null
       : y.floor() * width + x.floor();
+  void sample(double x, double y) {
+    final index = cellIndex(x, y);
+    if (index == null) return;
+    _sampling = true;
+    final color = pixels[index];
+    if (color >= 0) {
+      chooseColor(color);
+    } else if (palette.contains(background) || palette.length < 64) {
+      addColor(background);
+    }
+  }
+
   void _stamp(int x, int y, double pressure, bool pen) {
-    var diameter = brushSize.clamp(1, 6);
+    var diameter = brushSize.clamp(1, maxPixelBrushSize);
     if (pressureEnabled && pen) {
       diameter =
           (diameter +
                   math.max(0, ((pressure.clamp(0.0, 1.0) - .45) * 3).round()))
-              .clamp(1, 6)
+              .clamp(1, maxPixelBrushSize)
               .toInt();
     }
     final start = (diameter - 1) ~/ 2;

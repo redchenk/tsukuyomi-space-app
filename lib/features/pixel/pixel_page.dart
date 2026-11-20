@@ -19,6 +19,7 @@ import '../site/site_share_actions.dart';
 import '../site/site_widgets.dart';
 import '../site/native_site_shell.dart';
 import 'pixel_document.dart';
+import 'pixel_studio_copy.dart';
 import 'pixel_image.dart';
 import 'pixel_session.dart';
 
@@ -47,13 +48,23 @@ class _PixelPageState extends State<PixelPage> {
       _note = TextEditingController();
   final _canvasKey = GlobalKey();
   final _notes = <String>[];
-  bool _spacePan = false, _galleryOpen = false, _controlsOpen = true;
+  bool _spacePan = false,
+      _controlsOpen = true,
+      _focusMode = false,
+      _showGrid = false;
+  final _touchStarts = <int, Offset>{};
+  Duration? _touchStart, _multiStart;
+  int _maxTouches = 0;
+  bool _touchMoved = false;
+  String label(String key) =>
+      (pixelStudioCopy[SiteLocaleScope.maybeOf(context)?.language] ??
+      pixelStudioCopy['zh']!)[key]!;
   int? _pointer;
   final _pointers = <int>{};
   bool _gestureBlocked = false;
   Offset? _panLast;
   DateTime? _lastPen;
-  double _viewportWidth = 0;
+  Size _viewportSize = Size.zero;
   PixelDocument get doc => session.document;
   @override
   void initState() {
@@ -119,19 +130,59 @@ class _PixelPageState extends State<PixelPage> {
   void _fit() {
     final size =
         (_canvasKey.currentContext?.findRenderObject() as RenderBox?)?.size;
-    final scale = size == null
-        ? .7
-        : (size.width / (doc.width * 6)).clamp(.2, 2.6);
-    _transform.value = Matrix4.identity()..scaleByDouble(scale, scale, 1, 1);
+    if (size == null || size.isEmpty) return;
+    final sx = (size.width - 16) / (doc.width * 6),
+        sy = (size.height - 16) / (doc.height * 6);
+    final scale = (sx < sy ? sx : sy).clamp(.2, 12.0);
+    final x = (size.width - doc.width * 6 * scale) / 2,
+        y = (size.height - doc.height * 6 * scale) / 2;
+    _transform.value = Matrix4.identity()
+      ..setTranslationRaw(x, y, 0)
+      ..scaleByDouble(scale, scale, 1, 1);
   }
 
-  void _zoom(double delta) {
+  void _zoomTo(double value, [Offset? point]) {
     final old = _transform.value.getMaxScaleOnAxis();
-    final value = (old + delta).clamp(.2, 2.6);
-    final matrix = _transform.value.clone()
-      ..scaleByDouble(value / old, value / old, 1, 1);
-    _transform.value = matrix;
-    setState(() {});
+    final box = _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    final pivot =
+        point ?? (box == null ? Offset.zero : box.size.center(Offset.zero));
+    final ratio = value.clamp(.2, 12.0) / old, current = _transform.value;
+    _transform.value = current.clone()
+      ..setTranslationRaw(
+        pivot.dx + (current.entry(0, 3) - pivot.dx) * ratio,
+        pivot.dy + (current.entry(1, 3) - pivot.dy) * ratio,
+        0,
+      )
+      ..scaleByDouble(ratio, ratio, 1, 1);
+  }
+
+  void _stepZoom(bool increase, [Offset? point]) {
+    const levels = [
+      .2,
+      .25,
+      .33,
+      .5,
+      .67,
+      1.0,
+      1.5,
+      2.0,
+      3.0,
+      4.0,
+      6.0,
+      8.0,
+      12.0,
+    ];
+    final current = _transform.value.getMaxScaleOnAxis();
+    final next = increase
+        ? levels.firstWhere(
+            (x) => x > current + .005,
+            orElse: () => levels.last,
+          )
+        : levels.lastWhere(
+            (x) => x < current - .005,
+            orElse: () => levels.first,
+          );
+    _zoomTo(next, point);
   }
 
   KeyEventResult _key(FocusNode node, KeyEvent event) {
@@ -151,10 +202,33 @@ class _PixelPageState extends State<PixelPage> {
       doc.redo();
       return KeyEventResult.handled;
     }
+    final modifier = keys.isControlPressed || keys.isMetaPressed;
+    if (modifier && event.logicalKey == LogicalKeyboardKey.digit0) {
+      _fit();
+      return KeyEventResult.handled;
+    }
+    if (modifier && event.logicalKey == LogicalKeyboardKey.digit1) {
+      _zoomTo(1);
+      return KeyEventResult.handled;
+    }
+    if (modifier && event.logicalKey == LogicalKeyboardKey.keyS) {
+      unawaited(session.saveDraft());
+      return KeyEventResult.handled;
+    }
+    if (!modifier && event.logicalKey == LogicalKeyboardKey.keyF ||
+        event.logicalKey == LogicalKeyboardKey.escape && _focusMode) {
+      setState(() => _focusMode = !_focusMode);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.quoteSingle) {
+      setState(() => _showGrid = !_showGrid);
+      return KeyEventResult.handled;
+    }
     final tool = {
       LogicalKeyboardKey.keyB: PixelTool.brush,
       LogicalKeyboardKey.keyE: PixelTool.eraser,
-      LogicalKeyboardKey.keyF: PixelTool.fill,
+      LogicalKeyboardKey.keyG: PixelTool.fill,
+      LogicalKeyboardKey.keyI: PixelTool.picker,
       LogicalKeyboardKey.keyV: PixelTool.move,
       LogicalKeyboardKey.keyH: PixelTool.move,
     }[event.logicalKey];
@@ -163,19 +237,19 @@ class _PixelPageState extends State<PixelPage> {
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.bracketLeft) {
-      setState(() => doc.brushSize = (doc.brushSize - 1).clamp(1, 6));
+      doc.configureBrush(size: doc.brushSize - 1);
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.bracketRight) {
-      setState(() => doc.brushSize = (doc.brushSize + 1).clamp(1, 6));
+      doc.configureBrush(size: doc.brushSize + 1);
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.minus) {
-      _zoom(-.25);
+      _stepZoom(false);
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.equal) {
-      _zoom(.25);
+      _stepZoom(true);
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -191,9 +265,26 @@ class _PixelPageState extends State<PixelPage> {
         DateTime.now().difference(_lastPen!).inMilliseconds < 850) {
       return;
     }
+    if (event.kind == PointerDeviceKind.touch) {
+      _touchStarts[event.pointer] = event.localPosition;
+      if (_touchStarts.length == 1) {
+        _touchStart = event.timeStamp;
+        _maxTouches = 1;
+        _touchMoved = false;
+      }
+      if (_touchStarts.length == 2 && _multiStart == null) {
+        _multiStart = event.timeStamp;
+      }
+      if (_touchStarts.length > _maxTouches) _maxTouches = _touchStarts.length;
+    }
     _pointers.add(event.pointer);
     if (_pointers.length > 1) {
-      doc.cancelStroke();
+      if (_touchStart != null &&
+          (event.timeStamp - _touchStart!).inMilliseconds > 420) {
+        doc.endStroke();
+      } else {
+        doc.cancelStroke();
+      }
       _pointer = null;
       _panLast = null;
       setState(() => _gestureBlocked = true);
@@ -207,6 +298,10 @@ class _PixelPageState extends State<PixelPage> {
       return;
     }
     final p = _scene(event);
+    if (HardwareKeyboard.instance.isAltPressed) {
+      doc.sample(p.dx, p.dy);
+      return;
+    }
     doc.beginStroke(
       p.dx,
       p.dy,
@@ -216,6 +311,10 @@ class _PixelPageState extends State<PixelPage> {
   }
 
   void _move(PointerMoveEvent event) {
+    final start = _touchStarts[event.pointer];
+    if (start != null && (event.localPosition - start).distance >= 12) {
+      _touchMoved = true;
+    }
     if (_pointer != event.pointer) return;
     if (_panLast != null) {
       final delta = event.localPosition - _panLast!;
@@ -239,6 +338,21 @@ class _PixelPageState extends State<PixelPage> {
   }
 
   void _end(PointerEvent event) {
+    if (_touchStarts.remove(event.pointer) != null) {
+      if (event is PointerCancelEvent) _touchMoved = true;
+      if (_multiStart != null && _touchStarts.length < 2) {
+        if (!_touchMoved &&
+            (event.timeStamp - _multiStart!).inMilliseconds < 280) {
+          if (_maxTouches >= 3) {
+            doc.redo();
+          } else {
+            doc.undo();
+          }
+        }
+        _multiStart = null;
+      }
+      if (_touchStarts.isEmpty) _touchStart = null;
+    }
     _pointers.remove(event.pointer);
     if (_pointers.isEmpty && _gestureBlocked) {
       setState(() => _gestureBlocked = false);
@@ -421,258 +535,446 @@ class _PixelPageState extends State<PixelPage> {
   }
 
   @override
-  Widget build(BuildContext context) => NativeSiteShell(
-    controller: widget.controller,
-    title: '月光像素工坊',
-    onGo: widget.onGo,
-    onTheme: widget.onTheme,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SiteText('月光像素工坊', style: Theme.of(context).textTheme.headlineMedium),
-        const SiteText('选择工具与颜色，在网格里绘制，再导出或发布你的作品。'),
-        const SizedBox(height: 14),
-        if (session.error.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Text(
-              session.error,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ),
-        if (session.notice.isNotEmpty) Text(session.notice),
-        LayoutBuilder(
-          builder: (context, box) {
-            if (!_controlsOpen ||
-                box.maxWidth <
-                    1000 * (MediaQuery.textScalerOf(context).scale(14) / 14)) {
-              return Column(
-                children: [
-                  _canvasPanel(),
-                  const SizedBox(height: 12),
-                  if (_controlsOpen && box.maxWidth >= 860) _controls(),
-                ],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final background = dark ? const Color(0xff1d1e22) : const Color(0xfff4f4f6);
+    final panel = dark ? const Color(0xff25262b) : const Color(0xfffbfbfc);
+    return NativeSiteShell(
+      controller: widget.controller,
+      title: label('appName'),
+      onGo: widget.onGo,
+      onTheme: widget.onTheme,
+      fixedViewport: true,
+      showChrome: !_focusMode,
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final wide = box.maxWidth >= 860,
+              controls = wide && !_focusMode && _controlsOpen;
+          return ColoredBox(
+            color: background,
+            child: Column(
               children: [
-                SizedBox(width: 280, child: _controls()),
-                const SizedBox(width: 16),
-                Expanded(child: _canvasPanel()),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-        _details(),
-        const SizedBox(height: 12),
-        SiteCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SiteText(
-                '制作备忘',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              ..._notes.map(
-                (value) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Text(value),
-                ),
-              ),
-              TextField(
-                controller: _note,
-                decoration: InputDecoration(
-                  hintText: siteTranslate(context, '记下绘画灵感，只在本次页面保留'),
-                  suffixIcon: IconButton(
-                    onPressed: () {
-                      if (_note.text.trim().isNotEmpty) {
-                        setState(() {
-                          _notes.add(_note.text.trim());
-                          _note.clear();
-                        });
-                      }
-                    },
-                    icon: const Icon(Icons.add),
+                if (!_focusMode)
+                  Material(
+                    color: panel,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextButton.icon(
+                            onPressed: () => _sheet(_details),
+                            icon: const Icon(Icons.image_outlined),
+                            label: Text(
+                              session.title.isEmpty
+                                  ? label('draftTitle')
+                                  : session.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: label('undo'),
+                          onPressed: doc.canUndo ? doc.undo : null,
+                          icon: const Icon(Icons.undo),
+                        ),
+                        if (wide)
+                          IconButton(
+                            tooltip: label('redo'),
+                            onPressed: doc.canRedo ? doc.redo : null,
+                            icon: const Icon(Icons.redo),
+                          ),
+                        if (wide) ...[
+                          IconButton(
+                            tooltip: label('gallery'),
+                            onPressed: () => _sheet(_gallery),
+                            icon: const Icon(Icons.collections_outlined),
+                          ),
+                          IconButton(
+                            tooltip: label('newCanvas'),
+                            onPressed: _newCanvas,
+                            icon: const Icon(Icons.note_add_outlined),
+                          ),
+                          IconButton(
+                            tooltip: label('imageImport'),
+                            onPressed: _importImage,
+                            icon: const Icon(
+                              Icons.add_photo_alternate_outlined,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: label('download'),
+                            onPressed: () => _export(),
+                            icon: const Icon(Icons.download),
+                          ),
+                        ],
+                        IconButton(
+                          tooltip: label('filePanel'),
+                          onPressed: () => _sheet(_files),
+                          icon: const Icon(Icons.more_horiz),
+                        ),
+                        IconButton.filled(
+                          tooltip: label('share'),
+                          onPressed: () => _sheet(_details),
+                          icon: const Icon(Icons.send_outlined),
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                    ),
+                  ),
+                if (session.error.isNotEmpty || session.notice.isNotEmpty)
+                  Text(
+                    session.error.isNotEmpty ? session.error : session.notice,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      if (wide)
+                        Material(
+                          color: panel,
+                          child: SizedBox(
+                            width: 52,
+                            child: SingleChildScrollView(
+                              child: Column(children: _tools()),
+                            ),
+                          ),
+                        ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Expanded(child: _canvasViewport()),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  Text('${doc.width} × ${doc.height}'),
+                                  const SizedBox(width: 10),
+                                  if (wide)
+                                    Text(
+                                      doc.palette[doc.selected].toUpperCase(),
+                                    ),
+                                  IconButton(
+                                    onPressed: () => _stepZoom(false),
+                                    tooltip: '${label('zoom')} −',
+                                    icon: const Icon(Icons.remove),
+                                  ),
+                                  ValueListenableBuilder<Matrix4>(
+                                    valueListenable: _transform,
+                                    builder: (_, m, _) => TextButton(
+                                      onPressed: _fit,
+                                      child: Text(
+                                        '${(m.getMaxScaleOnAxis() * 100).round()}%',
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    onPressed: () => _stepZoom(true),
+                                    tooltip: '${label('zoom')} +',
+                                    icon: const Icon(Icons.add),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => _zoomTo(1),
+                                    child: const Text('1:1'),
+                                  ),
+                                  IconButton(
+                                    onPressed: _fit,
+                                    tooltip: label('fitCanvas'),
+                                    icon: const Icon(Icons.fit_screen),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (controls)
+                        SizedBox(
+                          width:
+                              (268 *
+                                      MediaQuery.textScalerOf(context)
+                                          .scale(14) /
+                                      14)
+                                  .clamp(268.0, box.maxWidth * .47),
+                          child: SingleChildScrollView(child: _controls()),
+                        ),
+                    ],
                   ),
                 ),
-                onSubmitted: (value) {
-                  if (value.trim().isNotEmpty) {
-                    setState(() {
-                      _notes.add(value.trim());
-                      _note.clear();
-                    });
-                  }
-                },
+                if (!wide)
+                  Material(
+                    color: panel,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(children: _tools()),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _canvasViewport() => Focus(
+    focusNode: _focus,
+    onKeyEvent: _key,
+    child: LayoutBuilder(
+      builder: (context, box) {
+        if (_viewportSize != box.biggest) {
+          _viewportSize = box.biggest;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _fit();
+          });
+        }
+        return Container(
+          key: _canvasKey,
+          height: box.maxHeight,
+          clipBehavior: Clip.hardEdge,
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xff141518)
+                : const Color(0xffdfe0e5),
+            borderRadius: BorderRadius.circular(2),
+          ),
+          child: Listener(
+            onPointerDown: _down,
+            onPointerMove: _move,
+            onPointerUp: _end,
+            onPointerCancel: _end,
+            onPointerSignal: (event) {
+              if (event is PointerScrollEvent) {
+                _stepZoom(event.scrollDelta.dy < 0, event.localPosition);
+              }
+            },
+            child: InteractiveViewer(
+              transformationController: _transform,
+              minScale: .2,
+              maxScale: 12,
+              constrained: false,
+              panEnabled: _gestureBlocked,
+              scaleEnabled: true,
+              boundaryMargin: const EdgeInsets.all(1500),
+              child: SizedBox(
+                width: doc.width * 6.0,
+                height: doc.height * 6.0,
+                child: Semantics(
+                  label: '${doc.width} 乘 ${doc.height} 像素画布',
+                  child: CustomPaint(
+                    painter: PixelPainter(doc.snapshot, grid: _showGrid),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    ),
+  );
+
+  List<Widget> _tools() => [
+    for (final entry in [
+      (PixelTool.brush, Icons.brush, 'brush'),
+      (PixelTool.eraser, Icons.cleaning_services, 'eraser'),
+      (PixelTool.fill, Icons.format_color_fill, 'fill'),
+      (PixelTool.picker, Icons.colorize, 'picker'),
+      (PixelTool.move, Icons.pan_tool_outlined, 'move'),
+    ])
+      IconButton(
+        tooltip: label(entry.$3),
+        isSelected: doc.tool == entry.$1,
+        style: IconButton.styleFrom(
+          backgroundColor: doc.tool != entry.$1
+              ? null
+              : Theme.of(context).colorScheme.secondaryContainer,
+        ),
+        onPressed: () => doc.chooseTool(entry.$1),
+        icon: Icon(entry.$2, size: 20),
+      ),
+    IconButton(
+      tooltip: label('colorPanel'),
+      onPressed: _showControls,
+      icon: Icon(
+        Icons.circle,
+        color: pixelColor(doc.palette[doc.selected]),
+        shadows: const [Shadow(blurRadius: 2, color: Colors.grey)],
+      ),
+    ),
+    IconButton(
+      tooltip: label('grid'),
+      isSelected: _showGrid,
+      onPressed: () => setState(() => _showGrid = !_showGrid),
+      icon: const Icon(Icons.grid_on_outlined),
+    ),
+    IconButton(
+      tooltip: label(_focusMode ? 'exitFocus' : 'focus'),
+      onPressed: () => setState(() => _focusMode = !_focusMode),
+      icon: Icon(_focusMode ? Icons.fullscreen_exit : Icons.fullscreen),
+    ),
+    IconButton(
+      tooltip: label('shortcuts'),
+      onPressed: () => _sheet(
+        () => Padding(
+          padding: const EdgeInsets.all(18),
+          child: Text(
+            [
+              label('brushHint'),
+              label('pickerHint'),
+              label('gestureHint'),
+              'B / E / G / I / H · F · Ctrl/Cmd+Z',
+            ].join('\n'),
+          ),
+        ),
+      ),
+      icon: const Icon(Icons.help_outline),
+    ),
+  ];
+
+  Future<void> _sheet(Widget Function() content) => showModalBottomSheet<void>(
+    context: context,
+    useSafeArea: true,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (ctx) => ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(ctx).height * .8,
+        maxWidth: 760,
+      ),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(ctx).bottom + 12,
+        ),
+        child: ListenableBuilder(
+          listenable: session,
+          builder: (_, _) => content(),
+        ),
+      ),
+    ),
+  );
+  Future<void> _newCanvas() async {
+    var size = (doc.width, doc.height);
+    final result = await showDialog<(int, int)>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, refresh) => AlertDialog(
+          title: Text(label('newTitle')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(label('newHint')),
+              DropdownButton<(int, int)>(
+                value: size,
+                items: [
+                  for (final item in pixelCanvasPresets)
+                    DropdownMenuItem(
+                      value: item,
+                      child: Text('${item.$1} × ${item.$2}'),
+                    ),
+                ],
+                onChanged: (v) => refresh(() => size = v!),
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 16),
-        _gallery(),
-        const SizedBox(height: 24),
-      ],
-    ),
-  );
-  Widget _canvasPanel() => SiteCard(
-    padding: const EdgeInsets.all(12),
-    child: Column(
-      children: [
-        _toolbar(),
-        const SizedBox(height: 10),
-        Focus(
-          focusNode: _focus,
-          onKeyEvent: _key,
-          child: LayoutBuilder(
-            builder: (context, box) {
-              if (_viewportWidth != box.maxWidth) {
-                _viewportWidth = box.maxWidth;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) _fit();
-                });
-              }
-              return Container(
-                key: _canvasKey,
-                height: (box.maxWidth * 9 / 16).clamp(250.0, 640.0),
-                clipBehavior: Clip.hardEdge,
-                decoration: BoxDecoration(
-                  color: RoomStyle(context).line,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Listener(
-                  onPointerDown: _down,
-                  onPointerMove: _move,
-                  onPointerUp: _end,
-                  onPointerCancel: _end,
-                  onPointerSignal: (event) {
-                    if (event is PointerScrollEvent) {
-                      _zoom(event.scrollDelta.dy < 0 ? .1 : -.1);
-                    }
-                  },
-                  child: InteractiveViewer(
-                    transformationController: _transform,
-                    minScale: .2,
-                    maxScale: 2.6,
-                    constrained: false,
-                    panEnabled: _gestureBlocked,
-                    scaleEnabled: true,
-                    boundaryMargin: const EdgeInsets.all(1500),
-                    child: SizedBox(
-                      width: doc.width * 6.0,
-                      height: doc.height * 6.0,
-                      child: Semantics(
-                        label: '${doc.width} 乘 ${doc.height} 像素画布',
-                        child: CustomPaint(
-                          painter: PixelPainter(doc.snapshot, grid: true),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                '${doc.width} × ${doc.height} · 已绘制 ${doc.paintedCount} 像素 · ${doc.palette.length}/64 色',
-              ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(label('cancel')),
             ),
-            IconButton(
-              onPressed: _fit,
-              tooltip: siteTranslate(context, '适应画布'),
-              icon: const Icon(Icons.fit_screen),
-            ),
-            IconButton(
-              onPressed: () => _zoom(-.25),
-              icon: const Icon(Icons.remove),
-            ),
-            ValueListenableBuilder<Matrix4>(
-              valueListenable: _transform,
-              builder: (_, matrix, _) =>
-                  Text('${(matrix.getMaxScaleOnAxis() * 100).round()}%'),
-            ),
-            IconButton(
-              onPressed: () => _zoom(.25),
-              icon: const Icon(Icons.add),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, size),
+              child: Text(label('create')),
             ),
           ],
         ),
-      ],
-    ),
-  );
-  Widget _toolbar() => Wrap(
-    spacing: 6,
-    runSpacing: 6,
+      ),
+    );
+    if (result == null || !mounted) return;
+    doc.load(
+      PixelSnapshot(
+        width: result.$1,
+        height: result.$2,
+        pixels: List.filled(result.$1 * result.$2, -1),
+        palette: doc.palette,
+        background: doc.background,
+      ),
+      history: true,
+    );
+    _fit();
+  }
+
+  Widget _files() => Wrap(
+    spacing: 10,
+    runSpacing: 4,
     children: [
-      for (final entry in [
-        (PixelTool.brush, Icons.brush, '画笔 B'),
-        (PixelTool.eraser, Icons.cleaning_services, '橡皮 E'),
-        (PixelTool.fill, Icons.format_color_fill, '填充 F'),
-        (PixelTool.move, Icons.pan_tool, '移动 V'),
-      ])
-        ChoiceChip(
-          label: SiteText(entry.$3),
-          avatar: Icon(entry.$2, size: 18),
-          selected: doc.tool == entry.$1,
-          onSelected: (_) => doc.chooseTool(entry.$1),
-        ),
-      IconButton(
-        onPressed: doc.canUndo ? doc.undo : null,
-        tooltip: siteTranslate(context, '撤销 Ctrl/Cmd+Z'),
-        icon: const Icon(Icons.undo),
+      TextButton(
+        onPressed: () => _sheet(_gallery),
+        child: Text(label('gallery')),
       ),
-      IconButton(
+      TextButton(onPressed: _newCanvas, child: Text(label('newCanvas'))),
+      TextButton(onPressed: _importImage, child: Text(label('imageImport'))),
+      TextButton(onPressed: () => _export(), child: Text(label('download'))),
+      TextButton(onPressed: _draftJson, child: const SiteText('导出画稿')),
+      TextButton(onPressed: _restoreJson, child: const SiteText('导入画稿')),
+      TextButton(
         onPressed: doc.canRedo ? doc.redo : null,
-        tooltip: siteTranslate(context, '重做 Ctrl/Cmd+Shift+Z'),
-        icon: const Icon(Icons.redo),
-      ),
-      IconButton(
-        onPressed: _showControls,
-        tooltip: siteTranslate(context, '颜色与设置'),
-        icon: const Icon(Icons.palette),
-      ),
-      TextButton.icon(
-        onPressed: _importImage,
-        icon: const Icon(Icons.image),
-        label: const SiteText('导入图片'),
-      ),
-      TextButton.icon(
-        onPressed: () => _export(),
-        icon: const Icon(Icons.download),
-        label: const SiteText('导出 PNG'),
+        child: Text(label('redo')),
       ),
       TextButton(onPressed: doc.moonExample, child: const SiteText('月亮示例')),
       TextButton(
         onPressed: () async {
-          final yes = await showDialog<bool>(
+          final confirmed = await showDialog<bool>(
             context: context,
-            builder: (context) => AlertDialog(
+            builder: (ctx) => AlertDialog(
               title: const SiteText('清空画布？'),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const SiteText('取消'),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(label('cancel')),
                 ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, true),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
                   child: const SiteText('清空'),
                 ),
               ],
             ),
           );
-          if (yes == true) doc.clear();
+          if (confirmed == true && mounted) doc.clear();
         },
         child: const SiteText('清空'),
       ),
+      TextButton(
+        onPressed: () => _sheet(_notesPanel),
+        child: Text(label('notesPanel')),
+      ),
     ],
   );
+  Widget _notesPanel() => StatefulBuilder(
+    builder: (context, refresh) => Column(
+      children: [
+        for (final item in _notes) ListTile(title: Text(item)),
+        TextField(
+          controller: _note,
+          decoration: InputDecoration(
+            labelText: label('notesPanel'),
+            suffixIcon: IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () {
+                if (_note.text.trim().isNotEmpty) {
+                  refresh(() {
+                    _notes.add(_note.text.trim());
+                    _note.clear();
+                  });
+                }
+              },
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
   Future<void> _showControls() async {
-    if (MediaQuery.sizeOf(context).width >= 860) {
+    if (MediaQuery.sizeOf(context).width >= 860 && !_focusMode) {
       setState(() => _controlsOpen = !_controlsOpen);
       return;
     }
@@ -783,20 +1085,20 @@ class _PixelPageState extends State<PixelPage> {
             DropdownButton<int>(
               value: doc.brushSize,
               items: [
-                for (var i = 1; i <= 6; i++)
+                for (var i = 1; i <= maxPixelBrushSize; i++)
                   DropdownMenuItem(value: i, child: Text('$i')),
               ],
-              onChanged: (v) => setState(() => doc.brushSize = v!),
+              onChanged: (v) => doc.configureBrush(size: v),
             ),
             FilterChip(
               label: const SiteText('笔压'),
               selected: doc.pressureEnabled,
-              onSelected: (v) => setState(() => doc.pressureEnabled = v),
+              onSelected: (v) => doc.configureBrush(pressure: v),
             ),
             FilterChip(
               label: const SiteText('笔迹稳定'),
               selected: doc.stabilizerEnabled,
-              onSelected: (v) => setState(() => doc.stabilizerEnabled = v),
+              onSelected: (v) => doc.configureBrush(smoothing: v),
             ),
             const SiteText('网格'),
             DropdownButton<(int, int)>(
@@ -816,7 +1118,7 @@ class _PixelPageState extends State<PixelPage> {
             const SiteText('背景'),
             for (final color in [
               '#ffffff',
-              '#f7f7f7',
+              '#f4f1ea',
               '#edf8ff',
               '#ffd1e8',
               '#172033',
@@ -838,9 +1140,7 @@ class _PixelPageState extends State<PixelPage> {
           ],
         ),
         const SizedBox(height: 8),
-        const SiteText(
-          '快捷键：B 画笔、E 橡皮、F 填充、V/H 移动；空格拖动；[ ] 笔刷大小；+ − 缩放。触控可双指缩放，触笔支持笔压和防误触。',
-        ),
+        Text(label('gestureHint')),
       ],
     ),
   );
@@ -907,11 +1207,7 @@ class _PixelPageState extends State<PixelPage> {
           spacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            TextButton.icon(
-              onPressed: () => setState(() => _galleryOpen = !_galleryOpen),
-              icon: Icon(_galleryOpen ? Icons.expand_less : Icons.expand_more),
-              label: const SiteText('社区作品'),
-            ),
+            Text(label('gallery')),
             ChoiceChip(
               label: const SiteText('最新'),
               selected: session.sort == 'latest',
@@ -944,7 +1240,7 @@ class _PixelPageState extends State<PixelPage> {
           ],
         ),
         if (session.loading) const LinearProgressIndicator(),
-        if (_galleryOpen) ...[
+        ...[
           if (session.artworks.isEmpty && !session.loading)
             const Padding(
               padding: EdgeInsets.all(24),

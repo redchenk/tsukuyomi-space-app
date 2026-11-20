@@ -7,7 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tsukuyomi_space_app/core/models.dart';
 import 'package:tsukuyomi_space_app/core/site_client.dart';
 import 'package:tsukuyomi_space_app/features/room/room_controller.dart';
-import 'package:tsukuyomi_space_app/features/site/access_page.dart';
+import 'package:tsukuyomi_space_app/main.dart';
+import 'package:tsukuyomi_space_app/features/room/room_page.dart';
 import 'package:tsukuyomi_space_app/features/site/friend_link_application.dart';
 import 'package:tsukuyomi_space_app/features/site/friend_links_page.dart';
 import 'package:tsukuyomi_space_app/features/site/native_site_shell.dart';
@@ -454,27 +455,21 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Access still enters Hub once when settings service is unavailable',
-    (tester) async {
+  for (final path in ['/', '/access.html', '/room']) {
+    testWidgets('native entry $path opens the room immediately even offline', (
+      tester,
+    ) async {
       final site = ArchiveSite(
-        (_, _, _) async => throw const ApiFailure('没有公告', status: 404),
+        (_, _, _) async => throw const ApiFailure('offline'),
       );
-      final c = await archiveController(site);
-      addTearDown(c.dispose);
-      final destinations = <String>[];
-      await mountArchive(
-        tester,
-        AccessPage(controller: c, playVideo: false, onGo: destinations.add),
-        width: 320,
+      final room = await archiveController(site);
+      await tester.pumpWidget(
+        TsukuyomiApp(controller: room, loadNative: false, initialPath: path),
       );
-      await tester.ensureVisible(find.byKey(const Key('access-enter')));
-      await tester.tap(find.byKey(const Key('access-enter')));
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(destinations, ['/hub']);
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox.shrink());
-    },
-  );
+      expect(find.byType(RoomPage), findsOneWidget);
+      expect(find.byKey(const Key('access-enter')), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+      room.dispose();
+    });
+  }
 }

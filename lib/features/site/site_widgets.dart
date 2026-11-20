@@ -21,12 +21,15 @@ import 'site_explore_menu.dart';
 import 'site_mobile_navigation.dart';
 import 'site_season_picker.dart';
 import 'site_desktop_navigation.dart';
-import 'site_seasonal_surface.dart';
+
 import '../updates/app_update_page.dart';
 import '../updates/update_copy.dart';
 
 const siteDestinations = <String, String>{
   '/hub': '中枢大厅',
+  '/chatroom': '月读聊天室',
+  '/download': '下载',
+  '/': '重看开场',
   '/room': '私人居所',
   '/stage': '主舞台',
   '/plaza': '月读广场',
@@ -67,6 +70,7 @@ String siteDestinationLabel(BuildContext context, String path) {
     '/attachments': 'attachments',
     '/agent-os': 'agentOs',
   };
+  if (path == '/chatroom') return channelTitle(context);
   final key = keys[path];
   return key == null
       ? siteTranslate(context, siteDestinations[path] ?? path)
@@ -376,8 +380,10 @@ class SiteHeader extends StatelessWidget {
     this.username,
     this.onTheme,
     this.role,
+    this.onHero = false,
   });
   final String title;
+  final bool onHero;
   final String? username;
   final String? role;
   final ValueChanged<String> onGo;
@@ -476,240 +482,150 @@ class SiteHeader extends StatelessWidget {
               builder: (_, _) => buildExplore(),
             )
           : buildExplore();
-      Widget capsule(Widget child) => Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: compact ? 4 : 10,
-          vertical: compact ? 0 : 6,
-        ),
-        child: child,
-      );
-      return SiteSeasonalSurface(
-        radius: compact ? 28 : 40,
-        child: Theme(
-          data: Theme.of(context).copyWith(
-            iconButtonTheme: IconButtonThemeData(
-              style: IconButton.styleFrom(
-                backgroundColor: style.surface.withValues(alpha: .94),
-                foregroundColor: style.ink,
-                side: BorderSide(
-                  color: Color.alphaBlend(
-                    style.ink.withValues(alpha: .18),
-                    style.surface,
-                  ),
+      final ink = onHero ? Colors.white : style.ink;
+      final localized = SiteLocaleScope.maybeOf(context)?.language;
+      return Material(
+        color: onHero ? const Color(0xcc10131c) : style.surface,
+        child: IconTheme(
+          data: IconThemeData(color: ink),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              iconButtonTheme: IconButtonThemeData(
+                style: IconButton.styleFrom(
+                  foregroundColor: ink,
+                  backgroundColor: Colors.transparent,
+                  side: BorderSide.none,
                 ),
               ),
             ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                backgroundColor: style.surface.withValues(alpha: .94),
-                foregroundColor: style.ink,
-                side: BorderSide(
-                  color: Color.alphaBlend(
-                    style.ink.withValues(alpha: .18),
-                    style.surface,
-                  ),
-                ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: box.maxWidth < 400
+                    ? 4
+                    : compact
+                    ? 12
+                    : 24,
               ),
-            ),
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: compact ? 60 : 68),
-            child: Row(
-              children: [
-                Expanded(
-                  child: capsule(
-                    InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => onGo('/hub'),
-                      child: Row(
-                        children: [
-                          ...[
-                            Image.asset(
-                              'assets/images/sakura/sakura-moon-logo.webp',
-                              width: compact ? 30 : 44,
-                              height: compact ? 30 : 44,
-                              cacheWidth: 132,
-                              excludeFromSemantics: true,
-                            ),
-                            SizedBox(width: compact ? 8 : 10),
-                          ],
-                          Expanded(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Flexible(
-                                  fit: FlexFit.loose,
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.centerLeft,
-                                    child: SiteText(
-                                      '月读空间',
-                                      key: const Key('site-brand-title'),
-                                      maxLines: 1,
-                                      style: TextStyle(
-                                        fontFamily: RoomStyle.serif,
-                                        fontSize: compact ? 18 : 21,
-                                        height: 1.5,
-                                        letterSpacing: compact ? .36 : 2,
-                                      ),
-                                    ),
-                                  ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: compact ? 58 : 76),
+                child: Row(
+                  children: [
+                    Flexible(
+                      flex: compact ? 1 : 2,
+                      fit: FlexFit.tight,
+                      child: InkWell(
+                        onTap: () => onGo('/hub'),
+                        child: FittedBox(
+                          alignment: Alignment.centerLeft,
+                          fit: BoxFit.scaleDown,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.asset(
+                                'assets/images/sakura/sakura-moon-logo.webp',
+                                width: compact ? 30 : 36,
+                                excludeFromSemantics: true,
+                              ),
+                              const SizedBox(width: 8),
+                              SiteText(
+                                '月读空间',
+                                key: const Key('site-brand-title'),
+                                style: TextStyle(
+                                  fontFamily: RoomStyle.serif,
+                                  fontSize: compact ? 18 : 22,
+                                  letterSpacing: 1.5,
+                                  color: ink,
                                 ),
-                                if (!compact)
-                                  SiteText(
-                                    title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      height: 1.4,
-                                      color: style.muted,
-                                    ),
-                                  ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                if (!compact) ...[
-                  const SizedBox(width: 16),
-                  capsule(SiteDesktopNavigation(onGo: onGo, path: path)),
-                  const SizedBox(width: 12),
-                ],
-                capsule(
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (!compact)
-                        AppUpdateButton(onOpen: () => onGo('/app/update')),
-                      if (!compact) const DesktopFullscreenButton(),
-                      if (!compact && controller != null)
-                        IconButton(
-                          tooltip: siteTr(context, 'search'),
-                          onPressed: () =>
-                              showSiteSearch(context, controller, onGo),
-                          icon: const Icon(Icons.search),
-                        ),
-                      if (!compact && music != null)
-                        IconButton(
-                          tooltip: siteTranslate(context, '全站音乐'),
-                          onPressed: () => showRoomMusic(context, music),
-                          icon: const Icon(Icons.music_note_outlined),
-                        ),
-                      if (username != null &&
-                          SiteChromeScope.maybeOf(context)?.authed == true)
-                        IconButton(
-                          onPressed: () => onGo('/notifications'),
-                          tooltip: siteTr(context, 'notifications'),
-                          icon: const SiteNotificationBadge(),
-                        ),
-                      if (!compact)
-                        IconButton(
-                          onPressed: onTheme,
-                          icon: Icon(
-                            Theme.of(context).brightness == Brightness.dark
-                                ? CupertinoIcons.sun_max
-                                : CupertinoIcons.moon,
-                          ),
-                          tooltip: siteTranslate(
-                            context,
-                            Theme.of(context).brightness == Brightness.dark
-                                ? '切换浅色主题'
-                                : '切换深色主题',
+                    if (!compact) ...[
+                      const SizedBox(width: 18),
+                      Expanded(
+                        flex: 7,
+                        child: FittedBox(
+                          alignment: Alignment.centerLeft,
+                          fit: BoxFit.scaleDown,
+                          child: SiteDesktopNavigation(
+                            onGo: onGo,
+                            path: path,
+                            color: ink,
                           ),
                         ),
-                      if (compact)
-                        IconButton(
-                          key: const Key('site-account-menu'),
-                          onPressed: openMobileAccount,
-                          icon: _SiteAccountPicture(username: username),
-                          tooltip: siteTranslate(context, '账号菜单'),
-                        )
-                      else
-                        PopupMenuButton<String>(
-                          key: const Key('site-account-menu'),
-                          tooltip: username ?? siteTr(context, 'login'),
-                          onSelected: (value) => value == 'season'
-                              ? showSiteSeasonPicker(context)
-                              : onGo(value),
-                          itemBuilder: (_) => [
-                            if (AppUpdateScope.maybeOf(context) != null)
-                              PopupMenuItem(
-                                value: '/app/update',
-                                child: Text(updateText(context, 'title')),
-                              ),
-                            const PopupMenuItem(
-                              value: 'season',
-                              child: SiteText('季节主题'),
-                            ),
-                            for (final entry
-                                in (username == null
-                                        ? {'/login': '登录', '/register': '注册'}
-                                        : {
-                                            '/user': '个人中心',
-                                            '/growth': '月契成长',
-                                            '/notifications': '站内信',
-                                            '/attachments': '附件管理',
-                                            if (administrator) '/admin': '内容管理',
-                                          })
-                                    .entries)
-                              PopupMenuItem(
-                                value: entry.key,
-                                child: SiteText(entry.value),
-                              ),
-                          ],
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 8,
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _SiteAccountPicture(username: username),
-                                if (box.maxWidth >= 1200)
-                                  const SizedBox(width: 6),
-                                if (box.maxWidth >= 1200)
-                                  ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 100,
-                                    ),
-                                    child: Text(
-                                      username ?? siteTr(context, 'login'),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontSize: 13),
-                                    ),
-                                  ),
-                                const Icon(Icons.expand_more, size: 16),
-                              ],
-                            ),
-                          ),
-                        ),
-                      if (compact)
-                        AppUpdateButton(
-                          mobileLabel: true,
-                          onOpen: () => onGo('/app/update'),
-                        ),
-                      if (compact) explore,
-                      if (!compact) ...[
-                        const SizedBox(width: 8),
-                        FilledButton.icon(
-                          onPressed: () => onGo('/room'),
-                          icon: const Icon(CupertinoIcons.moon, size: 17),
-                          label: box.maxWidth >= 1160
-                              ? const SiteText('进入房间')
-                              : const SizedBox.shrink(),
-                        ),
-                      ],
+                      ),
+                      const Spacer(),
+                      explore,
+                      AppUpdateButton(onOpen: () => onGo('/app/update')),
                     ],
-                  ),
+                    if (controller != null && (!compact || box.maxWidth > 460))
+                      IconButton(
+                        tooltip: siteTr(context, 'search'),
+                        onPressed: () =>
+                            showSiteSearch(context, controller, onGo),
+                        icon: const Icon(Icons.search, size: 19),
+                      ),
+                    if (!compact && music != null)
+                      IconButton(
+                        tooltip: siteTranslate(context, '全站音乐'),
+                        onPressed: () => showRoomMusic(context, music),
+                        icon: const Icon(Icons.graphic_eq, size: 19),
+                      ),
+                    if (!compact)
+                      IconButton(
+                        onPressed: onTheme,
+                        tooltip: siteTranslate(
+                          context,
+                          style.dark ? '切换浅色主题' : '切换深色主题',
+                        ),
+                        icon: Icon(
+                          style.dark
+                              ? CupertinoIcons.sun_max
+                              : CupertinoIcons.moon,
+                          size: 19,
+                        ),
+                      ),
+                    if (username != null &&
+                        SiteChromeScope.maybeOf(context)?.authed == true)
+                      IconButton(
+                        onPressed: () => onGo('/notifications'),
+                        tooltip: siteTr(context, 'notifications'),
+                        icon: const SiteNotificationBadge(),
+                      ),
+                    IconButton(
+                      key: const Key('site-account-menu'),
+                      onPressed: openMobileAccount,
+                      tooltip: siteTranslate(context, '账号菜单'),
+                      icon: _SiteAccountPicture(username: username),
+                    ),
+                    if (compact) ...[
+                      AppUpdateButton(
+                        mobileLabel: true,
+                        onOpen: () => onGo('/app/update'),
+                      ),
+                      explore,
+                    ] else
+                      FilledButton(
+                        onPressed: () => onGo('/room'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: onHero ? Colors.white : null,
+                          foregroundColor: onHero
+                              ? const Color(0xff202b46)
+                              : null,
+                        ),
+                        child: Text(
+                          localized == 'en'
+                              ? 'Enter room'
+                              : localized == 'ja'
+                              ? '部屋に入る'
+                              : '进入房间',
+                        ),
+                      ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),

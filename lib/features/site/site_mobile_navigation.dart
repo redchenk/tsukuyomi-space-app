@@ -6,7 +6,10 @@ import 'package:flutter/services.dart';
 import '../../core/season_theme.dart';
 import '../../core/site_localization.dart';
 import '../room/room_style.dart';
+import '../room/room_controller.dart';
+import 'site_desktop_navigation.dart';
 import 'site_icon.dart';
+import 'site_search.dart';
 import 'site_seasonal_surface.dart';
 
 /// A single bottom-anchored surface shared by the mobile explore/account flows.
@@ -59,9 +62,10 @@ Future<T?> showSiteMobilePanel<T>(
 
 const _primary = [
   ('/hub', '大厅', 'home'),
-  ('/room', '私人居所', 'moon'),
-  ('/plaza', '月读广场', 'plaza'),
-  ('/stage', '主舞台', 'book'),
+  ('/stage', '阅读', 'book'),
+  ('/chatroom', '聊天室', 'message'),
+  ('/room', '房间', 'moon'),
+  ('/plaza', '广场', 'plaza'),
 ];
 const _groups = {
   '阅读与发现': [
@@ -72,6 +76,8 @@ const _groups = {
   ],
   '创作与游玩': [('/stage', '主舞台', 'book'), ('/pixel', '像素画', 'palette')],
   '更多空间': [
+    ('/', '重看开场', 'play'),
+    ('/download', '下载', 'download'),
     ('/app/update', '应用更新', 'download'),
     ('/agent-os', 'Agent OS', 'bot'),
     ('/reality', '现实回廊', 'compass'),
@@ -424,6 +430,120 @@ class _SeasonChoices extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class SiteMobileDock extends StatelessWidget {
+  const SiteMobileDock({
+    super.key,
+    required this.path,
+    required this.onGo,
+    required this.controller,
+    this.onTheme,
+  });
+  final String path;
+  final ValueChanged<String> onGo;
+  final RoomController controller;
+  final VoidCallback? onTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = RoomStyle(context);
+    Future<void> more() async {
+      final selected = await showSiteMobilePanel<String>(
+        context,
+        builder: (ctx) => ListenableBuilder(
+          listenable: controller,
+          builder: (_, _) => SiteMobileNavigation(
+            onSelected: (v) => Navigator.pop(ctx, v),
+            currentPath: path,
+            onPreference: (value) {
+              if (value == 'theme') {
+                onTheme?.call();
+              } else if (value.startsWith('language:')) {
+                SiteLocaleScope.maybeOf(context)
+                    ?.setLanguage(value.substring(9));
+              }
+            },
+            username: controller.sessionExpired
+                ? null
+                : controller.account?.displayName,
+            administrator:
+                !controller.sessionExpired &&
+                {'admin', 'super_admin'}.contains(controller.account?.role),
+          ),
+        ),
+      );
+      if (!context.mounted || selected == null) return;
+      if (selected == 'search') {
+        await showSiteSearch(context, controller, onGo);
+      } else {
+        onGo(selected);
+      }
+    }
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: Material(
+          color: p.surface,
+          elevation: 6,
+          borderRadius: BorderRadius.circular(22),
+          child: Padding(
+            padding: const EdgeInsets.all(5),
+            child: Row(
+              children: [
+                for (final item in [..._primary, ('/more', '更多', 'menu')])
+                  Expanded(
+                    child: Semantics(
+                      selected: path == item.$1,
+                      child: InkWell(
+                        key: ValueKey('dock-${item.$1}'),
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: item.$1 == '/more' ? more : () => onGo(item.$1),
+                        child: Container(
+                          constraints: const BoxConstraints(minHeight: 56),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: path == item.$1
+                                ? Border.all(color: p.accent)
+                                : null,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SiteIcon(
+                                item.$3,
+                                size: 18,
+                                color: path == item.$1 ? p.accent : p.ink,
+                              ),
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  item.$1 == '/chatroom'
+                                      ? primarySiteLabel(context, (
+                                          '/chatroom',
+                                          '聊天室',
+                                          'Chat',
+                                          'チャット',
+                                        ))
+                                      : siteTranslate(context, item.$2),
+                                  style: TextStyle(fontSize: 12, color: p.ink),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

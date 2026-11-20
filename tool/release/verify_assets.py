@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def expected_assets(root=ROOT):
     result = {}
-    for directory in ("images", "game"):
+    for directory in ("images", "game", "site"):
         source = root / "assets" / directory
         if not source.is_dir():
             raise ValueError(f"Missing {source}")

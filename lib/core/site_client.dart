@@ -160,7 +160,24 @@ class SiteClient
   }
 
   @override
-  Stream<RoomServerEvent> roomEvents(String site) async* {
+  Stream<RoomServerEvent> roomEvents(String site) =>
+      _events(site, '/api/room/memory/events');
+
+  Stream<RoomServerEvent> channelEvents(
+    String site,
+    String channel,
+    Future<void> stop,
+  ) => _events(
+    site,
+    '/api/chatroom/live?channel=${Uri.encodeQueryComponent(channel)}',
+    stop,
+  );
+
+  Stream<RoomServerEvent> _events(
+    String site,
+    String path, [
+    Future<void>? stop,
+  ]) async* {
     if (_disposed) return;
     final base = endpointUri(site), revision = _revision;
     final sessionCookie = _cookieFor(base.origin);
@@ -168,8 +185,10 @@ class SiteClient
     final request =
         http.AbortableRequest(
             'GET',
-            base.resolve('/api/room/memory/events'),
-            abortTrigger: abort.future,
+            base.resolve(path),
+            abortTrigger: stop == null
+                ? abort.future
+                : Future.any([abort.future, stop]),
           )
           ..followRedirects = false
           ..headers.addAll({
@@ -354,6 +373,14 @@ class SiteClient
           _musicOrigin = base.origin;
           onMusicCookie?.call(base.origin, _musicCookie);
         }
+      }
+      if (method == 'GET' &&
+          target.path == '/api/admin/play-testing/export' &&
+          response.statusCode == 200 &&
+          (response.headers['content-type'] ?? '').toLowerCase().startsWith(
+            'text/csv',
+          )) {
+        return {'success': true, 'data': utf8.decode(response.bodyBytes)};
       }
       Map<String, dynamic> json;
       try {

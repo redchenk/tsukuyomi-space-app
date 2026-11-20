@@ -2,9 +2,65 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tsukuyomi_space_app/core/site_routes.dart';
 
 void main() {
+  test('website router destinations resolve to native screens', () {
+    // Public website router at 527ed35b, with representative dynamic segments.
+    const paths = [
+      "/",
+      "/access",
+      "/admin",
+      "/admin/account-deletions",
+      "/admin/drift",
+      "/admin/play-testing",
+      "/apply",
+      "/arena/recent",
+      "/article?id=42",
+      "/articles/42/a-story",
+      "/attachments",
+      "/chatroom",
+      "/delete-account",
+      "/download",
+      "/drift",
+      "/editor",
+      "/friend-links",
+      "/friend-links/apply",
+      "/fushi/astrbot/callback",
+      "/fushi/connect",
+      "/gallery",
+      "/gallery/manage",
+      "/game",
+      "/game/gomoku",
+      "/game/kaguya-run",
+      "/growth",
+      "/hub",
+      "/live2d",
+      "/login",
+      "/notifications",
+      "/payments",
+      "/pixel",
+      "/plaza",
+      "/privacy",
+      "/reality",
+      "/register",
+      "/room",
+      "/room/settings",
+      "/room/shared/room-preview",
+      "/stage",
+      "/terminal",
+      "/user-center",
+      "/users/alice",
+      "/wiki",
+      "/wiki/characters/guide",
+      "/wiki/terms/guide",
+    ];
+    for (final path in paths) {
+      expect(nativeSitePath(Uri.parse(path)), isNotNull, reason: path);
+    }
+  });
+
   test('native routes retain aliases, queries, slugs and fragments', () {
     final routes = {
       '/hub': '/hub',
+      '/chatroom?channel=tech': '/chatroom?channel=tech',
       '/privacy': '/privacy',
       '/delete-account': '/delete-account',
       '/': '/room',
