@@ -1,6 +1,6 @@
 # 月读空间 · Flutter 原生客户端
 
-Tsukuyomi Space 的独立 Flutter 客户端。0.6.37 同步网页大厅、公共聊天室、文章列表、像素工坊及下载和管理页面；保留原生 Room、官方八千代语音、Live2D 和桌面 Agent。详见[本版发布说明](docs/release-notes.md)。
+月读空间的独立 Flutter 客户端。0.6.38 改进了私人 Room 的站内直供聊天，支持查看中断前收到的回复和重试当前问题。详见[本版发布说明](docs/release-notes.md)。
 
 站内直供、原生支付中心、充值订单、用量账单及支付宝移动支付的开发同步与验收边界见 [站内直供与原生支付中心](docs/native-official-payments-2026-10-21.md)。移动应用的 App 支付采用独立服务端凭据，SDK 回调后由主站查单确认到账。
 

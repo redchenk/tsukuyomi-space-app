@@ -286,7 +286,7 @@ class RoomComposerState extends State<RoomComposer> {
       message: c.generating ? '停止生成' : '发送',
       child: FilledButton(
         onPressed: c.generating
-            ? c.stop
+            ? () => c.stop(fromComposer: true)
             : (!c.canSend ||
                       (_input.text.trim().isEmpty &&
                           c.attachment == null &&

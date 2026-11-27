@@ -20,6 +20,8 @@ import 'room_workspace.dart';
 import '../../live2d/room_animation.dart';
 import '../../live2d/live2d_semantics.dart';
 
+typedef _RoomSendAttempt = ({bool opener, ChatTurn? replacement});
+
 class RoomController extends ChangeNotifier {
   RoomController({
     required this.storage,
@@ -89,6 +91,9 @@ class RoomController extends ChangeNotifier {
       chat is LlmClient ? (chat as LlmClient).deepseekReply : null;
 
   void resetInput() {
+    interruptedReply = '';
+    _retryAttempt = null;
+    replyFailureStatus = null;
     _inputEpoch++;
     deepseekInput.cancel();
     unawaited(voiceInput.cancel());
@@ -321,6 +326,16 @@ class RoomController extends ChangeNotifier {
   Account? account;
   List<ChatTurn> turns = [];
   String draft = '', sendingText = '', error = '', syncStatus = '仅保存在此设备';
+  String interruptedReply = '';
+  int? replyFailureStatus;
+  _RoomSendAttempt? _sendingAttempt, _retryAttempt;
+  bool get canRetryReply => canSend && _retryAttempt != null;
+  Future<void> retryReply() async {
+    final attempt = _retryAttempt;
+    if (attempt == null || !canSend) return;
+    await send(draft, opener: attempt.opener, replacement: attempt.replacement);
+  }
+
   final _partialBuffer = StringBuffer();
   String? _partialSnapshot = '';
 
@@ -947,6 +962,10 @@ class RoomController extends ChangeNotifier {
     }
     final generation = ++_generation;
     final targetScope = scope;
+    _sendingAttempt = (opener: opener, replacement: replacement);
+    _retryAttempt = null;
+    replyFailureStatus = null;
+    interruptedReply = '';
     generating = true;
     sendingText = opener ? '' : requestText;
     partial = '';
@@ -1118,11 +1137,19 @@ class RoomController extends ChangeNotifier {
       if (account != null && !settings.demo) await sync();
     } catch (e) {
       if (generation == _generation && !_disposed) {
+        if (!_committing) {
+          _retryAttempt = _sendingAttempt;
+          replyFailureStatus = e is ApiFailure ? e.status : null;
+          if (e is ModelStreamInterrupted) {
+            interruptedReply = cleanRoomReply(partial);
+          }
+        }
         error = e is ApiFailure ? e.message : '连接失败，请检查服务设置后重试';
       }
     } finally {
       if (_committingGeneration == generation) _committingGeneration = null;
       if (generation == _generation && !_disposed) {
+        _sendingAttempt = null;
         generating = false;
         partial = '';
         sendingText = '';
@@ -1181,8 +1208,18 @@ class RoomController extends ChangeNotifier {
     await _speak(text);
   }
 
-  void stop() {
+  void stop({bool fromComposer = false}) {
     if (_committing) return;
+    if (fromComposer && generating) {
+      interruptedReply = cleanRoomReply(partial);
+      _retryAttempt = _sendingAttempt;
+      error = '已停止生成';
+    } else {
+      interruptedReply = '';
+      _retryAttempt = null;
+      replyFailureStatus = null;
+    }
+    _sendingAttempt = null;
     _generation++;
     workspace.tools.cancel();
     chat.cancel();

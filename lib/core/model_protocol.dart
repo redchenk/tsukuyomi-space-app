@@ -256,7 +256,8 @@ class WireFrame {
   final String data, event;
 }
 
-/// Bounded before JSON parsing, including unterminated lines and UTF-8/CRLF splits.
+/// Line and event boundaries follow deepseek-ai/chat-demo's SSE decoder.
+/// NDJSON accepts a final line without a newline. SSE requires a blank line.
 Stream<WireFrame> modelFrames(
   Stream<List<int>> source, {
   bool ndjson = false,
@@ -274,35 +275,55 @@ Stream<WireFrame> modelFrames(
     }
   }
 
-  var buffer = '';
-  WireFrame? frame(String packet) {
-    modelBound(packet, eventBytes);
-    if (ndjson) {
-      return packet.trim().isEmpty ? null : WireFrame(packet.trim(), 'message');
-    }
-    var event = 'message';
-    final data = <String>[];
-    for (final line in packet.split(RegExp(r'\r?\n'))) {
-      if (line.startsWith('event:')) event = line.substring(6).trim();
-      if (line.startsWith('data:')) data.add(line.substring(5).trimLeft());
-    }
-    return data.isEmpty ? null : WireFrame(data.join('\n'), event);
+  final line = StringBuffer();
+  final data = <String>[];
+  var event = 'message', size = 0, skipLF = false;
+  void append(String part) {
+    size += utf8.encode(part).length;
+    if (size > eventBytes) throw const ApiFailure('模型协议内容超过安全上限');
+    line.write(part);
   }
 
-  final separator = ndjson ? RegExp(r'\n') : RegExp(r'\r?\n\r?\n');
-  await for (final text in slices().transform(utf8.decoder)) {
-    buffer += text;
-    RegExpMatch? boundary;
-    while ((boundary = separator.firstMatch(buffer)) != null) {
-      final value = frame(buffer.substring(0, boundary!.start));
-      buffer = buffer.substring(boundary.end);
-      if (value != null) yield value;
+  await for (final chunk in slices().transform(utf8.decoder)) {
+    var start = 0;
+    for (var i = 0; i < chunk.length; i++) {
+      final ch = chunk.codeUnitAt(i);
+      if (skipLF) {
+        skipLF = false;
+        if (ch == 10) {
+          start = i + 1;
+          continue;
+        }
+      }
+      if (ch != 13 && ch != 10) continue;
+      size++;
+      append(chunk.substring(start, i));
+      final current = line.toString();
+      line.clear();
+      start = i + 1;
+      skipLF = ch == 13;
+      if (ndjson || current.isEmpty) {
+        if (ndjson && current.trim().isNotEmpty) {
+          yield WireFrame(current.trim(), 'message');
+        } else if (data.isNotEmpty) {
+          yield WireFrame(data.join('\n'), event);
+        }
+        data.clear();
+        event = 'message';
+        size = 0;
+      } else {
+        final colon = current.indexOf(':');
+        final field = colon < 0 ? current : current.substring(0, colon);
+        var value = colon < 0 ? '' : current.substring(colon + 1);
+        if (value.startsWith(' ')) value = value.substring(1);
+        if (field == 'data') data.add(value);
+        if (field == 'event') event = value.isEmpty ? 'message' : value;
+      }
     }
-    modelBound(buffer, eventBytes);
+    append(chunk.substring(start));
   }
-  if (buffer.trim().isNotEmpty) {
-    final value = frame(buffer);
-    if (value != null) yield value;
+  if (ndjson && line.toString().trim().isNotEmpty) {
+    yield WireFrame(line.toString().trim(), 'message');
   }
 }
 
@@ -573,7 +594,7 @@ class _ModelDecoder {
   }
 
   ModelCompletion finish() {
-    if (!completed) throw const ModelIncompleteFailure('连接中断，未完成的回复没有保存');
+    if (!completed) throw const ModelStreamInterrupted('连接中断，未完成的回复没有保存');
     var value = finalValue;
     if (value == null) {
       final data = <String, dynamic>{'model': model, 'usage': usage};

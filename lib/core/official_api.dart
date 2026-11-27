@@ -61,7 +61,7 @@ RoomSettings officialRoomSettings(
   final vision = officialModelSupportsImages(model);
   final next = settings.copyWith(
     llmUrl: endpointUri(settings.siteUrl)
-        .resolve('/official-api/v1/chat/completions')
+        .resolve(RoomSettings.officialChatPath)
         .toString(),
     apiKey: '',
     demo: false,
@@ -70,6 +70,8 @@ RoomSettings officialRoomSettings(
       'llmProxy': false,
       'llmConnection': 'site',
       'officialProvider': model['provider'],
+      'officialApps':
+          model['capabilities'] is Map && model['capabilities']['apps'] == true,
     },
   );
   final runtime = ModelRuntime(next),

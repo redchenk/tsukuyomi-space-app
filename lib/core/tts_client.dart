@@ -218,7 +218,11 @@ class TtsClient {
           .send(request)
           .timeout(Duration(seconds: provider == 'gpt-sovits' ? 70 : 30));
       if (response.statusCode != 200) {
-        throw providerFailure('语音生成', response.statusCode);
+        throw providerFailure(
+          '语音生成',
+          response.statusCode,
+          parameterHint: '请检查语音模型、音色或音频格式',
+        );
       }
       if (provider == 'gpt-sovits' &&
           useProxy &&
