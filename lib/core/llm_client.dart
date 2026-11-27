@@ -78,8 +78,9 @@ class LlmClient implements ChatService {
     lastDeepseek = null;
     deepseekReply = null;
     final apps = !jsonObject && Deepseek.supported(settings);
-    final direct = roomChatEndpoint(settings.llmUrl);
-    final official = settings.usesOfficialApi;
+    final officialEndpoint = settings.officialChatEndpoint;
+    final direct = officialEndpoint ?? roomChatEndpoint(settings.llmUrl);
+    final official = officialEndpoint != null;
     if (!official &&
         (settings.option('llmConnection') == 'site' ||
             settings.apiKey == 'tsukuyomi-site-session')) {
@@ -413,7 +414,11 @@ class LlmClient implements ChatService {
                 });
             throw _officialFailure(response.statusCode, bytes);
           }
-          throw providerFailure('模型请求', response.statusCode);
+          throw providerFailure(
+            '模型请求',
+            response.statusCode,
+            parameterHint: '请检查聊天模型和接口是否支持当前选项',
+          );
         }
         final limits = ModelLimits(
           textBytes: jsonObject ? maxReplyChars * 4 : 262144,
@@ -544,11 +549,18 @@ class LlmClient implements ChatService {
 
 /// Legacy Chat Completions helper uses the same bounded provider decoder.
 ApiFailure _officialFailure(int status, List<int> bytes) {
-  String? message;
+  String? message, code;
   try {
     final error = (jsonDecode(utf8.decode(bytes)) as Map)['error'];
-    if (error is Map && error['message'] is String) {
-      message = error['message'] as String;
+    if (error is Map) {
+      if (error['message'] is String &&
+          (error['message'] as String).trim().isNotEmpty) {
+        message = error['message'] as String;
+      }
+      if (error['code'] is String &&
+          RegExp(r'^[A-Z][A-Z0-9_]{1,63}$').hasMatch(error['code'])) {
+        code = error['code'] as String;
+      }
     }
   } catch (_) {
     /* The gateway may return an HTML error. */
@@ -556,6 +568,9 @@ ApiFailure _officialFailure(int status, List<int> bytes) {
   return ApiFailure(switch (status) {
     401 => '登录已失效，请重新登录后使用站内直供',
     402 => '网站余额不足，请前往支付中心充值后重试',
+    400 || 422 =>
+      '站内直供拒绝了聊天请求（HTTP $status${code == null ? '' : ' · $code'}）：'
+          '${message ?? '请在房间设置中重新选择站内模型并保存。'}',
     409 => message ?? '账号或模型已变化，请刷新后重试',
     _ => message ?? '站内直供暂时无法响应，请稍后重试',
   }, status: status);

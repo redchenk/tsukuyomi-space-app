@@ -71,6 +71,11 @@ void main() {
       '',
       '/official-api/v1/chat/completions',
       'https://evil.test/official-api/v1/chat/completions',
+      'https://evil.test/official-api/v1/deepseek/chat/completions',
+      'https://site.test:8443/official-api/v1',
+      'https://site.test/official-api/v1/chat/completions#fragment',
+      'https://site.test/official-api/v1/models',
+      'https://site.test/official-api/v1/deepseek/chat/completions?key=abc',
       'https://u:p@site.test/official-api/v1/chat/completions',
       '${official.llmUrl}?q=1',
     ]) {
@@ -87,6 +92,122 @@ void main() {
     expect(
       () => officialDashboard(dashboard('bob'), 'alice'),
       throwsA(isA<ApiFailure>()),
+    );
+  });
+  test('saved same-site DeepSeek endpoints use the account and all three chat features', () async {
+    final data = dashboard();
+    data['models'][0]['id'] = 'deepseek-flash';
+    for (final path in [
+      '/official-api/v1/chat/completions',
+      '/official-api/v1/',
+      '/official-api/v1/chat/completions/',
+      '/official-api/v1/deepseek/chat/completions',
+    ]) {
+      final requests = <http.Request>[];
+      final llm =
+          LlmClient(
+              clientFactory: () => MockClient((request) async {
+                requests.add(request);
+                if (request.method == 'GET') {
+                  return http.Response(jsonEncode(data), 200);
+                }
+                return http.Response(
+                  jsonEncode({
+                    'choices': [
+                      {
+                        'message': {'content': 'ok'},
+                        'finish_reason': 'stop',
+                      },
+                    ],
+                  }),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }),
+            )
+            ..siteCookie = 'session=fixture'
+            ..siteAccountId = 'alice';
+      final settings = official.copyWith(
+        llmUrl: 'https://site.test$path',
+        model: 'deepseek-flash',
+        options: {
+          'deepseekThinking': true,
+          'deepseekSearch': true,
+          'deepseekReadUrl': true,
+        },
+      );
+      expect(await llm.reply(settings, [], '你好').join(), 'ok');
+      expect(requests.map((r) => r.url.path), [
+        '/official-api/api/dashboard',
+        '/official-api/v1/deepseek/chat/completions',
+      ], reason: path);
+      final chat = requests.last;
+      expect(chat.headers['Cookie'], 'session=fixture');
+      expect(chat.headers['Authorization'], isNull);
+      expect(chat.headers['X-Official-Expected-Account'], 'official-alice');
+      expect(chat.headers['Idempotency-Key'], isNotEmpty);
+      final body = jsonDecode(chat.body);
+      expect(body['thinking'], {'type': 'enabled'});
+      expect(body['tools'], [
+        {'type': 'deepseek_web_search'},
+        {'type': 'deepseek_read_url'},
+      ]);
+    }
+  });
+  test('chat parameter errors identify the connection and keep gateway diagnostics', () async {
+    var posts = 0;
+    final llm =
+        LlmClient(
+            clientFactory: () => MockClient((r) async {
+              if (r.method == 'GET') {
+                return http.Response(jsonEncode(dashboard()), 200);
+              }
+              posts++;
+              return http.Response(
+                jsonEncode({
+                  'error': {
+                    'code': 'INPUT_LIMIT',
+                    'message': '输入过长，请缩短历史记录或分批发送。',
+                  },
+                }),
+                400,
+                headers: {'content-type': 'application/json; charset=utf-8'},
+              );
+            }),
+          )
+          ..siteCookie = 'session=fixture'
+          ..siteAccountId = 'alice';
+    await expectLater(
+      llm.reply(official, [], '你好').join(),
+      throwsA(
+        isA<ApiFailure>()
+            .having(
+              (e) => e.message,
+              'detail',
+              allOf(
+                contains('站内直供'),
+                contains('INPUT_LIMIT'),
+                contains('输入过长'),
+              ),
+            )
+            .having((e) => e.status, 'status', 400),
+      ),
+    );
+    expect(posts, 1);
+    final direct = LlmClient(
+      clientFactory: () => MockClient((r) async => http.Response('{}', 400)),
+    );
+    await expectLater(
+      direct
+          .reply(official.copyWith(llmUrl: 'https://example.test/v1'), [], '你好')
+          .join(),
+      throwsA(
+        isA<ApiFailure>().having(
+          (e) => e.message,
+          'chat detail',
+          allOf(contains('聊天'), isNot(contains('音色'))),
+        ),
+      ),
     );
   });
   test('official transport uses only site cookies, the expected account and its raw JSON envelope', () async {

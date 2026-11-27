@@ -39,11 +39,15 @@ Uri compatibleEndpoint(String value, {bool speech = false}) {
   return uri.replace(path: '$path$suffix');
 }
 
-ApiFailure providerFailure(String service, int status) {
+ApiFailure providerFailure(
+  String service,
+  int status, {
+  String parameterHint = '请检查接口地址和请求参数',
+}) {
   final detail = switch (status) {
     401 || 403 => '请检查 API Key 和该模型的访问权限',
     404 => '接口或模型不存在，请检查地址和模型名',
-    400 || 422 => '服务不接受当前参数，请检查模型、音色或音频格式',
+    400 || 422 => '服务不接受当前参数，$parameterHint',
     429 => '请求受限或额度不足，请检查服务额度后重试',
     >= 500 => '服务暂时不可用，请稍后重试',
     >= 300 && < 400 => '接口发生重定向，请直接填写最终 HTTPS 地址',
@@ -80,19 +84,35 @@ class RoomSettings {
   /// Additional Room settings. Secrets stay in system secure storage.
   final Map<String, dynamic> options;
   final String mcpKey;
-  bool get usesOfficialApi {
-    final target = Uri.tryParse(llmUrl), site = Uri.tryParse(siteUrl);
-    return target != null &&
-        site != null &&
-        target.hasAuthority &&
-        site.hasAuthority &&
-        {'https', 'http'}.contains(target.scheme) &&
-        target.origin == site.origin &&
-        target.path == '/official-api/v1/chat/completions' &&
-        target.userInfo.isEmpty &&
-        !target.hasQuery &&
-        !target.hasFragment;
+  static const officialChatPath = '/official-api/v1/chat/completions';
+
+  Uri? get officialChatEndpoint {
+    final target = Uri.tryParse(llmUrl.trim()),
+        site = Uri.tryParse(siteUrl.trim());
+    if (target == null ||
+        site == null ||
+        !{'https', 'http'}.contains(site.scheme) ||
+        target.scheme != site.scheme ||
+        target.host.isEmpty ||
+        site.host.isEmpty ||
+        target.origin != site.origin ||
+        target.userInfo.isNotEmpty ||
+        site.userInfo.isNotEmpty ||
+        target.hasQuery ||
+        target.hasFragment) {
+      return null;
+    }
+    final path = target.path.replaceFirst(RegExp(r'/$'), '');
+    return const {
+          '/official-api/v1',
+          officialChatPath,
+          '/official-api/v1/deepseek/chat/completions',
+        }.contains(path)
+        ? site.resolve(officialChatPath)
+        : null;
   }
+
+  bool get usesOfficialApi => officialChatEndpoint != null;
 
   bool flag(String key, [bool fallback = false]) =>
       options[key] as bool? ?? fallback;
