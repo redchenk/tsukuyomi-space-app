@@ -14,6 +14,7 @@ class Deepseek {
     final uri = Uri.tryParse(s.llmUrl);
     return !s.demo &&
         uri != null &&
+        (!s.usesOfficialApi || s.flag('officialApps', true)) &&
         RegExp(r'^deepseek-(?:flash|v4(?:\.1)?-flash)(?:-|$)')
             .hasMatch(s.model) &&
         (uri.host == 'api.deepseek.com' ||
@@ -351,20 +352,26 @@ class DeepseekReply {
       if (delta[key] != null) _meta[key] = delta[key];
     }
     if (choice['finish_reason'] != null) finish = '${choice['finish_reason']}';
-    _meta = Deepseek.metadata({
-      ..._meta,
-      'provider': 'deepseek',
-      'endpoint': target,
-      'truncated': finish == 'length',
-    })!;
-    metadata = _meta;
-    title = '${_meta['title']}';
+    if (metadata == null ||
+        choice['finish_reason'] != null ||
+        delta['server_tool_calls'] != null ||
+        delta['annotations'] != null ||
+        delta['title'] != null) {
+      _meta = Deepseek.metadata({
+        ..._meta,
+        'provider': 'deepseek',
+        'endpoint': target,
+        'truncated': finish == 'length',
+      })!;
+      metadata = _meta;
+      title = '${_meta['title']}';
+    }
     return text;
   }
 
   ModelCompletion complete() {
     if (finish.isEmpty || (_text.isEmpty && _calls.isEmpty)) {
-      throw const ModelIncompleteFailure('连接中断，回复尚未完成');
+      throw const ModelStreamInterrupted('连接中断，回复尚未完成');
     }
     final calls = _calls.values
         .map((c) => ModelCall(c['id']!, c['name']!, c['arguments']!))
@@ -414,7 +421,7 @@ class DeepseekReply {
         update();
         if (text.isNotEmpty) yield ModelWireEvent('text', text: text);
       }
-      if (!done) throw const ModelIncompleteFailure('连接中断，回复尚未完成');
+      if (!done) throw const ModelStreamInterrupted('连接中断，回复尚未完成');
     }
     yield ModelWireEvent('complete', completion: complete());
   }

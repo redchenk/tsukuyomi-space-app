@@ -262,6 +262,10 @@ class Account {
   bool get isAdministrator => role == 'admin' || role == 'super_admin';
 }
 
+class ModelStreamInterrupted extends ModelIncompleteFailure {
+  const ModelStreamInterrupted(super.message);
+}
+
 class ModelIncompleteFailure extends ApiFailure {
   const ModelIncompleteFailure(super.message);
 }

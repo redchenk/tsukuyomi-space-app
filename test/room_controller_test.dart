@@ -103,13 +103,58 @@ void main() {
     chat.stream!.add('partial');
     await Future<void>.delayed(Duration.zero);
     expect(c.partial, 'partial');
-    c.stop();
+    c.stop(fromComposer: true);
     await future;
+    expect(c.interruptedReply, 'partial');
+    expect(c.canRetryReply, isTrue);
     expect(c.turns, isEmpty);
     expect(c.draft, 'unfinished');
     expect(c.generating, false);
     expect(site.savedIds, isEmpty);
+    chat.controlled = false;
+    await c.retryReply();
+    expect(c.interruptedReply, isEmpty);
+    expect(c.turns.single.user, 'unfinished');
+    expect(c.turns.single.assistant, chat.answer);
   });
+  test(
+    'a broken replacement keeps the original turn and retries in place',
+    () async {
+      await c.initialize();
+      await c.send('first');
+      final original = c.turns.single;
+      chat.controlled = true;
+      final sending = c.send('edited', replacement: original);
+      await Future<void>.delayed(Duration.zero);
+      chat.stream!.add('broken reply');
+      chat.stream!.addError(const ModelStreamInterrupted('connection closed'));
+      await chat.stream!.close();
+      await sending;
+      expect(c.turns.single, same(original));
+      expect(c.interruptedReply, 'broken reply');
+      expect(c.canRetryReply, isTrue);
+      chat.controlled = false;
+      await c.retryReply();
+      expect(c.turns.single.id, original.id);
+      expect(c.turns.single.user, 'edited');
+      expect(c.interruptedReply, isEmpty);
+    },
+  );
+  test(
+    'declined content never enters a retained partial or a saved turn',
+    () async {
+      await c.initialize();
+      chat.controlled = true;
+      final sending = c.send('test');
+      await Future<void>.delayed(Duration.zero);
+      chat.stream!.add('unconfirmed');
+      chat.stream!.addError(const ApiFailure('provider declined'));
+      await chat.stream!.close();
+      await sending;
+      expect(c.interruptedReply, isEmpty);
+      expect(c.turns, isEmpty);
+    },
+  );
   test(
     'offline completed turns retry with the same ID and stay account scoped',
     () async {

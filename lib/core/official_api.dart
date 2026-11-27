@@ -70,6 +70,8 @@ RoomSettings officialRoomSettings(
       'llmProxy': false,
       'llmConnection': 'site',
       'officialProvider': model['provider'],
+      'officialApps':
+          model['capabilities'] is Map && model['capabilities']['apps'] == true,
     },
   );
   final runtime = ModelRuntime(next),

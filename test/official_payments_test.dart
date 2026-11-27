@@ -97,6 +97,7 @@ void main() {
   test('saved same-site DeepSeek endpoints use the account and all three chat features', () async {
     final data = dashboard();
     data['models'][0]['id'] = 'deepseek-flash';
+    data['models'][0]['capabilities'] = {'apps': true};
     for (final path in [
       '/official-api/v1/chat/completions',
       '/official-api/v1/',

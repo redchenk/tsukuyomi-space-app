@@ -860,15 +860,57 @@ class _RoomPageState extends State<RoomPage> with WidgetsBindingObserver {
                   Expanded(
                     child: Text(
                       c.error,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, color: p.ink),
+                      style: TextStyle(fontSize: 12, color: p.ink),
                     ),
                   ),
-                  if ((c.draft.isNotEmpty || c.attachment != null) &&
-                      !c.generating)
+                  if (c.interruptedReply.isNotEmpty)
+                    IconButton(
+                      tooltip: '查看未完成的回复',
+                      icon: const Icon(Icons.notes_outlined),
+                      onPressed: () => showModalBottomSheet<void>(
+                        context: context,
+                        useSafeArea: true,
+                        showDragHandle: true,
+                        builder: (_) => ListView(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.all(20),
+                          children: [
+                            const SiteText('未完成的回复'),
+                            const SizedBox(height: 12),
+                            SelectableText(c.interruptedReply),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (c.canRetryReply &&
+                      c.settings.usesOfficialApi &&
+                      c.replyFailureStatus == 402)
                     TextButton(
-                      onPressed: () => c.send(c.draft),
+                      onPressed: () => _website('/payments'),
+                      child: const SiteText('支付中心'),
+                    )
+                  else if (c.canRetryReply &&
+                      c.settings.usesOfficialApi &&
+                      c.replyFailureStatus == 401)
+                    TextButton(
+                      onPressed: () => showSiteLogin(context, c),
+                      child: const SiteText('登录'),
+                    )
+                  else if (c.canRetryReply &&
+                      const [
+                        400,
+                        401,
+                        403,
+                        404,
+                        422,
+                      ].contains(c.replyFailureStatus))
+                    TextButton(
+                      onPressed: _settings,
+                      child: const SiteText('聊天设置'),
+                    )
+                  else if (c.canRetryReply)
+                    TextButton(
+                      onPressed: c.retryReply,
                       child: const SiteText('重试'),
                     ),
                 ],

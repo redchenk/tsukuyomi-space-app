@@ -77,7 +77,6 @@ class LlmClient implements ChatService {
     }
     lastDeepseek = null;
     deepseekReply = null;
-    final apps = !jsonObject && Deepseek.supported(settings);
     final officialEndpoint = settings.officialChatEndpoint;
     final direct = officialEndpoint ?? roomChatEndpoint(settings.llmUrl);
     final official = officialEndpoint != null;
@@ -90,16 +89,6 @@ class LlmClient implements ChatService {
         !official &&
         settings.flag('llmProxy') &&
         roomProtocol(direct) != 'ollama';
-    final uri = proxy
-        ? endpointUri(settings.siteUrl).resolve(
-            apps ? '/api/chat/deepseek/chat/completions' : '/api/chat/stream',
-          )
-        : apps
-        ? Deepseek.endpoint(settings)
-        : direct;
-    if (apps && proxy && direct.host != 'api.deepseek.com') {
-      throw const ApiFailure('自定义网关请关闭代理并使用直连');
-    }
     if (settings.model.trim().isEmpty) throw const ApiFailure('请先在设置中填写模型名称');
     final client = _clientFactory();
     _active = client;
@@ -153,6 +142,21 @@ class LlmClient implements ChatService {
           throw const ApiFailure('当前站内模型不支持图片，请使用 MCP 识图或切换模型');
         }
       }
+      final apps = !jsonObject && Deepseek.supported(settings);
+      if (!apps && files.isNotEmpty) {
+        throw const ApiFailure('当前模型无法读取这些附件，请重新选择支持文件的模型。');
+      }
+      final uri = proxy
+          ? endpointUri(settings.siteUrl).resolve(
+              apps ? '/api/chat/deepseek/chat/completions' : '/api/chat/stream',
+            )
+          : apps
+          ? Deepseek.endpoint(settings)
+          : direct;
+      if (apps && proxy && direct.host != 'api.deepseek.com') {
+        throw const ApiFailure('自定义网关请关闭代理并使用直连');
+      }
+      final protocol = apps ? 'openai' : roomProtocol(direct);
       final system = systemOverride.isNotEmpty
           ? systemOverride
           : [
@@ -276,10 +280,10 @@ class LlmClient implements ChatService {
                       'X-Requested-With': 'XMLHttpRequest',
                       'Cookie': ?siteCookie,
                       'X-Official-Expected-Account': ?officialAccount,
-                      if (apps && official) 'Idempotency-Key': newTurnId(),
+                      if (official) 'Idempotency-Key': newTurnId(),
                       if (apps && proxy) 'X-Deepseek-Key': settings.apiKey,
                     }
-                  : roomChatHeaders(settings, direct),
+                  : roomChatHeaders(settings, apps ? uri : direct),
             )
             ..body = jsonEncode(value);
       final turns = <Map<String, dynamic>>[],
@@ -311,7 +315,7 @@ class LlmClient implements ChatService {
         // final round keeps the tools already used this turn but forbids new calls.
         final closing =
             !proxy &&
-            roomProtocol(direct) == 'anthropic' &&
+            protocol == 'anthropic' &&
             definitions.isEmpty &&
             turns.isNotEmpty;
         final used = {
@@ -328,7 +332,7 @@ class LlmClient implements ChatService {
               }
             : modelWithTools(
                 baseBody,
-                roomProtocol(direct),
+                protocol,
                 closing ? (kept.isEmpty ? enabled : kept) : definitions,
                 turns,
               );
@@ -339,7 +343,10 @@ class LlmClient implements ChatService {
           }
         }
         if (closing) body['tool_choice'] = {'type': 'none'};
-        if (runtime.unsupported('streaming')) body['stream'] = false;
+        if (runtime.unsupported('streaming')) {
+          body['stream'] = false;
+          body.remove('stream_options');
+        }
         if (official) {
           if (!apps && settings.option('officialProvider') == 'deepseek') {
             body['thinking'] = {'type': 'disabled'};
@@ -533,12 +540,12 @@ class LlmClient implements ChatService {
         turns.add({'continuation': result.continuation, 'results': results});
       }
     } on TimeoutException {
-      throw const ApiFailure('模型响应超时，请稍后重试');
+      throw const ModelStreamInterrupted('模型响应超时，请稍后重试');
     } on FormatException {
       throw const ApiFailure('模型响应格式不兼容，请检查接口协议');
     } on http.ClientException {
-      if (expired) throw const ApiFailure('模型响应超时，请稍后重试');
-      throw const ApiFailure('无法连接模型服务，请检查地址、网络与证书');
+      if (expired) throw const ModelStreamInterrupted('模型响应超时，请稍后重试');
+      throw const ModelStreamInterrupted('无法连接模型服务，请检查地址、网络与证书');
     } finally {
       deadline.cancel();
       client.close();

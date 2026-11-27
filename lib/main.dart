@@ -60,6 +60,10 @@ import 'features/live2d/live2d_page.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(
+      ['DeepSeek Chat Demo'],
+      await rootBundle.loadString('assets/site/deepseek-chat-demo.LICENSE.txt'),
+    );
     yield LicenseEntryWithLineBreaks([
       'Tsukuyomi site icons (Lucide / Feather)',
     ], await rootBundle.loadString('assets/images/site-icons.LICENSE.txt'));
